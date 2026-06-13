@@ -29,6 +29,14 @@ class AgentRunResponse(BaseModel):
             "validated, pending_approval, approved, rejected, archived, error."
         ),
     )
+    intake_data: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Raw intake payload saved for this run.",
+    )
+    missing_fields: list[str] = Field(
+        default_factory=list,
+        description="Required fields missing from the submitted intake payload.",
+    )
     clarification_questions: list[ClarificationQuestion] = Field(
         default_factory=list,
         description="Questions generated when required fields are missing.",

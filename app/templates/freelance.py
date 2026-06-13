@@ -20,13 +20,12 @@ AGENT_TYPE = "freelance"
 DISPLAY_NAME = "Freelance Opportunity Evaluator"
 
 DESCRIPTION = (
-    "Evaluates a freelance project opportunity by analysing the client, "
-    "project scope, budget, timeline, and fit with your skills. "
-    "Produces a scored analysis and action drafts (e.g. a short reply and "
-    "a full proposal) for human review."
+    "Captures and validates a freelance project opportunity, including "
+    "the client, project scope, budget, timeline, and relevant notes. "
+    "Later phases can add scoring and action drafts for human review."
 )
 
-# Fields the user MUST provide for a meaningful analysis.
+# Fields the user MUST provide for Phase 1 validation.
 REQUIRED_FIELDS: list[str] = [
     "opportunity_title",
     "client_description",

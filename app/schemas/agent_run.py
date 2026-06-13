@@ -26,7 +26,7 @@ class AgentRunResponse(BaseModel):
         ...,
         description=(
             "Current run status. One of: pending, running, needs_clarification, "
-            "pending_approval, approved, rejected, archived, error."
+            "validated, pending_approval, approved, rejected, archived, error."
         ),
     )
     clarification_questions: list[ClarificationQuestion] = Field(
@@ -35,13 +35,13 @@ class AgentRunResponse(BaseModel):
     )
     analysis_summary: Optional[str] = Field(
         default=None,
-        description="High-level summary produced by the LLM analysis node.",
+        description="High-level summary produced by a future analysis node.",
     )
     score: Optional[float] = Field(
         default=None,
         ge=0,
         le=10,
-        description="Opportunity score from 0 (avoid) to 10 (ideal fit).",
+        description="Future opportunity score from 0 (avoid) to 10 (ideal fit).",
     )
     action_drafts: list[ActionDraft] = Field(
         default_factory=list,

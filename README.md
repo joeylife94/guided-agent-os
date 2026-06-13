@@ -1,8 +1,8 @@
 # Guided Agent OS
 
-A form-driven AI agent platform that collects structured intake data, validates required fields, generates clarification questions when information is missing, prepares LLM-ready prompts, creates structured analysis output, generates action drafts, and **keeps human approval as a required step**.
+A form-driven AI agent platform that collects structured intake data, validates required fields, and generates clarification questions when information is missing.
 
-The platform is designed as a reusable foundation — agent-specific behaviour lives in `app/templates/` so new agent types can be added without touching the core workflow.
+The platform is designed as a reusable foundation. Agent-specific behaviour lives in `app/templates/` so new agent types can be added without hard-coding the core workflow.
 
 ---
 
@@ -12,12 +12,9 @@ Submit a freelance project opportunity via the API. The agent will:
 
 1. Validate that all required fields are present
 2. Ask clarification questions if anything is missing
-3. Normalise and clean the intake data
-4. Analyse the opportunity with an LLM *(requires `OPENAI_API_KEY`)*
-5. Score the opportunity from 0–10
-6. Draft action items (e.g. initial reply, proposal outline)
-7. **Pause for human review** — nothing is sent or submitted automatically
-8. Archive the run after the reviewer approves
+3. Return `validated` when the minimal intake is complete
+
+Phase 1 stops after validation. Normalization, LLM analysis, scoring, action drafting, human review, and archive are planned for later phases.
 
 ---
 
@@ -43,7 +40,7 @@ guided-agent-os/
 │   ├── api/
 │   │   └── routes.py         # All API endpoints
 │   ├── agents/
-│   │   └── workflow.py       # LangGraph workflow (9 nodes)
+│   │   └── workflow.py       # LangGraph validation workflow + future node skeletons
 │   ├── models/
 │   │   ├── database.py       # SQLAlchemy engine + session
 │   │   └── models.py         # ORM models: agent_runs, intake_templates, action_drafts
@@ -90,17 +87,13 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Edit `.env` and set at minimum:
+For Phase 1, the default SQLite database setting is enough:
 
 ```dotenv
 DATABASE_URL=sqlite:///./agent_os.db
-OPENAI_API_KEY=sk-...          # Required for LLM analysis; omit for stub mode
-LLM_MODEL=gpt-4o-mini          # Any OpenAI chat model
 ```
 
-> **Stub mode** — If `OPENAI_API_KEY` is not set the `analyze_with_llm` node
-> returns a labelled stub response so the full workflow can be exercised locally
-> without an API key.
+`OPENAI_API_KEY` and `LLM_MODEL` in `.env.example` are reserved for a future analysis phase and are not used by the Phase 1 validation flow.
 
 ### 5. Start the server
 
@@ -121,8 +114,8 @@ Interactive docs: **http://localhost:8000/docs**
 | `GET` | `/health` | Liveness check |
 | `POST` | `/api/agents/{agent_type}/runs` | Start a new agent run |
 | `GET` | `/api/agents/runs/{run_id}` | Get run status and results |
-| `POST` | `/api/agents/runs/{run_id}/approve` | Approve a pending run |
-| `POST` | `/api/agents/runs/{run_id}/reject` | Reject a pending run |
+| `POST` | `/api/agents/runs/{run_id}/approve` | Reserved for future pending runs |
+| `POST` | `/api/agents/runs/{run_id}/reject` | Reserved for future pending runs |
 
 ### Example: start a freelance run
 
@@ -144,10 +137,10 @@ curl -X POST http://localhost:8000/api/agents/freelance/runs \
 |---|---|
 | `running` | Workflow in progress |
 | `needs_clarification` | Required fields were missing; see `clarification_questions` |
-| `pending_approval` | Workflow complete; awaiting human review |
-| `approved` / `archived` | Approved by reviewer |
-| `rejected` | Rejected by reviewer |
+| `validated` | All Phase 1 required fields were present |
 | `error` | Unrecoverable workflow error |
+
+Later phases may also use `pending_approval`, `rejected`, and `archived`.
 
 ---
 
@@ -155,18 +148,17 @@ curl -X POST http://localhost:8000/api/agents/freelance/runs \
 
 1. Create `app/templates/<your_agent>.py` with:
    - `AGENT_TYPE`, `REQUIRED_FIELDS`, `OPTIONAL_FIELDS`
-   - `CLARIFICATION_MAP` (field → question text)
-   - `ANALYSIS_PROMPT_TEMPLATE`
-   - `DRAFT_ACTION_TEMPLATES`
+   - `CLARIFICATION_MAP` (field -> question text)
+   - Optional future settings such as `ANALYSIS_PROMPT_TEMPLATE` and `DRAFT_ACTION_TEMPLATES`
 2. Register the new type in `app/api/routes.py` inside `_get_template_config()`.
 
-The LangGraph workflow and all services are already generic — no other changes needed.
+The LangGraph workflow and all services are generic, so no other Phase 1 changes are needed.
 
 ---
 
 ## Design principles
 
-- **Human approval is mandatory.** The workflow always pauses at `human_review`; nothing is published or sent automatically.
+- **Validation first.** Phase 1 stops at `validated` or `needs_clarification`.
 - **Template-driven.** Agent-specific config lives in `app/templates/`, not in the workflow.
 - **No over-engineering.** No authentication, payments, crawling, automatic email sending, complex RAG, or multi-agent orchestration.
-- **Stub-friendly.** The `analyze_with_llm` node degrades gracefully when no LLM API key is configured.
+- **Human-controlled future actions.** Later phases may draft or review actions, but nothing should be sent or submitted automatically.

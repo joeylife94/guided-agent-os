@@ -6,7 +6,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.agents.workflow import build_workflow
+from app.agents.workflow import workflow
 from app.models.database import get_db
 from app.models.models import ActionDraft as ActionDraftModel
 from app.models.models import AgentRun
@@ -17,6 +17,7 @@ from app.schemas.agent_run import (
     ClarificationQuestion,
     RejectRequest,
 )
+from app.templates import freelance
 
 router = APIRouter(prefix="/api/agents", tags=["agents"])
 
@@ -25,22 +26,30 @@ router = APIRouter(prefix="/api/agents", tags=["agents"])
 # ---------------------------------------------------------------------------
 # Add new agent types here by importing their template module.
 
+_TEMPLATE_REGISTRY = {
+    freelance.AGENT_TYPE: freelance,
+}
+
 def _get_template_config(agent_type: str) -> dict[str, Any]:
     """Return the config dict for a given agent_type, or raise 404."""
-    if agent_type == "freelance":
-        from app.templates import freelance
-
+    template = _TEMPLATE_REGISTRY.get(agent_type)
+    if template:
         return {
-            "required_fields": freelance.REQUIRED_FIELDS,
-            "optional_fields": freelance.OPTIONAL_FIELDS,
-            "clarification_map": freelance.CLARIFICATION_MAP,
-            "analysis_prompt_template": freelance.ANALYSIS_PROMPT_TEMPLATE,
-            "draft_action_templates": freelance.DRAFT_ACTION_TEMPLATES,
+            "required_fields": template.REQUIRED_FIELDS,
+            "optional_fields": template.OPTIONAL_FIELDS,
+            "clarification_map": template.CLARIFICATION_MAP,
+            "analysis_prompt_template": getattr(
+                template,
+                "ANALYSIS_PROMPT_TEMPLATE",
+                "",
+            ),
+            "draft_action_templates": getattr(template, "DRAFT_ACTION_TEMPLATES", []),
         }
+    supported_types = ", ".join(sorted(_TEMPLATE_REGISTRY))
     raise HTTPException(
         status_code=404,
         detail=f"Agent type '{agent_type}' is not registered. "
-               "Supported types: freelance",
+               f"Supported types: {supported_types}",
     )
 
 
@@ -95,8 +104,7 @@ def create_run(
     Returns the newly created run, which will be in one of these states:
     - **needs_clarification** — required fields were missing; check
       `clarification_questions` in the response.
-    - **pending_approval** — the workflow completed successfully and is
-      awaiting human review.
+    - **validated** — all required fields were present. Phase 1 stops here.
     - **error** — the workflow encountered an unrecoverable error.
     """
     template_config = _get_template_config(agent_type)
@@ -125,8 +133,7 @@ def create_run(
     }
 
     try:
-        compiled = build_workflow()
-        final_state: dict[str, Any] = compiled.invoke(initial_state)
+        final_state: dict[str, Any] = workflow.invoke(initial_state)
     except Exception as exc:
         run.status = "error"
         run.error_message = str(exc)
@@ -177,9 +184,9 @@ def approve_run(
     db: Session = Depends(get_db),
 ) -> AgentRunResponse:
     """
-    Approve a run that is in 'pending_approval' status.
+    Approve a future-phase run that is in 'pending_approval' status.
 
-    This triggers the archive node and marks the run as 'archived'.
+    Phase 1 validation runs stop at 'validated' and cannot be approved.
     """
     run = db.get(AgentRun, run_id)
     if not run:
@@ -212,9 +219,9 @@ def reject_run(
     db: Session = Depends(get_db),
 ) -> AgentRunResponse:
     """
-    Reject a run that is in 'pending_approval' status.
+    Reject a future-phase run that is in 'pending_approval' status.
 
-    The required `reason` is stored as the reviewer note.
+    Phase 1 validation runs stop at 'validated' and cannot be rejected.
     """
     run = db.get(AgentRun, run_id)
     if not run:

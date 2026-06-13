@@ -6,15 +6,17 @@ The workflow is intentionally template-driven: agent-specific behaviour
 is passed in via a TemplateConfig dict so the same graph can be reused
 for any agent type.
 
-Node execution order (happy path):
-  intake → validate_required_fields → normalize_input
-         → analyze_with_llm → score_result → draft_action
-         → human_review → archive
+Current Phase 1 execution order:
+  intake -> validate_required_fields -> mark_validated
 
-If required fields are missing after validate_required_fields the graph
+If required fields are missing after validate_required_fields, the graph
 branches to clarify_missing_info which marks the run as
-'needs_clarification' and terminates — the user must resubmit with the
+'needs_clarification' and terminates. The user must resubmit with the
 missing data filled in.
+
+Future nodes remain as inert skeletons in this module so later phases can
+wire in normalization, LLM analysis, scoring, drafting, human review, and
+archive without changing the validation contract.
 """
 
 from __future__ import annotations
@@ -107,6 +109,18 @@ def node_clarify_missing_info(state: AgentState) -> AgentState:
         "clarification_questions": [q.model_dump() for q in questions],
         "status": "needs_clarification",
     }
+
+
+def node_mark_validated(state: AgentState) -> AgentState:
+    """
+    Validation success node — marks the run as 'validated' when all
+    required fields are present and complete.
+
+    This implements the minimal validation and clarification flow.
+    The workflow stops here; future analysis and approval steps can
+    be added in subsequent phases.
+    """
+    return {**state, "status": "validated"}
 
 
 def node_normalize_input(state: AgentState) -> AgentState:
@@ -266,10 +280,13 @@ def node_archive(state: AgentState) -> AgentState:
 # ---------------------------------------------------------------------------
 
 def _route_after_validation(state: AgentState) -> str:
-    """Branch to clarification if fields are missing, else continue."""
+    """
+    Route after validation: either to clarification (if fields missing)
+    or to mark_validated (if all required fields present).
+    """
     if state.get("missing_fields"):
         return "clarify_missing_info"
-    return "normalize_input"
+    return "mark_validated"
 
 
 def _route_after_llm(state: AgentState) -> str:
@@ -287,51 +304,38 @@ def build_workflow() -> Any:
     """
     Construct and compile the LangGraph StateGraph.
 
+    Implements the minimal validation and clarification flow:
+    - Validates required fields
+    - Generates clarification questions for missing fields
+    - Returns "needs_clarification" or "validated" status
+    - Future phases will add LLM analysis, scoring, and approval steps
+
     Returns a compiled runnable.  Call `.invoke(initial_state)` to
     execute the full graph.
     """
     graph = StateGraph(AgentState)
 
-    # Register nodes
+    # Register Phase 1 nodes
     graph.add_node("intake", node_intake)
     graph.add_node("validate_required_fields", node_validate_required_fields)
     graph.add_node("clarify_missing_info", node_clarify_missing_info)
-    graph.add_node("normalize_input", node_normalize_input)
-    graph.add_node("analyze_with_llm", node_analyze_with_llm)
-    graph.add_node("score_result", node_score_result)
-    graph.add_node("draft_action", node_draft_action)
-    graph.add_node("human_review", node_human_review)
-    graph.add_node("archive", node_archive)
+    graph.add_node("mark_validated", node_mark_validated)
 
     # Entry point
     graph.set_entry_point("intake")
 
-    # Edges
+    # Edges — minimal validation and clarification flow
     graph.add_edge("intake", "validate_required_fields")
     graph.add_conditional_edges(
         "validate_required_fields",
         _route_after_validation,
         {
             "clarify_missing_info": "clarify_missing_info",
-            "normalize_input": "normalize_input",
+            "mark_validated": "mark_validated",
         },
     )
     graph.add_edge("clarify_missing_info", END)
-    graph.add_edge("normalize_input", "analyze_with_llm")
-    graph.add_conditional_edges(
-        "analyze_with_llm",
-        _route_after_llm,
-        {
-            "score_result": "score_result",
-            END: END,
-        },
-    )
-    graph.add_edge("score_result", "draft_action")
-    graph.add_edge("draft_action", "human_review")
-    graph.add_edge("human_review", END)
-
-    # archive is invoked directly by the approve endpoint, not via this graph
-    graph.add_edge("archive", END)
+    graph.add_edge("mark_validated", END)
 
     return graph.compile()
 

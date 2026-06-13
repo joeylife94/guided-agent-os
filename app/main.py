@@ -19,9 +19,9 @@ app = FastAPI(
     description=(
         "A form-driven AI agent platform that collects structured intake data, "
         "validates required fields, generates clarification questions when "
-        "information is missing, prepares LLM-ready prompts, creates structured "
-        "analysis output, generates action drafts, and keeps human approval as a "
-        "required step."
+        "information is missing, and returns a validated status when Phase 1 "
+        "intake is complete. Later phases can add analysis, drafting, and "
+        "human review without changing the intake contract."
     ),
     version="0.1.0",
     docs_url="/docs",

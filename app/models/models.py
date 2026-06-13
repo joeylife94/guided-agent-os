@@ -59,7 +59,7 @@ class AgentRun(Base):
         nullable=False,
         default="pending",
         comment=(
-            "One of: pending, running, needs_clarification, pending_approval, "
+            "One of: pending, running, needs_clarification, validated, pending_approval, "
             "approved, rejected, archived, error."
         ),
     )
@@ -79,13 +79,13 @@ class AgentRun(Base):
         comment="Clarification questions generated for missing fields.",
     )
     analysis_summary: Mapped[str | None] = mapped_column(
-        Text, nullable=True, comment="High-level summary from the LLM analysis node."
+        Text, nullable=True, comment="Future high-level analysis summary."
     )
     score: Mapped[float | None] = mapped_column(
-        Float, nullable=True, comment="Opportunity score 0–10."
+        Float, nullable=True, comment="Future opportunity score 0-10."
     )
     raw_llm_output: Mapped[dict | None] = mapped_column(
-        JSON, nullable=True, comment="Full structured output from the LLM node."
+        JSON, nullable=True, comment="Future full structured output from analysis."
     )
     reviewer_note: Mapped[str | None] = mapped_column(
         Text, nullable=True, comment="Note left by the human reviewer on approve/reject."

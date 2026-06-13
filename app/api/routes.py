@@ -73,6 +73,8 @@ def _run_to_response(run: AgentRun) -> AgentRunResponse:
         run_id=run.id,
         agent_type=run.agent_type,
         status=run.status,
+        intake_data=run.intake_data or {},
+        missing_fields=run.missing_fields or [],
         clarification_questions=clarification_questions,
         analysis_summary=run.analysis_summary,
         score=run.score,
@@ -82,6 +84,16 @@ def _run_to_response(run: AgentRun) -> AgentRunResponse:
         updated_at=run.updated_at,
         raw_output=run.raw_llm_output,
     )
+
+
+def _commit_and_refresh(db: Session, run: AgentRun) -> AgentRun:
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    db.refresh(run)
+    return run
 
 
 # ---------------------------------------------------------------------------
@@ -117,8 +129,6 @@ def create_run(
         intake_data=body,
     )
     db.add(run)
-    db.commit()
-    db.refresh(run)
 
     # Execute the LangGraph workflow
     initial_state: dict[str, Any] = {
@@ -137,8 +147,7 @@ def create_run(
     except Exception as exc:
         run.status = "error"
         run.error_message = str(exc)
-        db.commit()
-        db.refresh(run)
+        _commit_and_refresh(db, run)
         return _run_to_response(run)
 
     # Persist workflow results
@@ -163,8 +172,7 @@ def create_run(
             )
         )
 
-    db.commit()
-    db.refresh(run)
+    _commit_and_refresh(db, run)
     return _run_to_response(run)
 
 
@@ -207,8 +215,7 @@ def approve_run(
     for draft in run.action_drafts:
         draft.is_approved = True
 
-    db.commit()
-    db.refresh(run)
+    _commit_and_refresh(db, run)
     return _run_to_response(run)
 
 
@@ -240,6 +247,5 @@ def reject_run(
     for draft in run.action_drafts:
         draft.is_approved = False
 
-    db.commit()
-    db.refresh(run)
+    _commit_and_refresh(db, run)
     return _run_to_response(run)

@@ -33,6 +33,10 @@ class AgentRunResponse(BaseModel):
         default_factory=dict,
         description="Raw intake payload saved for this run.",
     )
+    normalized_data: Optional[dict[str, Any]] = Field(
+        default=None,
+        description="Deterministically normalized intake data for validated runs.",
+    )
     missing_fields: list[str] = Field(
         default_factory=list,
         description="Required fields missing from the submitted intake payload.",

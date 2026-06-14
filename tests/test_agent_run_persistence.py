@@ -46,13 +46,13 @@ from fastapi.middleware.cors import CORSMiddleware
 Base.metadata.create_all(bind=engine)
 
 # Create test app
-test_app = FastAPI(
+app_under_test = FastAPI(
     title="Guided Agent OS",
     description="A form-driven AI agent platform.",
     version="0.1.0",
 )
 
-test_app.add_middleware(
+app_under_test.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
@@ -60,10 +60,10 @@ test_app.add_middleware(
     allow_headers=["*"],
 )
 
-test_app.include_router(router)
-test_app.dependency_overrides[get_db] = override_get_db
+app_under_test.include_router(router)
+app_under_test.dependency_overrides[get_db] = override_get_db
 
-client = TestClient(test_app)
+client = TestClient(app_under_test)
 
 
 class AgentRunPersistenceTests(unittest.TestCase):

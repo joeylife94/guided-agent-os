@@ -127,22 +127,20 @@ def node_normalize_input(state: AgentState) -> AgentState:
     """
     Normalization node — cleans and standardises the intake data.
 
-    Currently applies lightweight rules (strip whitespace, lowercase list
-    items). Extend this node as normalisation requirements grow.
-    """
-    raw = state.get("intake_data", {})
-    normalized: dict[str, Any] = {}
+    Runs only when validation succeeds (after mark_validated).
+    Applies deterministic normalization rules:
+    - Trims whitespace
+    - Extracts specific normalized fields
+    - Detects technology keywords and stack
+    - Preserves original intake_data
 
-    for key, value in raw.items():
-        if isinstance(value, str):
-            normalized[key] = value.strip()
-        elif isinstance(value, list):
-            normalized[key] = [
-                item.strip().lower() if isinstance(item, str) else item
-                for item in value
-            ]
-        else:
-            normalized[key] = value
+    The normalized data is stored separately and returned to the API
+    for persistence in the database.
+    """
+    from app.services.normalization import normalize_intake_data
+
+    intake = state.get("intake_data", {})
+    normalized = normalize_intake_data(intake)
 
     return {**state, "normalized_data": normalized}
 
@@ -304,9 +302,10 @@ def build_workflow() -> Any:
     """
     Construct and compile the LangGraph StateGraph.
 
-    Implements the minimal validation and clarification flow:
+    Implements Phase 1 (validation/clarification) and Phase 2-B (normalization):
     - Validates required fields
     - Generates clarification questions for missing fields
+    - If validated: normalizes the input data before stopping
     - Returns "needs_clarification" or "validated" status
     - Future phases will add LLM analysis, scoring, and approval steps
 
@@ -321,10 +320,13 @@ def build_workflow() -> Any:
     graph.add_node("clarify_missing_info", node_clarify_missing_info)
     graph.add_node("mark_validated", node_mark_validated)
 
+    # Register Phase 2-B nodes
+    graph.add_node("normalize_input", node_normalize_input)
+
     # Entry point
     graph.set_entry_point("intake")
 
-    # Edges — minimal validation and clarification flow
+    # Edges — Phase 1 validation/clarification flow
     graph.add_edge("intake", "validate_required_fields")
     graph.add_conditional_edges(
         "validate_required_fields",
@@ -335,7 +337,10 @@ def build_workflow() -> Any:
         },
     )
     graph.add_edge("clarify_missing_info", END)
-    graph.add_edge("mark_validated", END)
+
+    # Phase 2-B normalization flow (only after validation succeeds)
+    graph.add_edge("mark_validated", "normalize_input")
+    graph.add_edge("normalize_input", END)
 
     return graph.compile()
 

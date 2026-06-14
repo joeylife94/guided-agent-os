@@ -74,6 +74,7 @@ def _run_to_response(run: AgentRun) -> AgentRunResponse:
         agent_type=run.agent_type,
         status=run.status,
         intake_data=run.intake_data or {},
+        normalized_data=run.normalized_data,
         missing_fields=run.missing_fields or [],
         clarification_questions=clarification_questions,
         analysis_summary=run.analysis_summary,

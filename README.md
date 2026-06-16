@@ -4,21 +4,33 @@ A reusable **Form-driven AI Agent OS** for turning structured user intake into s
 
 The goal is not to build one freelance agent. The goal is to build a reusable platform where new agents can be added through templates, schemas, prompts, and workflow configuration with minimal new code. Users should be guided through forms instead of needing to write perfect prompts.
 
-See [docs/PRODUCT_DIRECTION.md](docs/PRODUCT_DIRECTION.md) for the long-term product direction.
+See [docs/PRODUCT_DIRECTION.md](docs/PRODUCT_DIRECTION.md) for the long-term product direction and [AGENTS.md](AGENTS.md) for project guidelines.
 
 ---
 
-## First use-case: Freelance Opportunity Evaluator
+## Use cases
 
-Submit a freelance project opportunity via the API. The current agent will:
+### 1. Freelance Opportunity Evaluator
+
+Submit a freelance project opportunity via the API. The agent will:
 
 1. Validate that all required fields are present
 2. Ask clarification questions if anything is missing
-3. Persist every run to SQLite
-4. Normalize validated intake data into a structured internal shape
-5. Return `validated` when the minimal intake is complete
+3. Normalize the intake payload
+4. Return `validated` when the minimal intake is complete
 
-The Freelance Opportunity Agent is the first proof-of-concept for the platform. Later phases will add LLM analysis, scoring, action drafting, human review, and archive/export behavior. Those future phases are not active in the current workflow.
+### 2. Public Enterprise AI Agent Intake
+
+Submit an internal public-sector or enterprise AI-agent use case via the API. The agent will:
+
+1. Validate business, user, data-source, and expected-capability fields
+2. Ask clarification questions for missing enterprise context
+3. Normalize and persist the intake record
+4. Prepare structured context for later RAG scope, backend API/tool scope, security review, audit-log design, and human approval design
+
+This use case is aimed at projects where the final AI agent must operate inside a controlled enterprise environment with internal data, legacy systems, role-based access, auditability, and human review.
+
+Detailed document: [`docs/public-enterprise-ai-agent.md`](docs/public-enterprise-ai-agent.md)
 
 ---
 
@@ -28,16 +40,27 @@ Completed:
 
 - **Phase 1:** required-field validation and clarification questions
 - **Phase 2-A:** SQLite persistence for agent runs
-- **Phase 2-B:** deterministic normalization for validated freelance intake
+- **Phase 2-B:** deterministic normalization for validated intake
 
-Not implemented yet:
+Current capabilities:
 
-- LLM analysis, structured AI output, or model routing
-- Opportunity scoring
-- Proposal/action draft generation
-- Human approval workflow
-- Archive/export
-- Authentication, crawling, RAG, or external account actions
+- FastAPI API server
+- Template-driven agent types (Freelance, Public Enterprise AI)
+- Required-field validation
+- Clarification question generation
+- Deterministic input normalization
+- SQLite/SQLAlchemy persistence for agent runs
+- Future-phase approve/reject endpoints
+- LangGraph workflow foundation
+
+Planned/future phases:
+
+- LLM analysis
+- Scoring
+- Action drafting
+- Human review flow
+- Archive workflow
+- Controlled RAG and tool/API integration
 
 ---
 
@@ -56,33 +79,38 @@ Not implemented yet:
 
 ## Project structure
 
-```
+```text
 guided-agent-os/
 ├── app/
 │   ├── main.py               # FastAPI application + health check
 │   ├── api/
-│   │   └── routes.py         # All API endpoints
+│   │   └── routes.py         # Generic agent endpoints + template registry
 │   ├── agents/
 │   │   └── workflow.py       # LangGraph validation workflow + future node skeletons
 │   ├── models/
 │   │   ├── database.py       # SQLAlchemy engine + session
 │   │   └── models.py         # ORM models: agent_runs, intake_templates, action_drafts
 │   ├── schemas/
-│   │   ├── intake.py         # FreelanceIntakeRequest Pydantic schema
+│   │   ├── intake.py         # Freelance intake schema
 │   │   └── agent_run.py      # AgentRunResponse + helper schemas
 │   ├── services/
 │   │   ├── validation.py     # Required-field validation logic
 │   │   ├── clarification.py  # Clarification question generation
-│   │   └── normalization.py  # Deterministic input normalization
+│   │   └── normalization.py  # Deterministic normalization helpers
 │   └── templates/
-│       └── freelance.py      # Freelance agent config (fields, prompts, drafts)
-├── requirements.txt
+│       ├── freelance.py              # Freelance agent config
+│       └── public_enterprise_ai.py   # Public/enterprise AI-agent config
 ├── docs/
-│   ├── ARCHITECTURE.md
-│   ├── DECISIONS.md
-│   ├── PRODUCT_DIRECTION.md
-│   ├── PROJECT_STATUS.md
-│   └── ROADMAP.md
+│   ├── ARCHITECTURE.md              # Architecture overview
+│   ├── DECISIONS.md                 # Architectural decision log
+│   ├── PRODUCT_DIRECTION.md         # Long-term product vision
+│   ├── PROJECT_STATUS.md            # Current implementation status
+│   ├── ROADMAP.md                   # Phase-based development roadmap
+│   └── public-enterprise-ai-agent.md # Public Enterprise AI Agent details
+├── tests/
+├── requirements.txt
+├── AGENTS.md
+├── .env.example
 └── README.md
 ```
 
@@ -116,13 +144,13 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-For the current validation, persistence, and normalization phases, the default SQLite database setting is enough:
+For the current phase, the default SQLite database setting is enough:
 
 ```dotenv
 DATABASE_URL=sqlite:///./agent_os.db
 ```
 
-`OPENAI_API_KEY` and `LLM_MODEL`, if present, are reserved for a future analysis/model-routing phase and are not used by the active workflow.
+`OPENAI_API_KEY` and `LLM_MODEL` in `.env.example` are reserved for future analysis phases and are not required for the current validation/normalization workflow.
 
 ### 5. Start the server
 
@@ -130,9 +158,9 @@ DATABASE_URL=sqlite:///./agent_os.db
 uvicorn app.main:app --reload
 ```
 
-The API is now available at **http://localhost:8000**.
+The API is now available at `http://localhost:8000`.
 
-Interactive docs: **http://localhost:8000/docs**
+Interactive docs: `http://localhost:8000/docs`
 
 ---
 
@@ -146,7 +174,54 @@ Interactive docs: **http://localhost:8000/docs**
 | `POST` | `/api/agents/runs/{run_id}/approve` | Reserved for future pending runs |
 | `POST` | `/api/agents/runs/{run_id}/reject` | Reserved for future pending runs |
 
-### Example: start a freelance run
+Supported agent types:
+
+| Agent type | Purpose |
+|---|---|
+| `freelance` | Validate and normalize freelance opportunity intake |
+| `public_enterprise_ai` | Validate and normalize public-sector/enterprise AI-agent use-case intake |
+
+---
+
+## Example: public enterprise AI-agent intake
+
+```bash
+curl -X POST http://localhost:8000/api/agents/public_enterprise_ai/runs \
+  -H "Content-Type: application/json" \
+  -d '{
+    "use_case_title": "Infrastructure Maintenance Knowledge Agent",
+    "business_domain": "Energy and infrastructure operations",
+    "target_user_group": "Internal maintenance planners and operations staff",
+    "current_workflow_problem": "Maintenance staff need to search manuals, historical incident notes, and facility records across multiple internal systems.",
+    "data_sources": "PDF manuals, maintenance reports, Oracle-based legacy facility database, inspection logs",
+    "expected_agent_capabilities": "Answer internal policy and maintenance questions, retrieve relevant source documents, summarize historical incidents, and draft recommended next-check items.",
+    "legacy_systems": "Oracle facility management system and internal document repository",
+    "rag_document_types": "Maintenance manuals, safety guidelines, inspection reports, incident reports",
+    "db_access_pattern": "The agent should not generate arbitrary SQL. It should call approved backend APIs or predefined query templates.",
+    "llm_environment": "Unknown; must be confirmed against internal-network and security policy.",
+    "security_constraints": "Internal network, role-based access, source-level authorization, audit logging",
+    "approval_policy": "AI may draft recommendations, but operational actions require human approval.",
+    "audit_requirements": "Log user question, retrieved source IDs, tool/API calls, answer metadata, and approval decisions."
+  }'
+```
+
+Expected status when all required fields are present:
+
+```text
+validated
+```
+
+If required fields are missing, the run returns:
+
+```text
+needs_clarification
+```
+
+with clarification questions generated from the selected template.
+
+---
+
+## Example: freelance run
 
 ```bash
 curl -X POST http://localhost:8000/api/agents/freelance/runs \
@@ -160,13 +235,15 @@ curl -X POST http://localhost:8000/api/agents/freelance/runs \
   }'
 ```
 
-**Run statuses**
+---
+
+## Run statuses
 
 | Status | Meaning |
 |---|---|
 | `running` | Workflow in progress |
 | `needs_clarification` | Required fields were missing; see `clarification_questions` |
-| `validated` | Required fields were present and `normalized_data` was produced |
+| `validated` | All current-phase required fields were present |
 | `error` | Unrecoverable workflow error |
 
 Later phases may also use `pending_approval`, `rejected`, and `archived`.
@@ -177,22 +254,18 @@ Later phases may also use `pending_approval`, `rejected`, and `archived`.
 
 1. Create `app/templates/<your_agent>.py` with:
    - `AGENT_TYPE`, `REQUIRED_FIELDS`, `OPTIONAL_FIELDS`
-   - `CLARIFICATION_MAP` (field -> question text)
+   - `CLARIFICATION_MAP` for field-level questions
    - Optional future settings such as `ANALYSIS_PROMPT_TEMPLATE` and `DRAFT_ACTION_TEMPLATES`
-2. Register the new type in `app/api/routes.py` inside `_get_template_config()`.
+2. Register the new type in `app/api/routes.py` inside `_TEMPLATE_REGISTRY`.
 
-The validation and clarification workflow is designed for reuse. The current normalization service is freelance-shaped, so future agent types should add template-aware normalization rather than rewriting the whole backend.
-
-Planned future examples include AI Content Agent, Duru SKU & Marketing Agent, Personal Command Center Agent, AI Market Watch Agent, and additional guided intake agents.
+The LangGraph workflow and all services are generic, so no other current-phase changes are needed.
 
 ---
 
 ## Design principles
 
-- **Guided intake first.** Users fill out forms instead of crafting complex prompts.
-- **Validation before AI.** Required context is checked before any future LLM call.
-- **Template-driven.** Agent-specific config lives in templates, schemas, prompts, and workflow configuration.
-- **Stateful and traceable.** Runs preserve original input, normalized data, future analysis output, drafts, approval state, and archive records.
-- **Human-in-the-loop.** Real external actions must never execute without explicit human approval.
-- **Cost-aware AI development.** Use deterministic validation and normalization before spending model calls.
-- **No over-engineering.** No authentication, payments, crawling, automatic email sending, complex RAG, or multi-agent orchestration.
+- **Validation first.** The workflow should not analyze or recommend before the minimum context is known.
+- **Template-driven.** Agent-specific config lives in `app/templates/`, not in the workflow.
+- **Controlled enterprise design.** Internal data access should be mediated by metadata filters, approved APIs, or query templates.
+- **No unrestricted autonomous execution.** AI may prepare analysis or drafts, but operational actions should require explicit human approval.
+- **Auditable by default.** Intake data, normalized data, missing fields, clarification questions, and future approvals should be persisted.

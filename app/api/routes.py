@@ -17,7 +17,7 @@ from app.schemas.agent_run import (
     ClarificationQuestion,
     RejectRequest,
 )
-from app.templates import freelance
+from app.templates import freelance, public_enterprise_ai
 
 router = APIRouter(prefix="/api/agents", tags=["agents"])
 
@@ -28,6 +28,7 @@ router = APIRouter(prefix="/api/agents", tags=["agents"])
 
 _TEMPLATE_REGISTRY = {
     freelance.AGENT_TYPE: freelance,
+    public_enterprise_ai.AGENT_TYPE: public_enterprise_ai,
 }
 
 def _get_template_config(agent_type: str) -> dict[str, Any]:
@@ -111,8 +112,7 @@ def create_run(
     Start a new agent run for the specified agent type.
 
     The request body is the raw intake form payload for that agent type.
-    For the 'freelance' agent type the expected fields are documented in
-    `app/schemas/intake.py::FreelanceIntakeRequest`.
+    Supported agent types are registered in `_TEMPLATE_REGISTRY`.
 
     Returns the newly created run, which will be in one of these states:
     - **needs_clarification** — required fields were missing; check

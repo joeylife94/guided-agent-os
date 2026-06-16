@@ -49,21 +49,25 @@ Current agent intake capabilities:
 
 Current RAG capability:
 
-- **Phase 1 Multi-Collection RAG Engine only**
-- Local Markdown knowledge base under `app/knowledge/`
-- Deterministic local document chunking and embeddings
-- Persistent ChromaDB index at `./data/chroma`
-- API-only indexing and retrieval endpoints
+- **Phase 1: Multi-Collection RAG Engine** - Complete
+  - Local Markdown knowledge base under `app/knowledge/`
+  - Deterministic local document chunking and embeddings
+  - Persistent ChromaDB index at `./data/chroma`
+  - API-only indexing and retrieval endpoints
+- **Phase 2: Local LLM + RAG Answer Generation** - Complete
+  - Local LLM integration through an Ollama/local OpenAI-compatible endpoint
+  - Grounded answer generation from retrieved context
+  - Source citations with similarity scores
+  - Graceful degradation when LLM unavailable
+  - POST `/api/rag/answer` endpoint
 
 Planned/future phases:
 
-- LLM analysis
-- Scoring
-- Action drafting
-- Human review flow
+- Phase 3: LLM analysis and scoring
+- Phase 4: Action drafting with tool constraints
+- Phase 5: Human review and approval workflow
 - Archive workflow
 - RAG integration with agent workflows
-- Local LLM generation
 - Controlled tool/API execution
 
 ---
@@ -83,7 +87,7 @@ This local RAG foundation allows the Agent backend to:
 - Query specific collections or search across all collections
 - Return retrieved chunks with full metadata and similarity scores
 
-The RAG engine is not wired into LangGraph workflows, local LLM generation, UI flows, SQL execution, or external tool actions in this phase.
+The RAG engine is not wired into LangGraph workflows, UI flows, SQL execution, or external tool actions. Phase 2 uses it only through the local `/api/rag/answer` endpoint.
 
 ### RAG API Endpoints
 
@@ -136,6 +140,116 @@ Each result includes:
 
 ---
 
+## Phase 2: Local LLM + RAG Answer Generation
+
+Guided Agent OS can now generate **grounded answers** using retrieved context from all RAG collections through a local LLM.
+
+The system:
+- Accepts a user question via the API
+- Retrieves relevant context from all three RAG collections (domain knowledge, agent policy, tool catalog)
+- Builds a grounded prompt instructing the LLM to answer only from retrieved context
+- Calls a local LLM through an **Ollama/local OpenAI-compatible API** (no cloud API keys required)
+- Returns:
+  - Generated answer
+  - Source citations with similarity scores
+  - Retrieved context by collection
+  - Known limitations
+  - Model metadata and availability status
+- **Gracefully degrades** when the local LLM is unavailable, returning the retrieved context for review
+
+### Local LLM Configuration
+
+The system defaults to **Ollama** at `http://localhost:11434/v1` with the **qwen2.5:7b-instruct** model.
+
+Configure via environment variables:
+
+```bash
+export LOCAL_LLM_BASE_URL=http://localhost:11434/v1
+export LOCAL_LLM_MODEL=qwen2.5:7b-instruct
+export LOCAL_LLM_TIMEOUT=30
+```
+
+Use a local OpenAI-compatible endpoint such as Ollama, LM Studio, or Text Generation WebUI. The Phase 2 RAG answerer does not call OpenAI or any cloud API.
+
+### RAG Answer Endpoint
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/api/rag/answer` | Generate a grounded answer from RAG + local LLM |
+
+### Example: Generate an answer
+
+```bash
+curl -X POST http://localhost:8000/api/rag/answer \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "How should an AI agent handle legacy database access?",
+    "top_k_per_collection": 3
+  }'
+```
+
+Response structure:
+
+```json
+{
+  "question": "How should an AI agent handle legacy database access?",
+  "answer": "Based on the retrieved knowledge base, AI agents should not generate arbitrary SQL...",
+  "citations": [
+    {
+      "doc_id": "legacy-db-001",
+      "title": "Legacy Database Access Guidelines",
+      "source_path": "app/knowledge/tools/legacy-db-access-guideline.md",
+      "collection": "tool_catalog",
+      "chunk_index": 0,
+      "score": 0.95
+    }
+  ],
+  "retrieved_context": {
+    "domain_knowledge": [...],
+    "agent_policy": [...],
+    "tool_catalog": [...]
+  },
+  "limitations": [
+    "The answer is generated only from retrieved local knowledge base context.",
+    "No real tool, SQL, or API execution was performed.",
+    "For critical decisions, human review is strongly recommended."
+  ],
+  "model": {
+    "provider": "local",
+    "name": "qwen2.5:7b-instruct",
+    "available": true
+  },
+  "error": null
+}
+```
+
+#### Request Parameters
+
+- `question` (required): Question to answer using the knowledge base
+- `top_k_per_collection` (optional, default: 3, range: 1-10): Number of results to retrieve per collection
+- `model` (optional): Model name override
+
+#### Response Fields
+
+- `answer`: Generated answer from the LLM, or a fallback message if unavailable
+- `citations`: List of sources used with similarity scores
+- `retrieved_context`: Full retrieved chunks organized by collection
+- `limitations`: Important disclaimers about the answer
+- `model`: Metadata about the LLM (provider, name, availability)
+- `error`: Error message if the model was unavailable
+
+### Grounding & Safety
+
+The system enforces these rules via the system prompt:
+
+1. **Answer only from retrieved context** — Do not invent policies, tools, or database facts
+2. **No hidden execution** — Do not claim real tool, SQL, or API calls have been performed
+3. **Acknowledge gaps** — If context is insufficient, say so clearly
+4. **Cite sources** — Include [source] notation when relevant
+5. **Mention policy requirements** — If retrieved policies require human approval, mention it
+
+---
+
 ## Tech stack
 
 | Layer | Technology |
@@ -145,6 +259,8 @@ Each result includes:
 | Agent workflow | LangGraph |
 | Database | SQLite + SQLAlchemy |
 | RAG engine | ChromaDB + deterministic local hash embeddings |
+| Local LLM | Ollama or local OpenAI-compatible API (qwen2.5:7b-instruct) |
+| HTTP client | requests |
 | Config | python-dotenv |
 | Server | Uvicorn |
 
@@ -174,7 +290,9 @@ guided-agent-os/
 │   │   ├── rag_document_loader.py  # Markdown document discovery and chunking
 │   │   ├── rag_embeddings.py # Deterministic local embeddings
 │   │   ├── rag_indexer.py    # ChromaDB indexing
-│   │   └── rag_retriever.py  # ChromaDB querying
+│   │   ├── rag_retriever.py  # ChromaDB querying
+│   │   ├── local_llm.py      # Local LLM client (local OpenAI-compatible API)
+│   │   └── rag_answerer.py   # RAG answer generation with grounding
 │   ├── knowledge/            # Local RAG knowledge base
 │   │   ├── domain/
 │   │   │   ├── internal-operation-manual.md
@@ -242,7 +360,7 @@ For the current phase, the default SQLite database setting is enough:
 DATABASE_URL=sqlite:///./agent_os.db
 ```
 
-`OPENAI_API_KEY` and `LLM_MODEL` in `.env.example` are reserved for future analysis phases and are not required for the current validation/normalization workflow or Phase 1 RAG engine.
+`OPENAI_API_KEY` and `LLM_MODEL` in `.env.example` are reserved for future analysis phases and are not required for the current validation/normalization workflow, the Phase 1 RAG engine, or Phase 2 local RAG answer generation. Configure Phase 2 with `LOCAL_LLM_BASE_URL`, `LOCAL_LLM_MODEL`, and `LOCAL_LLM_TIMEOUT`; tests do not require Ollama to be running.
 
 ### 5. Start the server
 

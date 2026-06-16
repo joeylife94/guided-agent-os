@@ -2,11 +2,12 @@
 RAG API Routes
 
 FastAPI endpoints for rebuilding and querying the RAG system.
-Provides access to the multi-collection knowledge base.
+Provides access to the multi-collection knowledge base and RAG answer generation.
 """
 
 from fastapi import APIRouter, Query, HTTPException
-from typing import Dict, Any
+from pydantic import BaseModel, Field, field_validator
+from typing import Dict, Any, Optional, List
 
 from app.services.rag_indexer import rebuild_rag_index
 from app.services.rag_retriever import (
@@ -15,9 +16,92 @@ from app.services.rag_retriever import (
     retrieve_from_all_collections,
 )
 from app.services.rag_document_loader import get_collection_names
+from app.services.rag_answerer import generate_rag_answer
 
 
 router = APIRouter(prefix="/api/rag", tags=["rag"])
+
+
+# ============================================================================
+# Pydantic Models for RAG Answer endpoint
+# ============================================================================
+
+class RAGAnswerRequest(BaseModel):
+    """Request body for RAG answer generation."""
+    question: str = Field(
+        ...,
+        description="Question to answer using the knowledge base",
+        min_length=1,
+        examples=["How should an AI agent handle legacy database access?"],
+    )
+    top_k_per_collection: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        description="Number of results to retrieve per collection",
+    )
+    model: Optional[str] = Field(
+        default=None,
+        description="Optional model name override",
+    )
+
+    @field_validator("question")
+    @classmethod
+    def question_must_not_be_blank(cls, value: str) -> str:
+        """Reject whitespace-only questions before retrieval or LLM calls."""
+        question = value.strip()
+        if not question:
+            raise ValueError("Question is required.")
+        return question
+
+    @field_validator("model")
+    @classmethod
+    def blank_model_is_default(cls, value: Optional[str]) -> Optional[str]:
+        """Treat blank model overrides the same as an omitted model."""
+        if value is None:
+            return None
+
+        model = value.strip()
+        return model or None
+
+
+class CitationModel(BaseModel):
+    """Citation information for a retrieved document."""
+    doc_id: str
+    title: str
+    source_path: str
+    collection: str
+    chunk_index: int
+    score: float
+
+
+class ModelMetadata(BaseModel):
+    """Metadata about the LLM used for generation."""
+    provider: str
+    name: str
+    available: bool
+
+
+class RetrievedContextEntry(BaseModel):
+    """A single retrieved context entry."""
+    content: str
+    metadata: Dict[str, Any]
+    score: float
+
+
+class RAGAnswerResponse(BaseModel):
+    """Response body for RAG answer generation."""
+    question: str
+    answer: str
+    citations: List[CitationModel]
+    retrieved_context: Dict[str, List[RetrievedContextEntry]]
+    limitations: List[str]
+    model: ModelMetadata
+    error: Optional[str] = None
+
+
+# ============================================================================
+# Endpoints
 
 
 @router.post("/rebuild-index")
@@ -166,4 +250,50 @@ async def query_all_collections(
             detail=f"Error querying collections: {str(e)}"
         )
 
+
+@router.post("/answer", response_model=RAGAnswerResponse)
+async def answer_question(request: RAGAnswerRequest) -> Dict[str, Any]:
+    """
+    Generate a grounded answer using RAG + local LLM.
+
+    Retrieves relevant context from all knowledge base collections,
+    builds a grounded prompt, calls the local LLM, and returns a structured answer
+    with citations, retrieved context, and model metadata.
+
+    Request body:
+    - question: Question to answer (required)
+    - top_k_per_collection: Results per collection (1-10, default: 3)
+    - model: Optional model name override
+
+    Response:
+    - answer: Generated answer or fallback message
+    - citations: List of sources used
+    - retrieved_context: Raw retrieved documents by collection
+    - limitations: Known limitations of the answer
+    - model: Metadata about the LLM used
+    - error: Error message if model was unavailable
+
+    Example:
+    {
+        "question": "How should an AI agent handle legacy database access?",
+        "top_k_per_collection": 2
+    }
+    """
+    try:
+        result = generate_rag_answer(
+            question=request.question,
+            top_k_per_collection=request.top_k_per_collection,
+            model=request.model,
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=str(e),
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error generating answer: {str(e)}"
+        )
 

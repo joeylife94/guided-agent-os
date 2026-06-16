@@ -36,13 +36,7 @@ Detailed document: [`docs/public-enterprise-ai-agent.md`](docs/public-enterprise
 
 ## Current implementation status
 
-Completed:
-
-- **Phase 1:** required-field validation and clarification questions
-- **Phase 2-A:** SQLite persistence for agent runs
-- **Phase 2-B:** deterministic normalization for validated intake
-
-Current capabilities:
+Current agent intake capabilities:
 
 - FastAPI API server
 - Template-driven agent types (Freelance, Public Enterprise AI)
@@ -53,6 +47,14 @@ Current capabilities:
 - Future-phase approve/reject endpoints
 - LangGraph workflow foundation
 
+Current RAG capability:
+
+- **Phase 1 Multi-Collection RAG Engine only**
+- Local Markdown knowledge base under `app/knowledge/`
+- Deterministic local document chunking and embeddings
+- Persistent ChromaDB index at `./data/chroma`
+- API-only indexing and retrieval endpoints
+
 Planned/future phases:
 
 - LLM analysis
@@ -60,7 +62,77 @@ Planned/future phases:
 - Action drafting
 - Human review flow
 - Archive workflow
-- Controlled RAG and tool/API integration
+- RAG integration with agent workflows
+- Local LLM generation
+- Controlled tool/API execution
+
+---
+
+## Phase 1: Multi-Collection RAG Engine
+
+Guided Agent OS includes a **local ChromaDB-based RAG engine** with three knowledge collections:
+
+- **`domain_knowledge`**: Business manuals, operational procedures, and incident guides
+- **`agent_policy`**: Agent behavior rules, decision-making standards, and source citation requirements
+- **`tool_catalog`**: Approved tools, legacy system guidelines, and query template policies
+
+This local RAG foundation allows the Agent backend to:
+- Load Markdown documents from `app/knowledge/`
+- Embed documents using deterministic local embeddings
+- Persist ChromaDB collections at `./data/chroma`
+- Query specific collections or search across all collections
+- Return retrieved chunks with full metadata and similarity scores
+
+The RAG engine is not wired into LangGraph workflows, local LLM generation, UI flows, SQL execution, or external tool actions in this phase.
+
+### RAG API Endpoints
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/api/rag/rebuild-index` | Rebuild the ChromaDB index from local documents |
+| `GET` | `/api/rag/query` | Query a specific collection |
+| `GET` | `/api/rag/query-all` | Query all collections |
+
+### Example: Rebuild the RAG index
+
+```bash
+curl -X POST http://localhost:8000/api/rag/rebuild-index
+```
+
+Response:
+```json
+{
+  "status": "indexed",
+  "collections": {
+    "domain_knowledge": 10,
+    "agent_policy": 8,
+    "tool_catalog": 7
+  }
+}
+```
+
+### Example: Query all collections
+
+```bash
+curl "http://localhost:8000/api/rag/query-all?q=How should an AI agent handle legacy database access?&top_k=2"
+```
+
+Response structure:
+```json
+{
+  "query": "How should an AI agent handle legacy database access?",
+  "results": {
+    "domain_knowledge": [...],
+    "agent_policy": [...],
+    "tool_catalog": [...]
+  }
+}
+```
+
+Each result includes:
+- `content`: The retrieved document chunk
+- `metadata`: `doc_id`, `title`, `source_path`, `collection`, `chunk_index`
+- `score`: Similarity score (0-1)
 
 ---
 
@@ -72,6 +144,7 @@ Planned/future phases:
 | Data validation | Pydantic v2 |
 | Agent workflow | LangGraph |
 | Database | SQLite + SQLAlchemy |
+| RAG engine | ChromaDB + deterministic local hash embeddings |
 | Config | python-dotenv |
 | Server | Uvicorn |
 
@@ -84,7 +157,8 @@ guided-agent-os/
 ├── app/
 │   ├── main.py               # FastAPI application + health check
 │   ├── api/
-│   │   └── routes.py         # Generic agent endpoints + template registry
+│   │   ├── routes.py         # Generic agent endpoints + template registry
+│   │   └── rag_routes.py     # RAG API endpoints
 │   ├── agents/
 │   │   └── workflow.py       # LangGraph validation workflow + future node skeletons
 │   ├── models/
@@ -96,7 +170,23 @@ guided-agent-os/
 │   ├── services/
 │   │   ├── validation.py     # Required-field validation logic
 │   │   ├── clarification.py  # Clarification question generation
-│   │   └── normalization.py  # Deterministic normalization helpers
+│   │   ├── normalization.py  # Deterministic normalization helpers
+│   │   ├── rag_document_loader.py  # Markdown document discovery and chunking
+│   │   ├── rag_embeddings.py # Deterministic local embeddings
+│   │   ├── rag_indexer.py    # ChromaDB indexing
+│   │   └── rag_retriever.py  # ChromaDB querying
+│   ├── knowledge/            # Local RAG knowledge base
+│   │   ├── domain/
+│   │   │   ├── internal-operation-manual.md
+│   │   │   └── incident-summary-guide.md
+│   │   ├── policies/
+│   │   │   ├── agent-behavior-policy.md
+│   │   │   ├── source-citation-policy.md
+│   │   │   └── human-review-policy.md
+│   │   └── tools/
+│   │       ├── approved-tools.md
+│   │       ├── legacy-db-access-guideline.md
+│   │       └── query-template-policy.md
 │   └── templates/
 │       ├── freelance.py              # Freelance agent config
 │       └── public_enterprise_ai.py   # Public/enterprise AI-agent config
@@ -108,6 +198,8 @@ guided-agent-os/
 │   ├── ROADMAP.md                   # Phase-based development roadmap
 │   └── public-enterprise-ai-agent.md # Public Enterprise AI Agent details
 ├── tests/
+├── data/                             # ChromaDB persistent storage (generated)
+│   └── chroma/
 ├── requirements.txt
 ├── AGENTS.md
 ├── .env.example
@@ -150,7 +242,7 @@ For the current phase, the default SQLite database setting is enough:
 DATABASE_URL=sqlite:///./agent_os.db
 ```
 
-`OPENAI_API_KEY` and `LLM_MODEL` in `.env.example` are reserved for future analysis phases and are not required for the current validation/normalization workflow.
+`OPENAI_API_KEY` and `LLM_MODEL` in `.env.example` are reserved for future analysis phases and are not required for the current validation/normalization workflow or Phase 1 RAG engine.
 
 ### 5. Start the server
 

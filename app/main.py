@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import router
+from app.api.rag_routes import router as rag_router
 from app.models.database import Base, engine
 
 # ---------------------------------------------------------------------------
@@ -43,6 +44,7 @@ app.add_middleware(
 # Routers
 # ---------------------------------------------------------------------------
 app.include_router(router)
+app.include_router(rag_router)
 
 
 # ---------------------------------------------------------------------------

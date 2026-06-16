@@ -59,6 +59,26 @@ class AgentRunResponse(BaseModel):
         default_factory=list,
         description="Action drafts ready for human review.",
     )
+    rag_answer: Optional[dict[str, Any]] = Field(
+        default=None,
+        description="Phase 3 grounded RAG answer for controlled RAG runs.",
+    )
+    tool_plan: Optional[dict[str, Any]] = Field(
+        default=None,
+        description="Phase 3 deterministic planned-only tool/API plan.",
+    )
+    human_review_required: Optional[bool] = Field(
+        default=None,
+        description="Whether the controlled run requires human review.",
+    )
+    review_status: Optional[str] = Field(
+        default=None,
+        description="Human review routing status for controlled runs.",
+    )
+    final_status: Optional[str] = Field(
+        default=None,
+        description="Final Phase 3 workflow status after review routing.",
+    )
     error: Optional[str] = Field(
         default=None,
         description="Error message if the run failed.",

@@ -17,7 +17,7 @@ from app.schemas.agent_run import (
     ClarificationQuestion,
     RejectRequest,
 )
-from app.templates import freelance, public_enterprise_ai
+from app.templates import freelance, public_enterprise_ai, controlled_rag_agent
 
 router = APIRouter(prefix="/api/agents", tags=["agents"])
 
@@ -29,6 +29,7 @@ router = APIRouter(prefix="/api/agents", tags=["agents"])
 _TEMPLATE_REGISTRY = {
     freelance.AGENT_TYPE: freelance,
     public_enterprise_ai.AGENT_TYPE: public_enterprise_ai,
+    controlled_rag_agent.AGENT_TYPE: controlled_rag_agent,
 }
 
 def _get_template_config(agent_type: str) -> dict[str, Any]:
@@ -59,6 +60,7 @@ def _get_template_config(agent_type: str) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 def _run_to_response(run: AgentRun) -> AgentRunResponse:
+    raw_output = run.raw_llm_output or {}
     clarification_questions = [
         ClarificationQuestion(**q) for q in (run.clarification_questions or [])
     ]
@@ -81,6 +83,11 @@ def _run_to_response(run: AgentRun) -> AgentRunResponse:
         analysis_summary=run.analysis_summary,
         score=run.score,
         action_drafts=action_drafts,
+        rag_answer=raw_output.get("rag_answer"),
+        tool_plan=raw_output.get("tool_plan"),
+        human_review_required=raw_output.get("human_review_required"),
+        review_status=raw_output.get("review_status"),
+        final_status=raw_output.get("final_status"),
         error=run.error_message,
         created_at=run.created_at,
         updated_at=run.updated_at,
@@ -158,7 +165,23 @@ def create_run(
     run.normalized_data = final_state.get("normalized_data")
     run.analysis_summary = final_state.get("analysis_summary")
     run.score = final_state.get("score")
-    run.raw_llm_output = final_state.get("raw_llm_output")
+
+    if agent_type == controlled_rag_agent.AGENT_TYPE:
+        # Persist Phase 3 outputs together for audit, and expose them through
+        # dedicated response fields in _run_to_response.
+        run.raw_llm_output = {
+            "rag_answer": final_state.get("rag_answer"),
+            "tool_plan": final_state.get("tool_plan"),
+            "human_review_required": final_state.get(
+                "human_review_required",
+                False,
+            ),
+            "review_status": final_state.get("review_status"),
+            "final_status": final_state.get("final_status"),
+        }
+    else:
+        run.raw_llm_output = final_state.get("raw_llm_output")
+
     if final_state.get("error"):
         run.error_message = final_state["error"]
 

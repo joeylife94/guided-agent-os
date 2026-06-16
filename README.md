@@ -36,31 +36,426 @@ Detailed document: [`docs/public-enterprise-ai-agent.md`](docs/public-enterprise
 
 ## Current implementation status
 
-Completed:
-
-- **Phase 1:** required-field validation and clarification questions
-- **Phase 2-A:** SQLite persistence for agent runs
-- **Phase 2-B:** deterministic normalization for validated intake
-
-Current capabilities:
+Current agent intake capabilities:
 
 - FastAPI API server
-- Template-driven agent types (Freelance, Public Enterprise AI)
+- Template-driven agent types (Freelance, Public Enterprise AI, Controlled RAG Agent)
 - Required-field validation
 - Clarification question generation
 - Deterministic input normalization
 - SQLite/SQLAlchemy persistence for agent runs
-- Future-phase approve/reject endpoints
+- Guarded approve/reject status endpoints for pending approval runs
 - LangGraph workflow foundation
 
-Planned/future phases:
+Current RAG and workflow integration:
 
-- LLM analysis
-- Scoring
-- Action drafting
-- Human review flow
+- **Phase 1: Multi-Collection RAG Engine** - Complete
+  - Local Markdown knowledge base under `app/knowledge/`
+  - Deterministic local document chunking and embeddings
+  - Persistent ChromaDB index at `./data/chroma`
+  - API-only indexing and retrieval endpoints
+- **Phase 2: Local LLM + RAG Answer Generation** - Complete
+  - Local LLM integration through an Ollama/local OpenAI-compatible endpoint
+  - Grounded answer generation from retrieved context
+  - Source citations with similarity scores
+  - Graceful degradation when LLM unavailable
+  - POST `/api/rag/answer` endpoint
+- **Phase 3: Controlled RAG Agent Workflow Integration** - Complete
+  - LangGraph workflow: validation → clarification → normalization → RAG answer → tool planning → human review
+  - Controlled RAG agent template for enterprise scenarios
+  - Tool/API execution planning (never executes, only plans)
+  - Human review routing for sensitive operations
+  - Phase 3 output persistence (rag_answer, tool_plan, review_status)
+
+Still planned/future phases:
+
+- LLM analysis and scoring beyond the local RAG answerer
+- Action drafting with tool constraints
+- Human approval decision workflows beyond guarded status updates
 - Archive workflow
-- Controlled RAG and tool/API integration
+- Controlled execution design beyond planned-only output is not implemented
+
+---
+
+## Phase 1: Multi-Collection RAG Engine
+
+Guided Agent OS includes a **local ChromaDB-based RAG engine** with three knowledge collections:
+
+- **`domain_knowledge`**: Business manuals, operational procedures, and incident guides
+- **`agent_policy`**: Agent behavior rules, decision-making standards, and source citation requirements
+- **`tool_catalog`**: Approved tools, legacy system guidelines, and query template policies
+
+This local RAG foundation allows the Agent backend to:
+- Load Markdown documents from `app/knowledge/`
+- Embed documents using deterministic local embeddings
+- Persist ChromaDB collections at `./data/chroma`
+- Query specific collections or search across all collections
+- Return retrieved chunks with full metadata and similarity scores
+
+The RAG query endpoints are API-only. Phase 3 wires grounded RAG answer generation into the `controlled_rag_agent` workflow, but the system still does not wire RAG into UI flows, SQL execution, or external tool actions.
+
+### RAG API Endpoints
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/api/rag/rebuild-index` | Rebuild the ChromaDB index from local documents |
+| `GET` | `/api/rag/query` | Query a specific collection |
+| `GET` | `/api/rag/query-all` | Query all collections |
+
+### Example: Rebuild the RAG index
+
+```bash
+curl -X POST http://localhost:8000/api/rag/rebuild-index
+```
+
+Response:
+```json
+{
+  "status": "indexed",
+  "collections": {
+    "domain_knowledge": 10,
+    "agent_policy": 8,
+    "tool_catalog": 7
+  }
+}
+```
+
+### Example: Query all collections
+
+```bash
+curl "http://localhost:8000/api/rag/query-all?q=How should an AI agent handle legacy database access?&top_k=2"
+```
+
+Response structure:
+```json
+{
+  "query": "How should an AI agent handle legacy database access?",
+  "results": {
+    "domain_knowledge": [...],
+    "agent_policy": [...],
+    "tool_catalog": [...]
+  }
+}
+```
+
+Each result includes:
+- `content`: The retrieved document chunk
+- `metadata`: `doc_id`, `title`, `source_path`, `collection`, `chunk_index`
+- `score`: Similarity score (0-1)
+
+---
+
+## Phase 2: Local LLM + RAG Answer Generation
+
+Guided Agent OS can now generate **grounded answers** using retrieved context from all RAG collections through a local LLM.
+
+The system:
+- Accepts a user question via the API
+- Retrieves relevant context from all three RAG collections (domain knowledge, agent policy, tool catalog)
+- Builds a grounded prompt instructing the LLM to answer only from retrieved context
+- Calls a local LLM through an **Ollama/local OpenAI-compatible API** (no cloud API keys required)
+- Returns:
+  - Generated answer
+  - Source citations with similarity scores
+  - Retrieved context by collection
+  - Known limitations
+  - Model metadata and availability status
+- **Gracefully degrades** when the local LLM is unavailable, returning the retrieved context for review
+
+### Local LLM Configuration
+
+The system defaults to **Ollama** at `http://localhost:11434/v1` with the **qwen2.5:7b-instruct** model.
+
+Configure via environment variables:
+
+```bash
+export LOCAL_LLM_BASE_URL=http://localhost:11434/v1
+export LOCAL_LLM_MODEL=qwen2.5:7b-instruct
+export LOCAL_LLM_TIMEOUT=30
+```
+
+Use a local OpenAI-compatible endpoint such as Ollama, LM Studio, or Text Generation WebUI. The Phase 2 RAG answerer does not call OpenAI or any cloud API.
+
+### RAG Answer Endpoint
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/api/rag/answer` | Generate a grounded answer from RAG + local LLM |
+
+### Example: Generate an answer
+
+```bash
+curl -X POST http://localhost:8000/api/rag/answer \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "How should an AI agent handle legacy database access?",
+    "top_k_per_collection": 3
+  }'
+```
+
+Response structure:
+
+```json
+{
+  "question": "How should an AI agent handle legacy database access?",
+  "answer": "Based on the retrieved knowledge base, AI agents should not generate arbitrary SQL...",
+  "citations": [
+    {
+      "doc_id": "legacy-db-001",
+      "title": "Legacy Database Access Guidelines",
+      "source_path": "app/knowledge/tools/legacy-db-access-guideline.md",
+      "collection": "tool_catalog",
+      "chunk_index": 0,
+      "score": 0.95
+    }
+  ],
+  "retrieved_context": {
+    "domain_knowledge": [...],
+    "agent_policy": [...],
+    "tool_catalog": [...]
+  },
+  "limitations": [
+    "The answer is generated only from retrieved local knowledge base context.",
+    "No real tool, SQL, or API execution was performed.",
+    "For critical decisions, human review is strongly recommended."
+  ],
+  "model": {
+    "provider": "local",
+    "name": "qwen2.5:7b-instruct",
+    "available": true
+  },
+  "error": null
+}
+```
+
+#### Request Parameters
+
+- `question` (required): Question to answer using the knowledge base
+- `top_k_per_collection` (optional, default: 3, range: 1-10): Number of results to retrieve per collection
+- `model` (optional): Model name override
+
+#### Response Fields
+
+- `answer`: Generated answer from the LLM, or a fallback message if unavailable
+- `citations`: List of sources used with similarity scores
+- `retrieved_context`: Full retrieved chunks organized by collection
+- `limitations`: Important disclaimers about the answer
+- `model`: Metadata about the LLM (provider, name, availability)
+- `error`: Error message if the model was unavailable
+
+### Grounding & Safety
+
+The system enforces these rules via the system prompt:
+
+1. **Answer only from retrieved context** — Do not invent policies, tools, or database facts
+2. **No hidden execution** — Do not claim real tool, SQL, or API calls have been performed
+3. **Acknowledge gaps** — If context is insufficient, say so clearly
+4. **Cite sources** — Include [source] notation when relevant
+5. **Mention policy requirements** — If retrieved policies require human approval, mention it
+
+---
+
+## Phase 3: Controlled RAG Agent Workflow Integration
+
+Guided Agent OS now connects validation, clarification, normalization, multi-collection RAG, local LLM answer generation, tool/API execution planning, and human review routing into a complete LangGraph workflow.
+
+### Key principles
+
+- **Controlled LLM**: The LLM does not directly execute SQL, call tools, or invoke APIs. It generates grounded answers and planned execution steps only.
+- **Human review**: Sensitive operations (high risk, internal data, tool/API access) are routed to human review and require explicit approval.
+- **Audit trail**: All workflow stages are persisted with structured Phase 3 outputs.
+- **Safe by default**: Tool/API execution is always `planned_only`; actual execution is never attempted.
+
+### Workflow stages
+
+When you submit a controlled RAG agent request, it flows through:
+
+1. **Intake** — Accept the raw input
+2. **Validation** — Check required fields
+3. **Clarification** (if needed) — Ask for missing fields
+4. **Normalization** — Clean and structure the data
+5. **RAG Answer Generation** — Retrieve context and generate a grounded answer using the local LLM
+6. **Tool/API Planning** — Analyze the request to determine if tools/APIs would be needed, and whether approval is required
+7. **Human Review Routing** — Route to pending approval if sensitive, or mark as completed if safe
+
+### Controlled RAG Agent Template
+
+Request a controlled RAG workflow via:
+
+```bash
+curl -X POST http://localhost:8000/api/agents/controlled_rag_agent/runs \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_request": "Summarize the policy for legacy database access and prepare an execution plan.",
+    "business_context": "Internal operations team needs guidance before accessing legacy records.",
+    "expected_output": "Grounded answer and safe tool/API execution plan",
+    "data_sources": ["domain_knowledge", "agent_policy", "tool_catalog"],
+    "risk_level": "internal"
+  }'
+```
+
+#### Required fields
+
+- `user_request`: Specific question or task
+- `business_context`: Who is asking and why
+- `data_sources`: Which RAG collections or internal sources should be considered
+- `expected_output`: What result is needed
+- `risk_level`: Risk classification (low, medium, internal, restricted, high)
+
+#### Optional fields
+
+- `user_role`: Role of the requester
+- `allowed_tools`: Which tools are permitted
+- `approval_required`: Pre-declare if approval is needed
+- `security_constraints`: Compliance or security requirements
+
+#### Response structure
+
+```json
+{
+  "run_id": "550e8400-e29b-41d4-a716-446655440000",
+  "agent_type": "controlled_rag_agent",
+  "status": "pending_approval",
+  "intake_data": {...},
+  "normalized_data": {...},
+  "rag_answer": {
+    "question": "Summarize the policy for legacy database access...",
+    "answer": "Based on the retrieved knowledge base...",
+    "citations": [...],
+    "retrieved_context": {...},
+    "limitations": [...]
+  },
+  "tool_plan": {
+    "requires_tool_or_api": true,
+    "execution_mode": "planned_only",
+    "allowed_to_execute": false,
+    "recommended_tools": [
+      {
+        "name": "legacy_db_lookup",
+        "purpose": "Retrieve approved historical records through a controlled backend interface",
+        "requires_approval": true,
+        "reason": "..."
+      }
+    ],
+    "blocked_actions": ["direct_sql_execution", "direct_database_write"],
+    "approval_required": true,
+    "reason": "The LLM must not directly access internal systems..."
+  },
+  "human_review_required": true,
+  "review_status": "pending_approval",
+  "final_status": "pending_approval",
+  "raw_output": {
+    "rag_answer": {
+      "question": "Summarize the policy for legacy database access...",
+      "answer": "Based on the retrieved knowledge base...",
+      "citations": [...],
+      "retrieved_context": {...},
+      "limitations": [...]
+    },
+    "tool_plan": {
+      "requires_tool_or_api": true,
+      "execution_mode": "planned_only",
+      "allowed_to_execute": false,
+      "recommended_tools": [
+        {
+          "name": "legacy_db_lookup",
+          "purpose": "Retrieve approved historical records through a controlled backend interface",
+          "requires_approval": true,
+          "reason": "..."
+        }
+      ],
+      "blocked_actions": ["direct_sql_execution", "direct_database_write"],
+      "approval_required": true,
+      "reason": "The LLM must not directly access internal systems..."
+    },
+    "human_review_required": true,
+    "review_status": "pending_approval",
+    "final_status": "pending_approval"
+  }
+}
+```
+
+### Key Phase 3 Features
+
+| Feature | Behavior |
+|---|---|
+| **RAG Answer** | Generated from retrieved context using local LLM |
+| **Tool Planning** | Deterministic execution plan (never executes) |
+| **Execution Mode** | Always `planned_only` in Phase 3 |
+| **Allow Execute** | Always `false` in Phase 3 |
+| **Approval Routing** | Routes to pending_approval if high risk or tool access needed |
+| **LLM Safety** | Local LLM is constrained to answer only from retrieved context |
+| **Fallback** | If local LLM unavailable, returns retrieved context for caller inspection |
+
+### Example workflow responses
+
+**Low-risk informational request (no approval needed):**
+
+```json
+{
+  "status": "completed",
+  "raw_output": {
+    "rag_answer": {...},
+    "tool_plan": {
+      "requires_tool_or_api": false,
+      "approval_required": false,
+      "reason": "No tool or API execution is needed. The RAG answer from the local knowledge base is sufficient..."
+    },
+    "human_review_required": false,
+    "review_status": "not_required",
+    "final_status": "completed"
+  }
+}
+```
+
+**High-risk request requiring database access (pending approval):**
+
+```json
+{
+  "status": "pending_approval",
+  "raw_output": {
+    "rag_answer": {...},
+    "tool_plan": {
+      "requires_tool_or_api": true,
+      "execution_mode": "planned_only",
+      "allowed_to_execute": false,
+      "recommended_tools": [
+        {
+          "name": "legacy_db_lookup",
+          "purpose": "Retrieve approved historical records...",
+          "requires_approval": true
+        }
+      ],
+      "approval_required": true,
+      "reason": "The LLM must not directly access internal systems..."
+    },
+    "human_review_required": true,
+    "review_status": "pending_approval",
+    "final_status": "pending_approval"
+  }
+}
+```
+
+### Safety guarantees
+
+Phase 3 enforces:
+
+1. **No direct SQL execution** — Tool plan blocks `direct_sql_execution`
+2. **No API execution** — Tool plan blocks `unapproved_external_api_call`
+3. **No tool invocation** — `allowed_to_execute` is always `false`
+4. **No database writes** — Tool plan blocks `direct_database_write`
+5. **Planned only** — `execution_mode` is always `planned_only`
+6. **Human control** — Sensitive operations route to `pending_approval` status
+
+---
+
+## Planned/future phases
+
+- Approval decision tracking and richer human-review audit records
+- Advanced action drafting that remains non-executing and reviewable
+- Audit logging and compliance reporting
+- Advanced RAG (semantic routing, reranking)
+- Additional controlled intake templates
 
 ---
 
@@ -72,6 +467,9 @@ Planned/future phases:
 | Data validation | Pydantic v2 |
 | Agent workflow | LangGraph |
 | Database | SQLite + SQLAlchemy |
+| RAG engine | ChromaDB + deterministic local hash embeddings |
+| Local LLM | Ollama or local OpenAI-compatible API (qwen2.5:7b-instruct) |
+| HTTP client | requests |
 | Config | python-dotenv |
 | Server | Uvicorn |
 
@@ -84,7 +482,8 @@ guided-agent-os/
 ├── app/
 │   ├── main.py               # FastAPI application + health check
 │   ├── api/
-│   │   └── routes.py         # Generic agent endpoints + template registry
+│   │   ├── routes.py         # Generic agent endpoints + template registry
+│   │   └── rag_routes.py     # RAG API endpoints
 │   ├── agents/
 │   │   └── workflow.py       # LangGraph validation workflow + future node skeletons
 │   ├── models/
@@ -96,10 +495,30 @@ guided-agent-os/
 │   ├── services/
 │   │   ├── validation.py     # Required-field validation logic
 │   │   ├── clarification.py  # Clarification question generation
-│   │   └── normalization.py  # Deterministic normalization helpers
+│   │   ├── normalization.py  # Deterministic normalization helpers
+│   │   ├── rag_document_loader.py  # Markdown document discovery and chunking
+│   │   ├── rag_embeddings.py # Deterministic local embeddings
+│   │   ├── rag_indexer.py    # ChromaDB indexing
+│   │   ├── rag_retriever.py  # ChromaDB querying
+│   │   ├── local_llm.py      # Local LLM client (local OpenAI-compatible API)
+│   │   ├── rag_answerer.py   # RAG answer generation with grounding
+│   │   └── tool_plan_generator.py  # Phase 3: Tool/API execution planning (no execution)
+│   ├── knowledge/            # Local RAG knowledge base
+│   │   ├── domain/
+│   │   │   ├── internal-operation-manual.md
+│   │   │   └── incident-summary-guide.md
+│   │   ├── policies/
+│   │   │   ├── agent-behavior-policy.md
+│   │   │   ├── source-citation-policy.md
+│   │   │   └── human-review-policy.md
+│   │   └── tools/
+│   │       ├── approved-tools.md
+│   │       ├── legacy-db-access-guideline.md
+│   │       └── query-template-policy.md
 │   └── templates/
 │       ├── freelance.py              # Freelance agent config
-│       └── public_enterprise_ai.py   # Public/enterprise AI-agent config
+│       ├── public_enterprise_ai.py   # Public/enterprise AI-agent config
+│       └── controlled_rag_agent.py   # Phase 3: Controlled RAG agent config
 ├── docs/
 │   ├── ARCHITECTURE.md              # Architecture overview
 │   ├── DECISIONS.md                 # Architectural decision log
@@ -108,6 +527,8 @@ guided-agent-os/
 │   ├── ROADMAP.md                   # Phase-based development roadmap
 │   └── public-enterprise-ai-agent.md # Public Enterprise AI Agent details
 ├── tests/
+├── data/                             # ChromaDB persistent storage (generated)
+│   └── chroma/
 ├── requirements.txt
 ├── AGENTS.md
 ├── .env.example
@@ -150,7 +571,7 @@ For the current phase, the default SQLite database setting is enough:
 DATABASE_URL=sqlite:///./agent_os.db
 ```
 
-`OPENAI_API_KEY` and `LLM_MODEL` in `.env.example` are reserved for future analysis phases and are not required for the current validation/normalization workflow.
+`OPENAI_API_KEY` and `LLM_MODEL` in `.env.example` are reserved for future analysis phases and are not required for the current validation/normalization workflow, the Phase 1 RAG engine, Phase 2 local RAG answer generation, or Phase 3 controlled RAG workflow. Configure local generation with `LOCAL_LLM_BASE_URL`, `LOCAL_LLM_MODEL`, and `LOCAL_LLM_TIMEOUT`; tests do not require Ollama to be running.
 
 ### 5. Start the server
 
@@ -171,8 +592,8 @@ Interactive docs: `http://localhost:8000/docs`
 | `GET` | `/health` | Liveness check |
 | `POST` | `/api/agents/{agent_type}/runs` | Start a new agent run |
 | `GET` | `/api/agents/runs/{run_id}` | Get run status and results |
-| `POST` | `/api/agents/runs/{run_id}/approve` | Reserved for future pending runs |
-| `POST` | `/api/agents/runs/{run_id}/reject` | Reserved for future pending runs |
+| `POST` | `/api/agents/runs/{run_id}/approve` | Guarded status update for pending approval runs; no tool/API execution |
+| `POST` | `/api/agents/runs/{run_id}/reject` | Guarded rejection for pending approval runs; no tool/API execution |
 
 Supported agent types:
 
@@ -180,6 +601,7 @@ Supported agent types:
 |---|---|
 | `freelance` | Validate and normalize freelance opportunity intake |
 | `public_enterprise_ai` | Validate and normalize public-sector/enterprise AI-agent use-case intake |
+| `controlled_rag_agent` | Validate controlled RAG requests, generate grounded answers, create planned-only tool/API plans, and route review status |
 
 ---
 

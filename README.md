@@ -1,20 +1,43 @@
 # Guided Agent OS
 
-A form-driven AI agent platform that collects structured intake data, validates required fields, and generates clarification questions when information is missing.
+A reusable **Form-driven AI Agent OS** for turning structured user intake into stateful, traceable AI workflows.
 
-The platform is designed as a reusable foundation. Agent-specific behaviour lives in `app/templates/` so new agent types can be added without hard-coding the core workflow.
+The goal is not to build one freelance agent. The goal is to build a reusable platform where new agents can be added through templates, schemas, prompts, and workflow configuration with minimal new code. Users should be guided through forms instead of needing to write perfect prompts.
+
+See [docs/PRODUCT_DIRECTION.md](docs/PRODUCT_DIRECTION.md) for the long-term product direction.
 
 ---
 
 ## First use-case: Freelance Opportunity Evaluator
 
-Submit a freelance project opportunity via the API. The agent will:
+Submit a freelance project opportunity via the API. The current agent will:
 
 1. Validate that all required fields are present
 2. Ask clarification questions if anything is missing
-3. Return `validated` when the minimal intake is complete
+3. Persist every run to SQLite
+4. Normalize validated intake data into a structured internal shape
+5. Return `validated` when the minimal intake is complete
 
-Phase 1 stops after validation. Normalization, LLM analysis, scoring, action drafting, human review, and archive are planned for later phases.
+The Freelance Opportunity Agent is the first proof-of-concept for the platform. Later phases will add LLM analysis, scoring, action drafting, human review, and archive/export behavior. Those future phases are not active in the current workflow.
+
+---
+
+## Current implementation status
+
+Completed:
+
+- **Phase 1:** required-field validation and clarification questions
+- **Phase 2-A:** SQLite persistence for agent runs
+- **Phase 2-B:** deterministic normalization for validated freelance intake
+
+Not implemented yet:
+
+- LLM analysis, structured AI output, or model routing
+- Opportunity scoring
+- Proposal/action draft generation
+- Human approval workflow
+- Archive/export
+- Authentication, crawling, RAG, or external account actions
 
 ---
 
@@ -49,11 +72,17 @@ guided-agent-os/
 │   │   └── agent_run.py      # AgentRunResponse + helper schemas
 │   ├── services/
 │   │   ├── validation.py     # Required-field validation logic
-│   │   └── clarification.py  # Clarification question generation
+│   │   ├── clarification.py  # Clarification question generation
+│   │   └── normalization.py  # Deterministic input normalization
 │   └── templates/
 │       └── freelance.py      # Freelance agent config (fields, prompts, drafts)
 ├── requirements.txt
-├── .env.example
+├── docs/
+│   ├── ARCHITECTURE.md
+│   ├── DECISIONS.md
+│   ├── PRODUCT_DIRECTION.md
+│   ├── PROJECT_STATUS.md
+│   └── ROADMAP.md
 └── README.md
 ```
 
@@ -87,13 +116,13 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-For Phase 1, the default SQLite database setting is enough:
+For the current validation, persistence, and normalization phases, the default SQLite database setting is enough:
 
 ```dotenv
 DATABASE_URL=sqlite:///./agent_os.db
 ```
 
-`OPENAI_API_KEY` and `LLM_MODEL` in `.env.example` are reserved for a future analysis phase and are not used by the Phase 1 validation flow.
+`OPENAI_API_KEY` and `LLM_MODEL`, if present, are reserved for a future analysis/model-routing phase and are not used by the active workflow.
 
 ### 5. Start the server
 
@@ -137,7 +166,7 @@ curl -X POST http://localhost:8000/api/agents/freelance/runs \
 |---|---|
 | `running` | Workflow in progress |
 | `needs_clarification` | Required fields were missing; see `clarification_questions` |
-| `validated` | All Phase 1 required fields were present |
+| `validated` | Required fields were present and `normalized_data` was produced |
 | `error` | Unrecoverable workflow error |
 
 Later phases may also use `pending_approval`, `rejected`, and `archived`.
@@ -152,13 +181,18 @@ Later phases may also use `pending_approval`, `rejected`, and `archived`.
    - Optional future settings such as `ANALYSIS_PROMPT_TEMPLATE` and `DRAFT_ACTION_TEMPLATES`
 2. Register the new type in `app/api/routes.py` inside `_get_template_config()`.
 
-The LangGraph workflow and all services are generic, so no other Phase 1 changes are needed.
+The validation and clarification workflow is designed for reuse. The current normalization service is freelance-shaped, so future agent types should add template-aware normalization rather than rewriting the whole backend.
+
+Planned future examples include AI Content Agent, Duru SKU & Marketing Agent, Personal Command Center Agent, AI Market Watch Agent, and additional guided intake agents.
 
 ---
 
 ## Design principles
 
-- **Validation first.** Phase 1 stops at `validated` or `needs_clarification`.
-- **Template-driven.** Agent-specific config lives in `app/templates/`, not in the workflow.
+- **Guided intake first.** Users fill out forms instead of crafting complex prompts.
+- **Validation before AI.** Required context is checked before any future LLM call.
+- **Template-driven.** Agent-specific config lives in templates, schemas, prompts, and workflow configuration.
+- **Stateful and traceable.** Runs preserve original input, normalized data, future analysis output, drafts, approval state, and archive records.
+- **Human-in-the-loop.** Real external actions must never execute without explicit human approval.
+- **Cost-aware AI development.** Use deterministic validation and normalization before spending model calls.
 - **No over-engineering.** No authentication, payments, crawling, automatic email sending, complex RAG, or multi-agent orchestration.
-- **Human-controlled future actions.** Later phases may draft or review actions, but nothing should be sent or submitted automatically.

@@ -159,6 +159,48 @@ def detect_project_category(
     return "other"
 
 
+def _normalize_text(value: Any) -> str:
+    """Return a stripped string for scalar intake values."""
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
+def _normalize_string_list(value: Any) -> list[str]:
+    """Normalize list-like intake fields into a list of non-empty strings."""
+    if value is None:
+        return []
+
+    if isinstance(value, str):
+        values = value.split(",")
+    elif isinstance(value, (list, tuple, set)):
+        values = value
+    else:
+        values = [value]
+
+    normalized_values = []
+    for item in values:
+        text = _normalize_text(item)
+        if text:
+            normalized_values.append(text)
+    return normalized_values
+
+
+def _normalize_bool(value: Any) -> bool | None:
+    """Normalize common yes/no intake values without guessing unknowns."""
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return None
+
+    text = str(value).strip().lower()
+    if text in {"yes", "true", "1", "required", "approval_required"}:
+        return True
+    if text in {"no", "false", "0", "not_required", "none"}:
+        return False
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Normalization logic
 # ---------------------------------------------------------------------------
@@ -216,5 +258,33 @@ def normalize_intake_data(intake_data: dict[str, Any]) -> dict[str, Any]:
     normalized["detected_stack"] = stack
     normalized["language"] = language
     normalized["project_category"] = category
+
+    # Generic controlled-agent fields. These are added alongside the
+    # freelance-specific normalized fields so existing agents keep their
+    # response shape while newer templates can share deterministic cleanup.
+    text_fields = [
+        "user_request",
+        "business_context",
+        "expected_output",
+        "risk_level",
+        "user_role",
+        "security_constraints",
+    ]
+    for field in text_fields:
+        if field in intake_data:
+            normalized[field] = _normalize_text(intake_data.get(field))
+
+    if "risk_level" in normalized:
+        normalized["risk_level"] = normalized["risk_level"].lower()
+
+    list_fields = ["data_sources", "allowed_tools"]
+    for field in list_fields:
+        if field in intake_data:
+            normalized[field] = _normalize_string_list(intake_data.get(field))
+
+    if "approval_required" in intake_data:
+        normalized["approval_required"] = _normalize_bool(
+            intake_data.get("approval_required")
+        )
 
     return normalized

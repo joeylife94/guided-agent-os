@@ -6,17 +6,19 @@ The workflow is intentionally template-driven: agent-specific behaviour
 is passed in via a TemplateConfig dict so the same graph can be reused
 for any agent type.
 
-Current Phase 1 execution order:
-  intake -> validate_required_fields -> mark_validated
+Current execution order for standard intake agents:
+  intake -> validate_required_fields -> mark_validated -> normalize_input
 
 If required fields are missing after validate_required_fields, the graph
-branches to clarify_missing_info which marks the run as
-'needs_clarification' and terminates. The user must resubmit with the
-missing data filled in.
+branches to clarify_missing_info, marks the run as 'needs_clarification',
+and terminates. The user must resubmit with the missing data filled in.
 
-Future nodes remain as inert skeletons in this module so later phases can
-wire in normalization, LLM analysis, scoring, drafting, human review, and
-archive without changing the validation contract.
+The controlled_rag_agent template continues after normalization into a
+planned-only Phase 3 path:
+  generate_rag_answer -> generate_tool_plan -> route_human_review
+
+LLM analysis, scoring, drafting, and archive nodes remain inactive skeletons
+until their corresponding phases are intentionally wired.
 """
 
 from __future__ import annotations
@@ -54,6 +56,13 @@ class AgentState(TypedDict, total=False):
 
     # Output
     action_drafts: list[dict[str, Any]]
+
+    # Phase 3: Controlled RAG Agent Workflow
+    rag_answer: dict[str, Any]  # Answer generated from RAG + local LLM
+    tool_plan: dict[str, Any]  # Planned tool/API execution steps
+    human_review_required: bool  # Whether human review is needed
+    review_status: str  # 'pending_approval', 'not_required', etc.
+    final_status: str  # Final status after review routing
 
     # Control
     status: str   # mirrors AgentRun.status
@@ -143,6 +152,131 @@ def node_normalize_input(state: AgentState) -> AgentState:
     normalized = normalize_intake_data(intake)
 
     return {**state, "normalized_data": normalized}
+
+
+def node_generate_rag_answer(state: AgentState) -> AgentState:
+    """
+    Phase 3: RAG Answer Generation Node.
+
+    Calls the RAG + local LLM answerer to generate a grounded answer
+    based on the user request and normalized data.
+
+    Falls back gracefully if local LLM is unavailable.
+    """
+    from app.services.rag_answerer import generate_rag_answer
+
+    user_request = state.get("intake_data", {}).get("user_request", "")
+    if not user_request:
+        # If no direct request field, use the normalized summary
+        normalized = state.get("normalized_data", {})
+        user_request = str(normalized.get("user_request", ""))
+
+    if not user_request:
+        # No valid question found
+        return {
+            **state,
+            "rag_answer": {
+                "question": "",
+                "answer": "No user request provided.",
+                "citations": [],
+                "retrieved_context": {},
+                "limitations": ["No valid question to process."],
+                "model": {"provider": "local", "name": "unknown", "available": False},
+            }
+        }
+
+    try:
+        rag_answer = generate_rag_answer(user_request, top_k_per_collection=3)
+        return {**state, "rag_answer": rag_answer}
+    except Exception as exc:
+        # Fallback if RAG generation fails
+        fallback_answer = {
+            "question": user_request,
+            "answer": f"RAG answer generation failed: {exc}. Please check the logs.",
+            "citations": [],
+            "retrieved_context": {},
+            "limitations": [
+                "Answer generation encountered an error.",
+                "Local LLM may be unavailable.",
+            ],
+            "model": {"provider": "local", "name": "unknown", "available": False},
+        }
+        return {**state, "rag_answer": fallback_answer}
+
+
+def node_generate_tool_plan(state: AgentState) -> AgentState:
+    """
+    Phase 3: Tool/API Execution Planning Node.
+
+    Generates a deterministic execution plan based on:
+    - Original user request
+    - Normalized data (including risk_level)
+    - RAG answer (to check if context is sufficient)
+
+    The plan does NOT execute anything. It specifies WHAT WOULD BE
+    executed if approved, along with approval requirements.
+    """
+    from app.services.tool_plan_generator import generate_tool_plan
+
+    user_request = state.get("intake_data", {}).get("user_request", "")
+    normalized_data = state.get("normalized_data", {})
+    rag_answer = state.get("rag_answer", {})
+
+    try:
+        tool_plan = generate_tool_plan(
+            user_request=user_request,
+            normalized_data=normalized_data,
+            rag_answer=rag_answer,
+        )
+        return {**state, "tool_plan": tool_plan}
+    except Exception as exc:
+        # Fallback plan if generation fails
+        fallback_plan = {
+            "requires_tool_or_api": False,
+            "execution_mode": "planned_only",
+            "allowed_to_execute": False,
+            "recommended_tools": [],
+            "blocked_actions": [
+                "direct_sql_execution",
+                "unapproved_external_api_call",
+            ],
+            "approval_required": True,
+            "reason": f"Tool plan generation encountered an error: {exc}. "
+                     "Human review is required.",
+        }
+        return {**state, "tool_plan": fallback_plan}
+
+
+def node_route_human_review(state: AgentState) -> AgentState:
+    """
+    Phase 3: Human Review Routing Node.
+
+    Determines whether human review is required based on:
+    - tool_plan.approval_required
+    - risk_level
+    - RAG answer sufficiency
+
+    Sets review_status and final_status accordingly.
+    """
+    tool_plan = state.get("tool_plan", {})
+    approval_required = tool_plan.get("approval_required", False)
+
+    if approval_required:
+        return {
+            **state,
+            "human_review_required": True,
+            "review_status": "pending_approval",
+            "final_status": "pending_approval",
+            "status": "pending_approval",
+        }
+    else:
+        return {
+            **state,
+            "human_review_required": False,
+            "review_status": "not_required",
+            "final_status": "completed",
+            "status": "completed",
+        }
 
 
 def node_analyze_with_llm(state: AgentState) -> AgentState:
@@ -287,6 +421,31 @@ def _route_after_validation(state: AgentState) -> str:
     return "mark_validated"
 
 
+def node_end_phase2_workflow(state: AgentState) -> AgentState:
+    """
+    End node for Phase 2 (non-controlled_rag_agent) workflows.
+
+    Ensures the status is "validated" before ending for Phase 1/2 agents.
+    """
+    # Only change status if not already set to a terminal state
+    current_status = state.get("status", "")
+    if current_status not in ["validated", "needs_clarification", "error"]:
+        return {**state, "status": "validated"}
+    return state
+
+
+def _route_after_normalization(state: AgentState) -> str:
+    """
+    Route after normalization: controlled_rag_agent goes to Phase 3,
+    other agents go to end_phase2_workflow.
+    """
+    agent_type = state.get("agent_type", "")
+    if agent_type == "controlled_rag_agent":
+        return "generate_rag_answer"
+    # For other agents, stop after normalization
+    return "end_phase2_workflow"
+
+
 def _route_after_llm(state: AgentState) -> str:
     """Stop the graph on LLM errors, else continue to scoring."""
     if state.get("status") == "error":
@@ -302,12 +461,31 @@ def build_workflow() -> Any:
     """
     Construct and compile the LangGraph StateGraph.
 
-    Implements Phase 1 (validation/clarification) and Phase 2-B (normalization):
-    - Validates required fields
-    - Generates clarification questions for missing fields
-    - If validated: normalizes the input data before stopping
-    - Returns "needs_clarification" or "validated" status
-    - Future phases will add LLM analysis, scoring, and approval steps
+    Implements Phase 1-3 with conditional routing:
+    - Phase 1: Validates required fields, generates clarification questions
+    - Phase 2-B: Normalizes input data
+    - Phase 3 (controlled_rag_agent only): RAG answer generation, tool planning, human review routing
+
+    Workflow order for controlled_rag_agent:
+      intake
+      → validate_required_fields
+      → [clarify_missing_info OR mark_validated]
+      → normalize_input
+      → generate_rag_answer
+      → generate_tool_plan
+      → route_human_review
+      → END
+
+    Workflow order for other agents (freelance, public_enterprise_ai):
+      intake
+      → validate_required_fields
+      → [clarify_missing_info OR mark_validated]
+      → normalize_input
+      → END (status="validated")
+
+    If required fields are missing, workflow stops at clarify_missing_info.
+    If all required fields are present, the workflow proceeds through normalization
+    and optionally to Phase 3 based on agent type.
 
     Returns a compiled runnable.  Call `.invoke(initial_state)` to
     execute the full graph.
@@ -322,6 +500,12 @@ def build_workflow() -> Any:
 
     # Register Phase 2-B nodes
     graph.add_node("normalize_input", node_normalize_input)
+    graph.add_node("end_phase2_workflow", node_end_phase2_workflow)
+
+    # Register Phase 3 nodes (controlled_rag_agent only)
+    graph.add_node("generate_rag_answer", node_generate_rag_answer)
+    graph.add_node("generate_tool_plan", node_generate_tool_plan)
+    graph.add_node("route_human_review", node_route_human_review)
 
     # Entry point
     graph.set_entry_point("intake")
@@ -340,7 +524,24 @@ def build_workflow() -> Any:
 
     # Phase 2-B normalization flow (only after validation succeeds)
     graph.add_edge("mark_validated", "normalize_input")
-    graph.add_edge("normalize_input", END)
+
+    # Phase 3 conditional routing (controlled_rag_agent only) or end Phase 2
+    graph.add_conditional_edges(
+        "normalize_input",
+        _route_after_normalization,
+        {
+            "generate_rag_answer": "generate_rag_answer",
+            "end_phase2_workflow": "end_phase2_workflow",
+        },
+    )
+
+    # End Phase 2 workflow
+    graph.add_edge("end_phase2_workflow", END)
+
+    # Phase 3 flow (controlled_rag_agent only)
+    graph.add_edge("generate_rag_answer", "generate_tool_plan")
+    graph.add_edge("generate_tool_plan", "route_human_review")
+    graph.add_edge("route_human_review", END)
 
     return graph.compile()
 

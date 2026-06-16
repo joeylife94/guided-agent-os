@@ -18,11 +18,12 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(
     title="Guided Agent OS",
     description=(
-        "A form-driven AI agent platform that collects structured intake data, "
-        "validates required fields, generates clarification questions when "
-        "information is missing, and returns a validated status when Phase 1 "
-        "intake is complete. Later phases can add analysis, drafting, and "
-        "human review without changing the intake contract."
+        "A guided intake and controlled RAG agent platform that validates "
+        "required fields, asks clarification questions, normalizes input, "
+        "persists runs, and supports a controlled_rag_agent workflow with "
+        "local grounded RAG answers, planned-only tool/API plans, and human "
+        "review routing. It does not execute SQL, tools, APIs, or external "
+        "account actions."
     ),
     version="0.1.0",
     docs_url="/docs",

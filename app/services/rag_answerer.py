@@ -165,7 +165,7 @@ def _build_fallback_answer(
         return (
             "Local LLM is unavailable, so no generated answer was produced. "
             "Retrieved local knowledge base context and source metadata are "
-            "returned for human review. No tool, SQL, API, or database "
+            "returned for caller inspection. No tool, SQL, API, or database "
             "operation was performed."
         )
 

@@ -1,0 +1,145 @@
+name: Firebat Container
+
+on:
+  pull_request:
+    paths:
+      - Dockerfile
+      - compose.firebat.yml
+      - .dockerignore
+      - .env.firebat.example
+      - app/**
+      - scripts/**
+      - requirements.txt
+      - .github/workflows/firebat-container.yml
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  firebat-container:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare Firebat environment
+        run: |
+          cp .env.firebat.example .env.firebat
+          sed -i 's/HOST_PORT=8701/HOST_PORT=18701/' .env.firebat
+          sed -i 's/LOCAL_LLM_TIMEOUT=5/LOCAL_LLM_TIMEOUT=2/' .env.firebat
+          chmod 600 .env.firebat
+          echo 'APP_VERSION=ci' >> "$GITHUB_ENV"
+          echo "GIT_REVISION=${GITHUB_SHA}" >> "$GITHUB_ENV"
+          echo 'HOST_PORT=18701' >> "$GITHUB_ENV"
+
+      - name: Build production image
+        shell: bash
+        run: |
+          set -o pipefail
+          docker compose --env-file .env.firebat -f compose.firebat.yml build app 2>&1 | tee firebat-build.log
+
+      - name: Start Firebat service
+        run: docker compose --env-file .env.firebat -f compose.firebat.yml up -d
+
+      - name: Verify health, docs, and version
+        run: |
+          chmod +x scripts/healthcheck-firebat.sh
+          HEALTHCHECK_MAX_ATTEMPTS=90 sh scripts/healthcheck-firebat.sh
+          curl -fsS "http://127.0.0.1:${HOST_PORT}/docs" > /tmp/docs.html
+          test -s /tmp/docs.html
+          curl -fsS "http://127.0.0.1:${HOST_PORT}/version" > /tmp/version.json
+          python - <<'PY'
+          import json
+          import os
+          value = json.load(open('/tmp/version.json', encoding='utf-8'))
+          assert value['version'] == os.environ['APP_VERSION']
+          assert value['revision'] == os.environ['GIT_REVISION']
+          assert value['environment'] == 'production'
+          PY
+
+      - name: Verify RAG retrieval and graceful model fallback
+        run: |
+          curl -fsS --get \
+            --data-urlencode 'q=legacy database access' \
+            --data-urlencode 'top_k=1' \
+            "http://127.0.0.1:${HOST_PORT}/api/rag/query-all" > /tmp/query.json
+          python - <<'PY'
+          import json
+          value = json.load(open('/tmp/query.json', encoding='utf-8'))
+          results = value['results']
+          assert set(results) == {'domain_knowledge', 'agent_policy', 'tool_catalog'}
+          assert all(results[name] for name in results)
+          PY
+
+          curl -fsS -X POST \
+            -H 'Content-Type: application/json' \
+            -d '{"question":"How should legacy database access be controlled?","top_k_per_collection":1}' \
+            "http://127.0.0.1:${HOST_PORT}/api/rag/answer" > /tmp/answer.json
+          python - <<'PY'
+          import json
+          value = json.load(open('/tmp/answer.json', encoding='utf-8'))
+          assert value['citations']
+          assert value['retrieved_context']
+          assert value['model']['available'] is False
+          assert value['error']
+          assert any('No real tool' in item for item in value['limitations'])
+          PY
+
+      - name: Create a persistent agent run
+        run: |
+          curl -fsS -X POST \
+            -H 'Content-Type: application/json' \
+            -d '{"opportunity_title":"Firebat API review","client_description":"Internal portfolio operations","project_description":"Review a controlled agent API deployment"}' \
+            "http://127.0.0.1:${HOST_PORT}/api/agents/freelance/runs" > /tmp/run.json
+          python - <<'PY'
+          import json
+          value = json.load(open('/tmp/run.json', encoding='utf-8'))
+          assert value['status'] == 'validated'
+          assert value['run_id']
+          open('/tmp/run-id', 'w', encoding='utf-8').write(value['run_id'])
+          PY
+
+      - name: Verify image metadata and volume persistence
+        shell: bash
+        run: |
+          version=$(docker image inspect "firebat-guided-agent-os:${APP_VERSION}" --format '{{ index .Config.Labels "org.opencontainers.image.version" }}')
+          revision=$(docker image inspect "firebat-guided-agent-os:${APP_VERSION}" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')
+          test "$version" = "$APP_VERSION"
+          test "$revision" = "$GIT_REVISION"
+
+          run_id=$(cat /tmp/run-id)
+          docker compose --env-file .env.firebat -f compose.firebat.yml down
+          docker compose --env-file .env.firebat -f compose.firebat.yml up -d
+          HEALTHCHECK_MAX_ATTEMPTS=90 sh scripts/healthcheck-firebat.sh
+          curl -fsS "http://127.0.0.1:${HOST_PORT}/api/agents/runs/${run_id}" > /tmp/persisted-run.json
+          python - <<'PY'
+          import json
+          value = json.load(open('/tmp/persisted-run.json', encoding='utf-8'))
+          assert value['status'] == 'validated'
+          PY
+          docker volume inspect firebat-guided-agent-os-data >/dev/null
+
+      - name: Capture diagnostics
+        if: always()
+        run: |
+          docker compose --env-file .env.firebat -f compose.firebat.yml ps || true
+          docker compose --env-file .env.firebat -f compose.firebat.yml logs --tail=250 app > firebat-container.log 2>&1 || true
+
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: guided-agent-firebat
+          path: |
+            firebat-build.log
+            firebat-container.log
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Stop Firebat service
+        if: always()
+        run: docker compose --env-file .env.firebat -f compose.firebat.yml down -v || true

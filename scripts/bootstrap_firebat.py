@@ -13,8 +13,8 @@ def main() -> None:
     chroma_path = Path(os.getenv("RAG_CHROMA_PATH", "/app/data/chroma"))
     chroma_path.mkdir(parents=True, exist_ok=True)
 
-    if database_url.startswith("sqlite:////"):
-        database_path = Path(database_url.removeprefix("sqlite:////")).resolve()
+    if database_url.startswith("sqlite:///"):
+        database_path = Path(database_url.removeprefix("sqlite:///")).resolve()
         database_path.parent.mkdir(parents=True, exist_ok=True)
 
     Base.metadata.create_all(bind=engine)

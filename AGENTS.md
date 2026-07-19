@@ -1,95 +1,72 @@
-# Guided Agent OS — Agent Guidelines
+# Agent Operating Guide
 
-## Project Identity
+## Project identity
 
-Guided Agent OS is a **reusable Guided Intake Agent Platform**.
+Guided Agent OS is a reusable, form-driven controlled agent platform. It validates structured intake, asks clarification questions, normalizes input, persists runs, retrieves local knowledge through ChromaDB, generates grounded answers through an optional local OpenAI-compatible model, creates planned-only tool/API plans, and routes sensitive work to human review.
 
-It is not a single hardcoded freelance agent. The first deployed template is the Freelance Opportunity Agent, but the platform is designed so that future agent templates (job search, contract review, RFP evaluation, etc.) can be added without restructuring the core.
+The platform does **not** execute SQL, tools, external APIs, account actions, payments, submissions, email, or destructive operations. Do not overstate planned output as real execution.
 
-The core principle: users should not need to write perfect prompts. The current system collects structured form input, validates required fields, asks clarification questions when information is missing, normalizes validated input, and persists runs. Future phases may add LLM analysis, scoring, action drafting, and human approval without requiring users to write perfect prompts.
+## Current implemented scope
 
-Long-term, this project should read as an AI Agent orchestration platform, not a simple chatbot. Emphasize guided intake, reusable workflow engine, structured output, stateful workflow, model routing, human-in-the-loop review, safety boundaries, agent template extensibility, and cost-aware AI development.
+- FastAPI API server
+- Freelance, public-enterprise, and controlled-RAG templates
+- SQLite/SQLAlchemy run persistence
+- deterministic normalization and clarification
+- LangGraph controlled workflow
+- local Markdown knowledge base and persistent ChromaDB index
+- deterministic local embeddings
+- optional Ollama/OpenAI-compatible grounded answer generation
+- graceful retrieval-only fallback when the model is unavailable
+- planned-only tool/API recommendations
+- guarded human approve/reject status transitions
 
-Future agents should be added primarily through templates, schemas, prompts, and workflow configuration with minimal new backend code. Candidate future templates include AI Content Agent, Duru SKU & Marketing Agent, Personal Command Center Agent, AI Market Watch Agent, and additional guided intake agents.
+Keep README, API descriptions, tests, and deployment reports aligned with this actual scope.
 
----
+## Repository workflow
 
-## Phase-Based Development Policy
+1. Inspect `main`, open PRs, relevant routes, workflow nodes, persistence models, RAG services, tests, and CI before editing.
+2. Work on a dedicated branch and preserve unrelated worktree changes.
+3. Implement the smallest complete change without activating planned features early.
+4. Run narrow tests first, then the full required verification.
+5. Open a Draft PR, inspect GitHub Actions, fix failures from logs and artifacts, and report exact validation boundaries.
+6. Merge only when authorized and all required checks are successful.
 
-Development follows a strict phase-based approach. Each phase has a defined goal and must be fully complete and tested before the next phase begins.
-
-**Do not implement future phases early.** If a phase is listed as planned, its code must not execute. Skeleton functions, nodes, schemas, columns, or routes may exist, but they must not be wired into active behavior.
-
-If a task description requests work that belongs to a future phase, stop and flag it rather than implementing it.
-
-Current active phases as of 2026-06-14:
-
-- **Phase 1:** required-field validation and clarification questions
-- **Phase 2-A:** SQLite persistence for agent runs
-- **Phase 2-B:** deterministic normalization for validated freelance intake
-
-Future-phase functions, columns, schemas, or guarded routes may exist as scaffolding. Treat them as inactive unless the compiled workflow, route behavior, and tests show that phase is intentionally wired.
-
----
-
-## Forbidden Actions
-
-The following must never be implemented unless explicitly and specifically requested by the project owner:
-
-- Automatic email sending
-- Automatic job applications
-- Payments or billing integrations
-- Web crawling or scraping
-- Authentication or user account management
-- Any external account actions (posting, submitting, contacting)
-- Destructive file operations (deleting user data, purging records)
-- Complex RAG (retrieval-augmented generation) pipelines
-- Multi-agent orchestration beyond the current single-agent workflow
-- Production deployment automation
-
----
-
-## Model Workflow
-
-| Role | Responsibility |
-|------|----------------|
-| **Haiku** | Routine implementation: adding nodes, writing services, extending schemas, writing tests |
-| **Codex** | Review and fix must-fix issues: correctness bugs, broken tests, API contract violations |
-| **Sonnet** | Architecture decisions, documentation, complex design problems |
-
-Haiku should handle the majority of implementation work. Codex reviews are for catching errors, not rewriting working code.
-
----
-
-## Testing Expectations
-
-Before any review or merge, all of the following must pass:
+## Required verification
 
 ```bash
 python -m pytest tests
 python -m unittest discover -s tests
-python -m compileall app tests
+python -m compileall app tests scripts
 git diff --check
 ```
 
-No test should be skipped or marked xfail without a documented reason.
+Container or deployment changes must additionally prove:
 
----
+- production image build
+- non-root container startup
+- SQLite and ChromaDB readiness
+- RAG query with non-empty retrieved context
+- graceful behavior without Ollama
+- agent-run persistence after container recreation
+- image version and revision metadata
 
-## Review Checklist
+## Safety and truthfulness
 
-Each review comment or PR description must include:
+- Never commit `.env`, `.env.firebat`, credentials, API keys, private data, database files, ChromaDB state, or model artifacts.
+- Do not add automatic email, applications, payments, crawling, posting, account actions, direct SQL execution, or tool execution unless explicitly authorized as a separate scoped task.
+- Human approval changes status only; it does not secretly execute a planned action.
+- Do not delete persistent volumes or reset user data without explicit authorization.
+- Do not claim Ollama, GPU inference, external integrations, or tool execution were validated unless they were actually exercised.
 
-1. **Changes made** — what was added, modified, or removed
-2. **Tests run** — which test commands were executed and their results
-3. **Remaining concerns** — open questions, known gaps, or items deferred to a future phase
-4. **Merge readiness** — explicit statement of whether the change is ready to merge
+## Firebat deployment
 
----
+- Compose file: `compose.firebat.yml`
+- host binding: `127.0.0.1:8701`
+- Tailnet HTTPS port: `8445`
+- API documentation: `/docs`
+- health: `/health`
+- version: `/version`
+- persistent volume: `firebat-guided-agent-os-data`
+- deployment: `sh scripts/deploy-firebat.sh`
 
-## Scope Discipline
-
-- Do not add dependencies that are not required by the current phase.
-- Do not add features that are not required by the current phase.
-- Do not modify application code while working on documentation tasks.
-- Do not modify documentation while working on application code tasks (unless the task explicitly includes both).
+Firebat is a private Tailnet deployment. The local LLM endpoint is optional. The service must remain usable in retrieval-only mode when Ollama is absent.

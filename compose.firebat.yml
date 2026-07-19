@@ -1,0 +1,57 @@
+services:
+  app:
+    image: firebat-guided-agent-os:${APP_VERSION:-local}
+    container_name: firebat-guided-agent-os
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP_VERSION: ${APP_VERSION:-local}
+        GIT_REVISION: ${GIT_REVISION:-unknown}
+    env_file:
+      - .env.firebat
+    environment:
+      APP_ENV: production
+      APP_VERSION: ${APP_VERSION:-local}
+      GIT_REVISION: ${GIT_REVISION:-unknown}
+      DATABASE_URL: sqlite:////app/data/agent_os.db
+      RAG_CHROMA_PATH: /app/data/chroma
+      RAG_REBUILD_ON_START: ${RAG_REBUILD_ON_START:-true}
+      LOCAL_LLM_BASE_URL: ${LOCAL_LLM_BASE_URL:-http://host.docker.internal:11434/v1}
+      LOCAL_LLM_MODEL: ${LOCAL_LLM_MODEL:-qwen2.5:7b-instruct}
+      LOCAL_LLM_TIMEOUT: ${LOCAL_LLM_TIMEOUT:-5}
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-}
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    ports:
+      - "127.0.0.1:${HOST_PORT:-8701}:8000"
+    volumes:
+      - guided-agent-data:/app/data
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import json, urllib.request;
+          value=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5));
+          assert value['status']=='healthy' and value['database']=='ready' and value['rag']=='ready'
+      interval: 10s
+      timeout: 6s
+      retries: 12
+      start_period: 45s
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 1536m
+    cpus: 1.25
+    pids_limit: 256
+
+volumes:
+  guided-agent-data:
+    name: firebat-guided-agent-os-data

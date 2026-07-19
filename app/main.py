@@ -1,20 +1,24 @@
 from __future__ import annotations
 
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, RedirectResponse
+from sqlalchemy import text
 
-from app.api.routes import router
 from app.api.rag_routes import router as rag_router
-from app.models.database import Base, engine
+from app.api.routes import router
+from app.models.database import Base, SessionLocal, engine
+from app.services.rag_indexer import get_index_stats
 
-# ---------------------------------------------------------------------------
-# Create all tables on startup (idempotent)
-# ---------------------------------------------------------------------------
+# Create all tables on startup (idempotent).
 Base.metadata.create_all(bind=engine)
 
-# ---------------------------------------------------------------------------
-# App instance
-# ---------------------------------------------------------------------------
+APP_VERSION = os.getenv("APP_VERSION", "0.1.0")
+GIT_REVISION = os.getenv("GIT_REVISION", "unknown")
+APP_ENV = os.getenv("APP_ENV", "development")
+
 app = FastAPI(
     title="Guided Agent OS",
     description=(
@@ -25,33 +29,87 @@ app = FastAPI(
         "review routing. It does not execute SQL, tools, APIs, or external "
         "account actions."
     ),
-    version="0.1.0",
+    version=APP_VERSION,
     docs_url="/docs",
     redoc_url="/redoc",
 )
 
-# ---------------------------------------------------------------------------
-# CORS — open during development; tighten for production
-# ---------------------------------------------------------------------------
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
-# ---------------------------------------------------------------------------
-# Routers
-# ---------------------------------------------------------------------------
+def _cors_origins() -> list[str]:
+    configured = os.getenv("CORS_ALLOW_ORIGINS", "").strip()
+    if configured:
+        return [origin.strip() for origin in configured.split(",") if origin.strip()]
+    if APP_ENV != "production":
+        return ["*"]
+    return []
+
+
+allowed_origins = _cors_origins()
+if allowed_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=allowed_origins,
+        allow_credentials=allowed_origins != ["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
 app.include_router(router)
 app.include_router(rag_router)
 
 
-# ---------------------------------------------------------------------------
-# Health check
-# ---------------------------------------------------------------------------
+@app.get("/", include_in_schema=False)
+def root() -> RedirectResponse:
+    """Open the interactive API documentation."""
+    return RedirectResponse(url="/docs")
+
+
 @app.get("/health", tags=["system"])
-def health_check() -> dict:
-    """Returns a simple liveness signal."""
-    return {"status": "ok", "service": "guided-agent-os"}
+def health_check() -> JSONResponse:
+    """Return database and RAG readiness without contacting an optional LLM."""
+    try:
+        with SessionLocal() as db:
+            db.execute(text("SELECT 1"))
+        collection_counts = get_index_stats()
+        rag_ready = bool(collection_counts) and all(
+            count > 0 for count in collection_counts.values()
+        )
+        if not rag_ready:
+            raise RuntimeError("RAG index is empty")
+    except Exception as exc:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "unhealthy",
+                "service": "guided-agent-os",
+                "version": APP_VERSION,
+                "revision": GIT_REVISION,
+                "database": "unavailable",
+                "rag": "unavailable",
+                "error": str(exc),
+            },
+        )
+
+    return JSONResponse(
+        content={
+            "status": "healthy",
+            "service": "guided-agent-os",
+            "version": APP_VERSION,
+            "revision": GIT_REVISION,
+            "database": "ready",
+            "rag": "ready",
+            "collections": collection_counts,
+            "llm": "optional",
+        }
+    )
+
+
+@app.get("/version", tags=["system"])
+def version_check() -> dict[str, str]:
+    return {
+        "status": "ok",
+        "service": "guided-agent-os",
+        "version": APP_VERSION,
+        "revision": GIT_REVISION,
+        "environment": APP_ENV,
+    }

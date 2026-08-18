@@ -16,6 +16,8 @@ def test_root_serves_operator_workspace() -> None:
     assert "Guided Agent OS" in response.text
     assert 'id="agent-form"' in response.text
     assert 'id="run-panel"' in response.text
+    assert 'id="clarification-panel"' in response.text
+    assert 'id="clarification-questions"' in response.text
     assert 'id="review-panel"' in response.text
     assert 'id="execution-result"' in response.text
     assert 'id="audit-shell"' in response.text
@@ -29,8 +31,19 @@ def test_workspace_calls_existing_controlled_agent_api_only() -> None:
     assert "/api/agents/runs/${currentRunId}/${endpoint}" in html
     assert "legacy_db_lookup" in html
     assert "renderRun(run)" in html
+    assert "renderClarifications(run.clarification_questions || [])" in html
     assert "run.status === 'pending_approval'" in html
     assert "run.raw_output && run.raw_output.execution_result" in html
+
+
+def test_workspace_allows_backend_validation_to_drive_clarification() -> None:
+    response = client.get("/")
+    html = response.text
+
+    assert '<textarea id="business_context">' in html
+    assert '<input id="expected_output" value=' in html
+    assert 'item.question || item.message || JSON.stringify(item)' in html
+    assert "clarificationPanel.classList.remove('hidden')" in html
 
 
 def test_swagger_remains_available_for_developer_inspection() -> None:

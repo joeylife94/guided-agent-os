@@ -137,6 +137,15 @@ jobs:
           assert any('No real tool' in item for item in value['limitations'])
           PY
 
+      - name: Verify Operator Workspace in headless Chrome
+        env:
+          OPERATOR_BASE_URL: http://127.0.0.1:18701
+          OPERATOR_ARTIFACT_DIR: /tmp/operator-proof
+        run: |
+          google-chrome --version
+          python -m pip install --disable-pip-version-check 'selenium==4.35.0'
+          python scripts/verify_operator_browser.py
+
       - name: Create a persistent agent run
         run: |
           curl -fsS -X POST \
@@ -180,6 +189,8 @@ jobs:
           cp /tmp/query-ko.json semantic-query-ko.json 2>/dev/null || true
           cp /tmp/query-en.json semantic-query-en.json 2>/dev/null || true
           cp /tmp/semantic-runtime.txt semantic-runtime.txt 2>/dev/null || true
+          cp /tmp/operator-proof/operator-browser-evidence.json operator-browser-evidence.json 2>/dev/null || true
+          cp /tmp/operator-proof/operator-golden-path.png operator-golden-path.png 2>/dev/null || true
 
       - name: Upload diagnostics
         if: always()
@@ -193,6 +204,8 @@ jobs:
             semantic-query-ko.json
             semantic-query-en.json
             semantic-runtime.txt
+            operator-browser-evidence.json
+            operator-golden-path.png
           if-no-files-found: ignore
           retention-days: 14
 

@@ -32,6 +32,7 @@ _OPERATOR_HTML = r'''<!doctype html>
     .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
     .error { color: #ff9aa5; }
     .source { border-top: 1px solid #293553; padding-top: 10px; margin-top: 10px; }
+    .clarification { border-left: 3px solid #7c9cff; padding: 8px 12px; margin: 8px 0; background: #10192e; border-radius: 6px; }
   </style>
 </head>
 <body>
@@ -43,19 +44,19 @@ _OPERATOR_HTML = r'''<!doctype html>
     <h2 id="request-heading">1. Controlled request</h2>
     <form id="agent-form">
       <label for="user_request">User request</label>
-      <textarea id="user_request" required>Look up legacy database record LEG-001 and summarize the access constraints.</textarea>
+      <textarea id="user_request">Look up legacy database record LEG-001 and summarize the access constraints.</textarea>
 
       <label for="business_context">Business context</label>
-      <textarea id="business_context" required>Internal maintenance operator needs a controlled lookup before reviewing a historical facility record.</textarea>
+      <textarea id="business_context">Internal maintenance operator needs a controlled lookup before reviewing a historical facility record.</textarea>
 
       <div class="grid">
         <div>
           <label for="data_sources">Data sources (comma separated)</label>
-          <input id="data_sources" value="domain_knowledge,agent_policy,tool_catalog" required />
+          <input id="data_sources" value="domain_knowledge,agent_policy,tool_catalog" />
         </div>
         <div>
           <label for="expected_output">Expected output</label>
-          <input id="expected_output" value="Grounded answer, sources, and controlled execution result" required />
+          <input id="expected_output" value="Grounded answer, sources, and controlled execution result" />
         </div>
         <div>
           <label for="risk_level">Risk level</label>
@@ -74,6 +75,12 @@ _OPERATOR_HTML = r'''<!doctype html>
   <section id="run-panel" class="card hidden" aria-live="polite">
     <h2>2. Run result</h2>
     <div><span class="pill" id="run-status">status</span><span class="pill" id="run-id">run</span></div>
+
+    <div id="clarification-panel" class="hidden">
+      <h3>Clarification required</h3>
+      <div class="muted">Complete the missing context in the request form, then run the agent again.</div>
+      <div id="clarification-questions"></div>
+    </div>
 
     <h3>Grounded answer</h3>
     <pre id="answer">—</pre>
@@ -143,11 +150,29 @@ _OPERATOR_HTML = r'''<!doctype html>
     });
   }
 
+  function renderClarifications(questions) {
+    const clarificationPanel = document.getElementById('clarification-panel');
+    const container = document.getElementById('clarification-questions');
+    container.innerHTML = '';
+    if (!Array.isArray(questions) || questions.length === 0) {
+      clarificationPanel.classList.add('hidden');
+      return;
+    }
+    questions.forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'clarification';
+      div.textContent = item.question || item.message || JSON.stringify(item);
+      container.appendChild(div);
+    });
+    clarificationPanel.classList.remove('hidden');
+  }
+
   function renderRun(run) {
     currentRunId = run.run_id;
     panel.classList.remove('hidden');
     document.getElementById('run-status').textContent = run.status || 'unknown';
     document.getElementById('run-id').textContent = run.run_id || 'no run id';
+    renderClarifications(run.clarification_questions || []);
 
     const rag = run.rag_answer || {};
     document.getElementById('answer').textContent = rag.answer || 'No grounded answer returned.';

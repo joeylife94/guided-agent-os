@@ -33,6 +33,12 @@ _OPERATOR_HTML = r'''<!doctype html>
     .error { color: #ff9aa5; }
     .source { border-top: 1px solid #293553; padding-top: 10px; margin-top: 10px; }
     .clarification { border-left: 3px solid #7c9cff; padding: 8px 12px; margin: 8px 0; background: #10192e; border-radius: 6px; }
+    .audit-event { display: grid; grid-template-columns: 56px minmax(180px, .8fr) minmax(160px, .7fr) minmax(260px, 1.5fr); gap: 10px; align-items: start; padding: 10px 0; border-top: 1px solid #293553; font-size: 13px; }
+    .audit-event:first-child { border-top: 0; }
+    .audit-sequence { font-weight: 700; color: #7c9cff; }
+    .audit-type { font-weight: 700; }
+    .audit-payload { white-space: pre-wrap; word-break: break-word; color: #cbd4ed; }
+    @media (max-width: 760px) { .audit-event { grid-template-columns: 48px 1fr; } .audit-payload { grid-column: 1 / -1; } }
   </style>
 </head>
 <body>
@@ -104,7 +110,7 @@ _OPERATOR_HTML = r'''<!doctype html>
     <pre id="execution-result">Not executed.</pre>
 
     <h3>Audit timeline</h3>
-    <div id="audit-shell" class="muted">Persistent lifecycle events arrive in Phase 4. Current shell shows observable run state transitions only.</div>
+    <div id="audit-timeline" class="muted" aria-live="polite">Loading persisted lifecycle events…</div>
   </section>
 </main>
 <script>
@@ -167,6 +173,54 @@ _OPERATOR_HTML = r'''<!doctype html>
     clarificationPanel.classList.remove('hidden');
   }
 
+  function renderAuditEvents(events) {
+    const container = document.getElementById('audit-timeline');
+    container.innerHTML = '';
+    if (!Array.isArray(events) || events.length === 0) {
+      container.className = 'muted';
+      container.textContent = 'No persisted lifecycle events returned.';
+      return;
+    }
+    container.className = '';
+    events.forEach(event => {
+      const row = document.createElement('div');
+      row.className = 'audit-event';
+
+      const sequence = document.createElement('div');
+      sequence.className = 'audit-sequence';
+      sequence.textContent = `#${event.sequence}`;
+
+      const type = document.createElement('div');
+      type.className = 'audit-type';
+      type.textContent = event.event_type || 'UNKNOWN';
+
+      const actor = document.createElement('div');
+      actor.textContent = `${event.actor || 'system'} · ${event.created_at || 'time unavailable'}`;
+
+      const payload = document.createElement('div');
+      payload.className = 'audit-payload';
+      payload.textContent = JSON.stringify(event.payload || {}, null, 2);
+
+      row.append(sequence, type, actor, payload);
+      container.appendChild(row);
+    });
+  }
+
+  async function refreshAuditTimeline(runId) {
+    const container = document.getElementById('audit-timeline');
+    container.className = 'muted';
+    container.textContent = 'Loading persisted lifecycle events…';
+    try {
+      const events = await api(`/api/agents/runs/${runId}/events`);
+      if (runId === currentRunId) renderAuditEvents(events);
+    } catch (error) {
+      if (runId === currentRunId) {
+        container.className = 'error';
+        container.textContent = `Audit timeline unavailable: ${error.message}`;
+      }
+    }
+  }
+
   function renderRun(run) {
     currentRunId = run.run_id;
     panel.classList.remove('hidden');
@@ -185,7 +239,7 @@ _OPERATOR_HTML = r'''<!doctype html>
 
     const execution = run.raw_output && run.raw_output.execution_result;
     document.getElementById('execution-result').textContent = execution ? JSON.stringify(execution, null, 2) : 'Not executed.';
-    document.getElementById('audit-shell').textContent = `Observed state: ${run.status || 'unknown'} · persistent lifecycle event history is Phase 4.`;
+    refreshAuditTimeline(run.run_id);
   }
 
   async function submitDecision(decision) {

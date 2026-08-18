@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, Float, ForeignKey, String, Text, func
+from sqlalchemy import JSON, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.database import Base
@@ -104,6 +104,35 @@ class AgentRun(Base):
     action_drafts: Mapped[list[ActionDraft]] = relationship(
         "ActionDraft", back_populates="run", cascade="all, delete-orphan"
     )
+    audit_events: Mapped[list[RunAuditEvent]] = relationship(
+        "RunAuditEvent",
+        back_populates="run",
+        cascade="all, delete-orphan",
+        order_by="RunAuditEvent.sequence",
+    )
+
+
+class RunAuditEvent(Base):
+    """Append-only persisted lifecycle evidence for one AgentRun."""
+
+    __tablename__ = "run_audit_events"
+    __table_args__ = (
+        UniqueConstraint("run_id", "sequence", name="uq_run_audit_event_sequence"),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_new_uuid)
+    run_id: Mapped[str] = mapped_column(
+        String, ForeignKey("agent_runs.id"), nullable=False, index=True
+    )
+    sequence: Mapped[int] = mapped_column(Integer, nullable=False)
+    event_type: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    actor: Mapped[str] = mapped_column(String, nullable=False, default="system")
+    payload: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )
+
+    run: Mapped[AgentRun] = relationship("AgentRun", back_populates="audit_events")
 
 
 class ActionDraft(Base):

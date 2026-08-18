@@ -20,7 +20,7 @@ def test_root_serves_operator_workspace() -> None:
     assert 'id="clarification-questions"' in response.text
     assert 'id="review-panel"' in response.text
     assert 'id="execution-result"' in response.text
-    assert 'id="audit-shell"' in response.text
+    assert 'id="audit-timeline"' in response.text
 
 
 def test_workspace_calls_existing_controlled_agent_api_only() -> None:
@@ -29,11 +29,26 @@ def test_workspace_calls_existing_controlled_agent_api_only() -> None:
 
     assert "/api/agents/controlled_rag_agent/runs" in html
     assert "/api/agents/runs/${currentRunId}/${endpoint}" in html
+    assert "/api/agents/runs/${runId}/events" in html
     assert "legacy_db_lookup" in html
     assert "renderRun(run)" in html
     assert "renderClarifications(run.clarification_questions || [])" in html
+    assert "refreshAuditTimeline(run.run_id)" in html
     assert "run.status === 'pending_approval'" in html
     assert "run.raw_output && run.raw_output.execution_result" in html
+
+
+def test_workspace_renders_persisted_audit_events() -> None:
+    response = client.get("/")
+    html = response.text
+
+    assert "function renderAuditEvents(events)" in html
+    assert "event.sequence" in html
+    assert "event.event_type" in html
+    assert "event.actor" in html
+    assert "event.created_at" in html
+    assert "event.payload" in html
+    assert "Persistent lifecycle events arrive in Phase 4" not in html
 
 
 def test_workspace_allows_backend_validation_to_drive_clarification() -> None:

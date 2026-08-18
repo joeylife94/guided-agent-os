@@ -29,7 +29,6 @@ DESCRIPTION = (
     "execute SQL, tools, or APIs."
 )
 
-# Fields the user MUST provide for Phase 1 validation.
 REQUIRED_FIELDS: list[str] = [
     "user_request",
     "business_context",
@@ -38,16 +37,14 @@ REQUIRED_FIELDS: list[str] = [
     "risk_level",
 ]
 
-# Fields that enrich the analysis but are not strictly required.
 OPTIONAL_FIELDS: list[str] = [
     "user_role",
     "allowed_tools",
+    "tool_parameters",
     "approval_required",
     "security_constraints",
 ]
 
-# Maps each field name to the clarification question shown to the user when
-# that field is missing.
 CLARIFICATION_MAP: dict[str, str] = {
     "user_request": (
         "What is your specific request or question? "
@@ -77,6 +74,9 @@ CLARIFICATION_MAP: dict[str, str] = {
         "Which tools or integrations are allowed for this request? "
         "List them or leave blank for auto-detection."
     ),
+    "tool_parameters": (
+        "What validated parameters should be supplied to the approved tool?"
+    ),
     "approval_required": (
         "Is human approval required before execution? "
         "(yes/no)"
@@ -86,7 +86,6 @@ CLARIFICATION_MAP: dict[str, str] = {
     ),
 }
 
-# Prompt template for future LLM-based grounding (not used in Phase 3 planning)
 ANALYSIS_PROMPT_TEMPLATE = """\
 You are a controlled Guided Agent OS assistant for enterprise use. \
 Your role is to analyze and respond to user requests using ONLY the \

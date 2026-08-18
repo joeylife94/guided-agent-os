@@ -64,7 +64,7 @@ jobs:
       - name: Verify semantic RAG runtime and bilingual retrieval
         shell: bash
         run: |
-          docker exec firebat-guided-agent-os python - <<'PY' > /tmp/embedding.json
+          docker exec -i firebat-guided-agent-os python - <<'PY' > /tmp/embedding.json
           import json
           from app.services.rag_indexer import get_chroma_client, get_index_stats
           from app.services.rag_document_loader import get_collection_names

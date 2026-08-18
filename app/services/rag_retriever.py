@@ -1,17 +1,20 @@
 """
 RAG Retriever Service
 
-Queries ChromaDB collections to retrieve relevant documents.
-Supports querying single collections or all collections at once.
+Queries ChromaDB collections using the same configured embedding provider that
+created the index. Provider/model/dimension mismatches fail explicitly and
+require an index rebuild; retrieval never silently falls back to hash vectors.
 """
 
 from typing import Dict, List, Any
 
-from app.services.rag_indexer import (
-    get_chroma_client,
-)
+from app.services.rag_indexer import get_chroma_client
 from app.services.rag_document_loader import get_collection_names
-from app.services.rag_embeddings import embed_texts
+from app.services.rag_embeddings import (
+    embed_texts,
+    get_embedding_metadata,
+    get_embedding_provider,
+)
 
 
 MIN_TOP_K = 1
@@ -23,17 +26,6 @@ def _normalize_result(
     metadata: Dict[str, Any],
     score: float,
 ) -> Dict[str, Any]:
-    """
-    Normalize a retrieved result to standard format.
-    
-    Args:
-        content: Document chunk text
-        metadata: Metadata dict
-        score: Similarity score
-    
-    Returns:
-        Normalized result dict
-    """
     return {
         "content": content,
         "metadata": {
@@ -48,7 +40,7 @@ def _normalize_result(
 
 
 def normalize_top_k(top_k: int, default: int = 5) -> int:
-    """Clamp top_k to the safe service-level retrieval bounds."""
+    """Clamp top_k to safe retrieval bounds."""
     try:
         requested_top_k = int(top_k)
     except (TypeError, ValueError):
@@ -59,67 +51,74 @@ def normalize_top_k(top_k: int, default: int = 5) -> int:
     return min(requested_top_k, MAX_TOP_K)
 
 
+def _assert_embedding_compatible(
+    collection: Any,
+    expected: Dict[str, Any],
+) -> None:
+    """Reject stale indexes built with a different embedding configuration."""
+    metadata = collection.metadata or {}
+    keys = ("embedding_provider", "embedding_model", "embedding_dimensions")
+    mismatches = {
+        key: (metadata.get(key), expected.get(key))
+        for key in keys
+        if metadata.get(key) != expected.get(key)
+    }
+    if mismatches:
+        raise RuntimeError(
+            "RAG index embedding configuration does not match the active provider. "
+            f"Mismatches: {mismatches}. Rebuild the RAG index before querying."
+        )
+
+
 def retrieve_from_collection(
     query: str,
     collection_name: str,
     top_k: int = 5,
 ) -> List[Dict[str, Any]]:
-    """
-    Query a specific ChromaDB collection.
-    
-    Args:
-        query: Query text to search for
-        collection_name: Name of collection to query
-        top_k: Number of top results to return
-    
-    Returns:
-        List of normalized result dicts, sorted by score (highest first)
-        Each dict contains: content, metadata, score
-    """
+    """Query a specific ChromaDB collection."""
     if not query or not query.strip():
         return []
-
     if collection_name not in get_collection_names():
         return []
 
     query_text = query.strip()
     safe_top_k = normalize_top_k(top_k, default=5)
-    
     client = get_chroma_client()
-    
+
     try:
         collection = client.get_collection(name=collection_name)
     except Exception:
         return []
-    
+
+    provider = get_embedding_provider()
+    expected_metadata = get_embedding_metadata(provider)
+    _assert_embedding_compatible(collection, expected_metadata)
+
     try:
         results = collection.query(
-            query_embeddings=embed_texts([query_text]),
+            query_embeddings=embed_texts([query_text], provider=provider),
             n_results=safe_top_k,
             include=["documents", "metadatas", "distances"],
         )
-    except Exception:
-        return []
-    
-    # Normalize results
-    normalized = []
-    
+    except RuntimeError:
+        raise
+    except Exception as exc:
+        raise RuntimeError(
+            f"RAG query failed for collection '{collection_name}': {exc}"
+        ) from exc
+
     if not results or not results.get("documents"):
         return []
-    
+
     documents = results["documents"][0] if results["documents"] else []
     metadatas = results["metadatas"][0] if results["metadatas"] else []
     distances = results["distances"][0] if results["distances"] else []
-    
-    # ChromaDB returns distances, convert to similarity scores (0-1 range)
-    # Using cosine similarity: score = 1 - distance
+
+    normalized = []
     for doc, meta, distance in zip(documents, metadatas, distances):
         score = max(0, min(1, 1 - distance))
         normalized.append(_normalize_result(doc, meta, score))
-    
-    # Sort by score descending
     normalized.sort(key=lambda x: x["score"], reverse=True)
-    
     return normalized
 
 
@@ -127,65 +126,32 @@ def retrieve_from_all_collections(
     query: str,
     top_k_per_collection: int = 3,
 ) -> Dict[str, List[Dict[str, Any]]]:
-    """
-    Query all collections.
-    
-    Args:
-        query: Query text to search for
-        top_k_per_collection: Number of top results per collection
-    
-    Returns:
-        Dict mapping collection names to lists of normalized results
-        Example:
-        {
-            "domain_knowledge": [...],
-            "agent_policy": [...],
-            "tool_catalog": [...],
-        }
-    """
+    """Query all managed collections."""
     if not query or not query.strip():
         return {collection_name: [] for collection_name in get_collection_names()}
 
     safe_top_k = normalize_top_k(top_k_per_collection, default=3)
-    results = {}
-    
-    for collection_name in get_collection_names():
-        results[collection_name] = retrieve_from_collection(
+    return {
+        collection_name: retrieve_from_collection(
             query=query.strip(),
             collection_name=collection_name,
             top_k=safe_top_k,
         )
-    
-    return results
+        for collection_name in get_collection_names()
+    }
 
 
 def search_all_collections(
     query: str,
     top_k_per_collection: int = 3,
 ) -> List[Dict[str, Any]]:
-    """
-    Search all collections and return results as a flat list.
-    
-    Results are sorted by score across all collections.
-    
-    Args:
-        query: Query text to search for
-        top_k_per_collection: Number of results per collection
-    
-    Returns:
-        Flat list of normalized results sorted by score
-    """
+    """Search all collections and return one score-sorted list."""
     all_results = retrieve_from_all_collections(
         query=query,
         top_k_per_collection=top_k_per_collection,
     )
-    
-    # Flatten results
     flat = []
     for results in all_results.values():
         flat.extend(results)
-    
-    # Sort by score descending
     flat.sort(key=lambda x: x["score"], reverse=True)
-    
     return flat

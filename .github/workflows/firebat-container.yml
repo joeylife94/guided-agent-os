@@ -31,6 +31,7 @@ jobs:
           cp .env.firebat.example .env.firebat
           sed -i 's/HOST_PORT=8701/HOST_PORT=18701/' .env.firebat
           sed -i 's/LOCAL_LLM_TIMEOUT=5/LOCAL_LLM_TIMEOUT=2/' .env.firebat
+          sed -i 's/RAG_EMBEDDING_PROVIDER=bge_m3/RAG_EMBEDDING_PROVIDER=hash_test/' .env.firebat
           chmod 600 .env.firebat
           echo 'APP_VERSION=ci' >> "$GITHUB_ENV"
           echo "GIT_REVISION=${GITHUB_SHA}" >> "$GITHUB_ENV"

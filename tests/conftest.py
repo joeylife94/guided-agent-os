@@ -10,6 +10,7 @@ from pathlib import Path
 _RAG_TEST_ROOT = Path(tempfile.mkdtemp(prefix="guided-agent-os-rag-")).resolve()
 _RAG_TEST_CHROMA = _RAG_TEST_ROOT / "chroma"
 os.environ.setdefault("RAG_CHROMA_PATH", str(_RAG_TEST_CHROMA))
+os.environ.setdefault("RAG_EMBEDDING_PROVIDER", "hash_test")
 
 
 @atexit.register

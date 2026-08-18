@@ -18,6 +18,8 @@ services:
       DATABASE_URL: sqlite:////app/data/agent_os.db
       RAG_CHROMA_PATH: /app/data/chroma
       RAG_REBUILD_ON_START: ${RAG_REBUILD_ON_START:-true}
+      RAG_EMBEDDING_PROVIDER: ${RAG_EMBEDDING_PROVIDER:-bge_m3}
+      RAG_EMBEDDING_MODEL: ${RAG_EMBEDDING_MODEL:-BAAI/bge-m3}
       LOCAL_LLM_BASE_URL: ${LOCAL_LLM_BASE_URL:-http://host.docker.internal:11434/v1}
       LOCAL_LLM_MODEL: ${LOCAL_LLM_MODEL:-qwen2.5:7b-instruct}
       LOCAL_LLM_TIMEOUT: ${LOCAL_LLM_TIMEOUT:-5}

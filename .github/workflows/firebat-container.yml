@@ -89,8 +89,8 @@ jobs:
           for item in value['collections'].values():
               metadata = item['metadata'] or {}
               assert metadata['embedding_provider'] == 'bge_m3'
-              assert metadata['embedding_model'] == 'BAAI/bge-m3'
-              assert int(metadata['embedding_dimensions']) > 0
+              assert metadata['embedding_model'] == 'sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2'
+              assert int(metadata['embedding_dimensions']) == 384
           PY
 
           curl -fsS --get \

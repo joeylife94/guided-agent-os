@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import os
-import time
 from pathlib import Path
 
 from selenium import webdriver
@@ -20,12 +19,27 @@ def wait_text(wait: WebDriverWait, element_id: str, expected: str) -> None:
     wait.until(lambda driver: expected in driver.find_element(By.ID, element_id).text)
 
 
+def audit_types(driver: webdriver.Chrome) -> list[str]:
+    return [element.text for element in driver.find_elements(By.CSS_SELECTOR, "#audit-timeline .audit-type")]
+
+
+def wait_audit_sequence(wait: WebDriverWait, expected: list[str]) -> list[str]:
+    def _matches(driver: webdriver.Chrome) -> list[str] | bool:
+        types = audit_types(driver)
+        positions = [types.index(item) for item in expected if item in types]
+        if len(positions) == len(expected) and positions == sorted(positions):
+            return types
+        return False
+
+    return wait.until(_matches)
+
+
 def main() -> None:
     options = webdriver.ChromeOptions()
     options.add_argument("--headless=new")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--window-size=1440,1200")
+    options.add_argument("--window-size=1440,1400")
 
     evidence: dict[str, object] = {"base_url": BASE_URL, "checks": []}
     driver = webdriver.Chrome(options=options)
@@ -45,8 +59,11 @@ def main() -> None:
         clarification_text = driver.find_element(By.ID, "clarification-questions").text
         if "What is the business context" not in clarification_text:
             raise AssertionError(f"Expected business-context clarification, got: {clarification_text!r}")
+        clarification_audit = wait_audit_sequence(wait, ["REQUEST_RECEIVED", "CLARIFICATION_REQUIRED"])
         evidence["checks"].append("clarification_rendered")
+        evidence["checks"].append("clarification_audit_timeline_rendered")
         evidence["clarification"] = clarification_text
+        evidence["clarification_audit_types"] = clarification_audit
 
         business_context.send_keys(
             "Internal maintenance operator needs a controlled lookup before reviewing a historical facility record."
@@ -55,8 +72,22 @@ def main() -> None:
 
         wait_text(wait, "run-status", "pending_approval")
         wait.until(EC.visibility_of_element_located((By.ID, "review-panel")))
+        pending_audit = wait_audit_sequence(
+            wait,
+            [
+                "REQUEST_RECEIVED",
+                "VALIDATION_PASSED",
+                "NORMALIZED",
+                "RAG_RETRIEVED",
+                "ANSWER_GENERATED",
+                "TOOL_PLANNED",
+                "APPROVAL_REQUESTED",
+            ],
+        )
         evidence["checks"].append("pending_approval_rendered")
+        evidence["checks"].append("pending_audit_timeline_rendered")
         evidence["pending_run_id"] = driver.find_element(By.ID, "run-id").text
+        evidence["pending_audit_types"] = pending_audit
 
         driver.find_element(By.ID, "approve-button").click()
         wait_text(wait, "run-status", "archived")
@@ -67,31 +98,52 @@ def main() -> None:
             raise AssertionError(f"Expected legacy_db_lookup execution result, got: {execution_text!r}")
         if '"record_id": "LEG-001"' not in execution_text:
             raise AssertionError(f"Expected LEG-001 execution result, got: {execution_text!r}")
+
+        final_audit = wait_audit_sequence(wait, ["RAG_RETRIEVED", "APPROVED", "TOOL_EXECUTED", "COMPLETED"])
         evidence["checks"].append("approved_execution_rendered")
+        evidence["checks"].append("persisted_audit_timeline_rendered")
         evidence["execution_result"] = json.loads(execution_text)
         evidence["final_status"] = driver.find_element(By.ID, "run-status").text
         evidence["final_run_id"] = driver.find_element(By.ID, "run-id").text
+        evidence["final_audit_types"] = final_audit
 
-        # Persisted result check through a fresh page-side API read, proving the UI result
-        # corresponds to backend-persisted run state rather than transient DOM-only state.
+        # Fresh API reads prove both UI surfaces correspond to backend-persisted state,
+        # not transient DOM-only state.
         run_id = str(evidence["final_run_id"])
         persisted = driver.execute_async_script(
             """
             const done = arguments[arguments.length - 1];
-            fetch(`/api/agents/runs/${arguments[0]}`)
-              .then(response => response.json())
-              .then(payload => done(payload))
+            Promise.all([
+              fetch(`/api/agents/runs/${arguments[0]}`).then(response => response.json()),
+              fetch(`/api/agents/runs/${arguments[0]}/events`).then(response => response.json()),
+            ])
+              .then(([run, events]) => done({run, events}))
               .catch(error => done({__error: String(error)}));
             """,
             run_id,
         )
         if persisted.get("__error"):
             raise AssertionError(persisted["__error"])
-        persisted_execution = (persisted.get("raw_output") or {}).get("execution_result")
+        persisted_run = persisted.get("run") or {}
+        persisted_events = persisted.get("events") or []
+        persisted_execution = (persisted_run.get("raw_output") or {}).get("execution_result")
         if not persisted_execution or persisted_execution.get("status") != "executed":
-            raise AssertionError(f"Persisted execution result missing: {persisted!r}")
+            raise AssertionError(f"Persisted execution result missing: {persisted_run!r}")
+
+        persisted_types = [event.get("event_type") for event in persisted_events]
+        if persisted_types != final_audit:
+            raise AssertionError(
+                f"Rendered audit timeline differs from persisted events: rendered={final_audit!r} persisted={persisted_types!r}"
+            )
+        required_tail = ["RAG_RETRIEVED", "APPROVED", "TOOL_EXECUTED", "COMPLETED"]
+        required_positions = [persisted_types.index(item) for item in required_tail]
+        if required_positions != sorted(required_positions):
+            raise AssertionError(f"Required audit events out of order: {persisted_types!r}")
+
         evidence["checks"].append("persisted_execution_reloaded")
-        evidence["persisted_status"] = persisted.get("status")
+        evidence["checks"].append("persisted_audit_reloaded_and_matches_ui")
+        evidence["persisted_status"] = persisted_run.get("status")
+        evidence["persisted_audit_types"] = persisted_types
 
         screenshot_path = ARTIFACT_DIR / "operator-golden-path.png"
         driver.save_screenshot(str(screenshot_path))

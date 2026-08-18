@@ -24,8 +24,9 @@
 | P4-A Verified App HEAD | `01122f6faf5b6e517f8bfa16f51c208c62037ec3` |
 | P4-B1 Verified App HEAD | `e6feb33b902bf8c4334b79bfccf0e374a90f81b5` |
 | P4-B2 Verified App HEAD | `5e7a57a03ce545357fd34cb333117c6170795b5b` |
-| Active Proof PR | None — PR #14 squash-merged after required checks passed |
-| Current Level | **L2+++ — complete browser Golden Path + persisted audit timeline proven; evaluation/final packaging remain** |
+| P5-A Verified App HEAD | `7b80764d29915ac76e94ee264522bf8f79537e7d` |
+| Active Proof PR | None — PR #15 squash-merged after required checks passed |
+| Current Level | **L2+++ — complete browser Golden Path + persisted audit timeline + fixed evaluation harness proven; actual evaluation evidence/final packaging remain** |
 | Target Level | **L3 — Usable / Demonstrable Proof** |
 | Target Release | **Proof v1.0** |
 | Primary Purpose | Wishket AI Agent / RAG / Backend Proof |
@@ -36,7 +37,8 @@
 | Phase 2 | **CLOSED — Human-approved allowlisted read-only execution proven** |
 | Phase 3 | **CLOSED — Operator UI + clarification + real browser Golden Path proven** |
 | Phase 4 | **CLOSED — persisted lifecycle events + persisted Operator audit timeline browser-proven** |
-| Phase 5 | **NEXT — fixed AI quality evaluation** |
+| Phase 5 | **IN PROGRESS — P5-A harness closed; fixed-suite execution/evidence next** |
+| Phase 6 | **BLOCKED BY P5** |
 | Overall Status | **IN PROGRESS** |
 
 ---
@@ -134,7 +136,8 @@ Proof v1.0은 사용자가 브라우저에서 다음 과정을 끝까지 완료�
 
 ### P5 — Evaluation
 - 20~30 fixed cases
-- retrieval / grounding / citation / control evaluation
+- retrieval / grounding / citation / routing / control evaluation
+- repeatable machine-readable result artifact
 
 ### P6 — Proof Packaging
 - README sync
@@ -235,44 +238,42 @@ Verified:
 - actual headless Chrome Golden Path
 - clarification → pending approval → approve → execution result → persisted reload
 
-## Persistent Audit Trail — PHASE 4 CLOSED
+## Persistent Audit Trail — CLOSED
 
-Implemented:
-- append-only `RunAuditEvent` SQLAlchemy model
+Verified:
+- append-only `RunAuditEvent`
 - deterministic per-run integer `sequence`
-- `(run_id, sequence)` uniqueness contract
-- `event_type`, `actor`, JSON `payload`, persisted timestamp
+- frozen lifecycle event coverage including `RAG_RETRIEVED`
 - read-only `GET /api/agents/runs/{run_id}/events`
-- explicit `RAG_RETRIEVED` from already-produced `rag_answer.retrieved_context`
-- Operator Workspace persisted Audit Timeline backed only by `/events`
-- timeline renders sequence, event type, actor, timestamp and concise payload
-- timeline refreshes after run creation and approve/reject decisions
+- persisted Operator Workspace Audit Timeline
+- actual Chrome proof that rendered timeline order equals fresh persisted `/events` reload order
 
-Frozen persisted event coverage:
+## Evaluation Harness — P5-A CLOSED
 
-```text
-REQUEST_RECEIVED
-VALIDATION_PASSED
-CLARIFICATION_REQUIRED
-NORMALIZED
-RAG_RETRIEVED
-ANSWER_GENERATED
-TOOL_PLANNED
-APPROVAL_REQUESTED
-APPROVED
-REJECTED
-TOOL_EXECUTED
-COMPLETED
-FAILED
-```
+Implemented and CI-verified:
+- fixed `evaluation/cases.json` with **22 cases**
+  - retrieval: 8
+  - grounding/citation: 4
+  - routing/policy: 4
+  - controlled tool execution/block paths: 6
+- `app/services/proof_evaluator.py`
+  - reuses current retrieval, RAG answer, tool-plan and controlled-executor boundaries
+  - no duplicate Agent/workflow implementation
+  - per-case pass/fail + aggregate category metrics
+- `scripts/run_proof_eval.py`
+  - optional semantic index rebuild
+  - machine-readable JSON result output
+  - non-zero process exit if any case fails
+- `tests/test_proof_evaluator.py`
+  - fixed dataset shape
+  - unique IDs / 20~30 contract
+  - deterministic result schema
+  - routing planned-only boundary
+  - approval/unregistered/unauthorized/invalid-parameter execution blocks
 
-Browser verification through PR #14 Firebat Container run #36:
-- clarification timeline rendered from persisted events
-- pending-approval timeline rendered chronologically
-- final approved path rendered `RAG_RETRIEVED → APPROVED → TOOL_EXECUTED → COMPLETED` in order
-- fresh page-side `/events` reload returned the same event order as the rendered UI
-- persisted execution result also reloaded successfully
-- durable browser artifact produced by existing CI artifact path
+Important boundary:
+- **P5-A proves the evaluation contract/harness, not the final 22-case quality result.**
+- the full fixed suite has not yet been executed as final constrained-runtime evidence.
 
 ## Deployment / CI
 
@@ -286,17 +287,16 @@ Repository contains:
 - Firebat Container workflow
 - browser proof integrated into Firebat Container regression
 
-Latest P4-B2 verification:
-- PR #14 head: `34a83551e8fd8dcfc413734107c2666e59a592bc`
-- PR Validation run #36: **PASS**
-- Firebat Container run #36: **PASS**
-- Firebat artifact: `guided-agent-firebat`, artifact id `9335464678`
-- squash merge: `5e7a57a03ce545357fd34cb333117c6170795b5b`
+Latest P5-A verification:
+- PR #15 head: `9ccd1f36ca89a1d25611a2fa546cab0641a792f3`
+- PR Validation run #39: **PASS**
+- Firebat Container run #39: **PASS**
+- squash merge: `7b80764d29915ac76e94ee264522bf8f79537e7d`
 
 ## Documentation Drift
 
 Still open and intentionally deferred to P6 unless blocking:
-- README does not yet describe final P1/P2/P3/P4 state
+- README does not yet describe final P1/P2/P3/P4/P5 state
 - `docs/PROJECT_STATUS.md` stale
 - `docs/ROADMAP.md` stale
 - Issue #4 stale/open
@@ -319,7 +319,7 @@ This Master overrides those sources until P6 synchronization.
 | Real semantic model | VERIFIED | ACCEPTABLE |
 | Korean / English retrieval | VERIFIED | ACCEPTABLE |
 | Intended-source semantic Top-K | VERIFIED | ACCEPTABLE |
-| Citation metadata | IMPLEMENTED | QUALITY EVAL IN P5 |
+| Citation metadata | IMPLEMENTED | FIXED EVAL EXECUTION NEXT |
 | Local LLM client | IMPLEMENTED | POSITIVE INFERENCE STILL NEEDS FINAL VERIFICATION |
 | LLM unavailable fallback | VERIFIED | ACCEPTABLE |
 | Tool planning | IMPLEMENTED | ACCEPTABLE |
@@ -335,8 +335,10 @@ This Master overrides those sources until P6 synchronization.
 | Persistent audit event model | VERIFIED | ACCEPTABLE |
 | Chronological event reload | VERIFIED | ACCEPTABLE |
 | Frozen event coverage | VERIFIED INCLUDING `RAG_RETRIEVED` | ACCEPTABLE |
-| Persisted audit UI timeline | **BROWSER VERIFIED** | ACCEPTABLE |
-| AI quality eval | NOT IMPLEMENTED | REQUIRED |
+| Persisted audit UI timeline | BROWSER VERIFIED | ACCEPTABLE |
+| Fixed evaluation dataset | **22 CASES IMPLEMENTED** | ACCEPTABLE |
+| Deterministic eval harness/schema | **CI VERIFIED** | ACCEPTABLE |
+| Fixed evaluation quality result | NOT YET EXECUTED | REQUIRED |
 | Proof packaging | PARTIAL | REQUIRED |
 
 ---
@@ -348,16 +350,17 @@ This Master overrides those sources until P6 synchronization.
 | L-01 | BGE-M3 unstable under frozen 1536 MiB envelope | HIGH | RESOLVED FOR PROOF WITH MINILM |
 | L-02 | Approval 이후 real controlled execution 없음 | HIGH | CLOSED — P2-A VERIFIED |
 | L-03 | Swagger-only UX | HIGH | CLOSED — WORKSPACE + REAL BROWSER PROOF |
-| L-04 | Full lifecycle persistent audit timeline 없음 | MEDIUM | **CLOSED — P4-B2 BROWSER VERIFIED** |
-| L-05 | 20~30 case retrieval/grounding/control evaluation 없음 | MEDIUM | OPEN — P5 |
+| L-04 | Full lifecycle persistent audit timeline 없음 | MEDIUM | CLOSED — P4-B2 BROWSER VERIFIED |
+| L-05 | Fixed retrieval/grounding/control quality evidence 없음 | MEDIUM | **OPEN — P5-B** |
 | L-06 | README / PROJECT_STATUS / ROADMAP / Issue drift | MEDIUM | OPEN — P6 |
 | L-09 | CPU-oriented image still resolves large CUDA/NVIDIA Torch dependencies | MEDIUM | OPEN — DEFER UNLESS BLOCKING |
 | L-11 | Semantic provider identifier remains legacy `bge_m3` while actual model metadata is MiniLM | LOW | OPEN — DEFER UNLESS CONFUSING PROOF |
 | L-12 | Positive local-LLM inference not freshly verified with final semantic model | MEDIUM | OPEN — VERIFY BEFORE FINAL CLOSURE |
 | L-13 | P2 execution uses deterministic local fixture, not customer integration | LOW | ACCEPTED BY FROZEN SCOPE |
 | L-14 | Execution result shares `raw_llm_output` instead of dedicated execution table | MEDIUM | ACCEPTED FOR PROOF |
-| L-17 | Browser CI depends on GitHub runner Chrome + test-only Selenium installation | LOW | OPEN — ACCEPTABLE FOR PROOF; WATCH CI REGRESSION |
+| L-17 | Browser CI depends on GitHub runner Chrome + test-only Selenium installation | LOW | OPEN — ACCEPTABLE FOR PROOF |
 | L-19 | `_append_audit_event` is API-boundary helper rather than standalone audit service | LOW | ACCEPTABLE FOR PROOF |
+| L-20 | Fixed eval case expectations may expose real retrieval/citation misses once executed | MEDIUM | **OPEN — EXPECTED P5-B DISCOVERY RISK** |
 
 ---
 
@@ -375,45 +378,48 @@ This Master overrides those sources until P6 synchronization.
 ## Phase 4 — Audit Trail
 **Status: CLOSED**
 
-Closure evidence:
-- append-only persisted lifecycle events
-- complete frozen event coverage including `RAG_RETRIEVED`
-- deterministic sequence-backed reload
-- persisted Operator UI timeline
-- actual Chrome timeline rendering proof
-- fresh `/events` reload equals displayed event order
-- PR Validation + Firebat Container PASS
-
 ## Phase 5 — Evaluation
-**Status: NEXT**
+**Status: IN PROGRESS**
 
 Target: **20~30 fixed cases** covering:
 - retrieval intended-source Top-1 / Top-3
 - citation presence and correctness
-- unsupported claim / insufficient-context behavior
+- unsupported claim / insufficient-context behavior where deterministic evidence can be produced
 - risk routing
 - approval/reject behavior
 - unauthorized / invalid-parameter / restricted action blocks
 
-Closure:
+Phase closure:
 - deterministic fixed evaluation dataset
 - repeatable evaluation command
 - machine-readable durable result artifact
 - summary pass/fail metrics suitable for P6 README evidence
+- actual fixed-suite execution result reviewed and any real failures either fixed or explicitly accepted/recorded
 - no expansion into model benchmarking platform or production observability
 
 ### P5-A — Evaluation Contract + Minimal Harness
+**Status: CLOSED**
 
+Closure evidence:
+- fixed 22-case dataset committed
+- evaluator reuses existing service boundaries
+- machine-readable result schema implemented
+- deterministic/schema/control-boundary tests implemented
+- PR Validation #39 PASS
+- Firebat Container #39 PASS
+- squash merge `7b80764d29915ac76e94ee264522bf8f79537e7d`
+
+### P5-B — Execute Fixed Suite + Capture Evidence
 **Status: NEXT**
 
 Smallest next slice:
-1. inspect current RAG response schema, policy/routing behavior and existing tests before adding anything.
-2. define a fixed 20-case evaluation dataset using only existing proof knowledge/tools.
-3. implement the smallest deterministic evaluation harness that exercises existing public/backend boundaries without duplicating workflow logic.
-4. emit machine-readable result JSON with per-case checks and aggregate pass counts.
-5. add tests for evaluator determinism/schema.
-6. run through PR Validation and Firebat Container where applicable.
-7. do not start P6 until evaluation evidence is actually produced.
+1. run `scripts/run_proof_eval.py` using the current semantic provider/index contract in the existing constrained proof environment.
+2. capture `artifacts/proof-eval-results.json` as durable evidence.
+3. inspect each failed case; do not weaken expectations merely to produce green output.
+4. only fix real implementation/test-contract defects that remain inside frozen Proof v1.0 scope.
+5. add CI artifact upload only if needed to retain the result; avoid a new observability/eval platform.
+6. record category totals and exact failed IDs in this Master.
+7. keep P6 blocked until P5 evidence is real.
 
 ## Phase 6 — Proof Packaging
 **Status: BLOCKED BY P5**
@@ -450,22 +456,18 @@ Required after P5:
 | E-206 | Execution | P2 squash merge `0d6ff79834cec1cfe11189dfe95b7d6dd89b4fc8` | PRESENT |
 | E-306 | UI | Real Chrome Golden Path | PASS |
 | E-307 | UI | Fresh persisted run reload after browser approval | PASS |
-| E-310 | UI | `operator-browser-evidence.json` artifact | PRESENT |
-| E-311 | UI | `operator-golden-path.png` artifact | PRESENT |
 | E-401 | Audit | `RunAuditEvent` append-only model + deterministic sequence | PASS |
-| E-402 | Audit | Controlled approved lifecycle persisted/reloaded chronologically | PASS |
-| E-403 | Audit | Clarification lifecycle persisted/reloaded | PASS |
-| E-406 | Audit | P4-A merge `01122f6faf5b6e517f8bfa16f51c208c62037ec3` | PRESENT |
 | E-407 | Audit | Complete frozen event coverage including `RAG_RETRIEVED` | PASS |
-| E-408 | Audit | Persisted Operator UI timeline + Chrome proof | **PASS** |
-| E-409 | Audit | PR #13 PR Validation run #33 | PASS |
-| E-410 | Audit | PR #13 Firebat Container run #33 | PASS |
-| E-411 | Audit | PR #13 squash merge `e6feb33b902bf8c4334b79bfccf0e374a90f81b5` | PRESENT |
-| E-412 | Audit | PR #14 PR Validation run #36 | **PASS** |
-| E-413 | Audit | PR #14 Firebat Container run #36 | **PASS** |
-| E-414 | Audit | PR #14 Firebat artifact `guided-agent-firebat` | PRESENT |
+| E-408 | Audit | Persisted Operator UI timeline + Chrome proof | PASS |
+| E-412 | Audit | PR #14 PR Validation run #36 | PASS |
+| E-413 | Audit | PR #14 Firebat Container run #36 | PASS |
 | E-415 | Audit | PR #14 squash merge `5e7a57a03ce545357fd34cb333117c6170795b5b` | PRESENT |
-| E-501 | Eval | Fixed evaluation result | TODO |
+| E-501 | Eval | Fixed 22-case evaluation dataset | PRESENT |
+| E-502 | Eval | Deterministic evaluator + JSON result schema | PASS |
+| E-503 | Eval | PR #15 PR Validation run #39 | PASS |
+| E-504 | Eval | PR #15 Firebat Container run #39 | PASS |
+| E-505 | Eval | PR #15 squash merge `7b80764d29915ac76e94ee264522bf8f79537e7d` | PRESENT |
+| E-506 | Eval | Actual fixed-suite `proof-eval-results.json` | TODO — P5-B |
 | E-601 | Deploy | Fresh final deployment verification | TODO |
 
 ---
@@ -506,20 +508,21 @@ Required after P5:
 - browser-proven clarification / approval / execution-result UX
 - append-only persistent run audit model
 - deterministic chronological audit reload through `/events`
-- complete frozen audit-event persistence including `RAG_RETRIEVED`
-- persisted Operator audit timeline proven in Chrome against fresh backend reload
+- persisted Operator audit timeline proven in Chrome
+- fixed 22-case Proof evaluation contract
+- deterministic machine-readable evaluation harness
 - Docker/Firebat deployment and CI regression
 
 ## Done Enough to Use
 **Backend/API level: YES. Browser Golden Path: YES. Persistent audit trail UI: YES for the frozen single-tool Proof path.**
 
 Proof v1.0 is still not closure-complete because:
-- fixed AI quality evaluation remains open.
+- actual fixed-suite quality result remains open.
 - positive local-LLM inference with the final semantic stack remains open.
 - final proof packaging/doc synchronization remains open.
 
 ## Not Yet Done
-- P5 fixed AI quality evaluation
+- P5-B actual fixed-suite execution/evidence
 - positive local-LLM final-stack verification
 - P6 final proof packaging
 
@@ -529,15 +532,14 @@ Proof v1.0 is still not closure-complete because:
 
 ## NOW
 
-**Phase 5 / P5-A — Evaluation Contract + Minimal Harness**
+**Phase 5 / P5-B — Execute Fixed Suite + Capture Evidence**
 
 Smallest next action:
-1. inspect existing RAG answer/citation shape and control/risk test surfaces.
-2. freeze a deterministic 20-case dataset; do not start with 30 unless 20 exposes a real coverage gap.
-3. cover retrieval, grounding/citation, insufficient context, routing, approval/reject and hard block paths.
-4. reuse existing APIs/services rather than creating a parallel evaluation-only Agent implementation.
-5. output durable machine-readable evaluation evidence and aggregate metrics.
-6. validate harness determinism and run it in the existing CI/container proof envelope.
+1. execute the committed 22-case suite in the existing semantic/container proof envelope.
+2. preserve the machine-readable JSON result.
+3. inspect exact failed IDs and distinguish implementation defects from intentionally strict quality expectations.
+4. do not weaken expected-source/control contracts only to force green results.
+5. close P5 only after real result evidence exists.
 
 Do not begin P6 packaging before P5 evidence exists.
 
@@ -577,77 +579,71 @@ Executed: PR #10/#11 checks PASS; Chrome Golden Path PASS; persisted execution r
 Not Verified: persistent audit UI timeline at this stage; positive local-LLM final-stack inference.
 Remaining Risks: Chrome test dependency; proof remains frozen deterministic read-only tool scenario.
 
-## 2026-08-19 — Phase 4 P4-A Persistent Audit Foundation
-**Status:** CLOSED AS FOUNDATION
-
-Changed: append-only `RunAuditEvent`, deterministic sequence, `/events`, lifecycle recording.
-Executed: PR #12 PR Validation PASS; Firebat Container PASS; merge `01122f6faf5b6e517f8bfa16f51c208c62037ec3`.
-Not Verified: complete event coverage/UI timeline at this stage.
-Remaining Risks: carried into P4-B1/B2.
-
-## 2026-08-19 — Phase 4 P4-B1 Complete Retrieval Audit Coverage
+## 2026-08-19 — Phase 4 Audit Trail
 **Status:** CLOSED
 
-Changed: explicit `RAG_RETRIEVED` persistence using existing workflow output; no duplicate retrieval.
-Executed: PR #13 PR Validation run #33 PASS; Firebat Container run #33 PASS; merge `e6feb33b902bf8c4334b79bfccf0e374a90f81b5`.
-Not Verified: UI timeline at this stage.
-Remaining Risks: ordering authority is integer `sequence`; timestamps are presentation evidence only.
+Changed: append-only audit model, complete frozen event coverage including `RAG_RETRIEVED`, persisted Operator timeline.
+Executed: PR #12/#13/#14 validation; Firebat regression; Chrome persisted timeline proof.
+Not Verified: P5 quality evidence; positive local-LLM final-stack inference.
+Remaining Risks: sequence is ordering authority; timestamps are presentation evidence only.
 
-## 2026-08-19 — Phase 4 P4-B2 Persisted Operator Audit Timeline
+## 2026-08-19 — Phase 5 P5-A Evaluation Contract + Minimal Harness
 
 ### Status
-**CLOSED — PHASE 4 CLOSED**
+**CLOSED AS HARNESS FOUNDATION — PHASE 5 REMAINS OPEN**
 
 ### Changed
-PR #14 merged:
-- `app/operator_ui.py`
-  - replaced placeholder audit shell with persisted `#audit-timeline`
-  - added `/api/agents/runs/{run_id}/events` fetch
-  - chronological event rendering of sequence/type/actor/timestamp/payload
-  - automatic refresh after run creation and approve/reject
-  - no duplicated workflow/audit logic in browser
-- `scripts/verify_operator_browser.py`
-  - verifies clarification timeline
-  - verifies pending-approval frozen lifecycle order
-  - verifies final `RAG_RETRIEVED → APPROVED → TOOL_EXECUTED → COMPLETED` order
-  - fresh page-side `/events` reload must exactly match rendered event type order
-- `tests/test_operator_ui.py`
-  - verifies persisted audit endpoint wiring and event-field rendering contract
+PR #15 merged:
+- `evaluation/cases.json`
+  - fixed 22-case suite across retrieval, grounding/citation, routing, and controlled execution blocks
+- `app/services/proof_evaluator.py`
+  - reuses current retrieval, RAG answer, tool-plan and executor boundaries
+  - category/per-case pass/fail aggregation
+- `scripts/run_proof_eval.py`
+  - semantic index rebuild option
+  - durable JSON output
+  - failure exit code
+- `tests/test_proof_evaluator.py`
+  - dataset contract and ID uniqueness
+  - deterministic result schema
+  - planned-only routing boundary
+  - approval/unregistered/unauthorized/invalid-parameter block coverage
 
-No new service, JavaScript framework, auth, external integration, write tool or Not Now item was added.
+No new model-benchmarking platform, observability stack, external integration, auth layer, write tool or P6 packaging was added.
 
 ### Executed
 Repository inspection:
 - authoritative Master read first
-- pre-change `main` latest commit verified as `93f738bf5284bc2f7b8db7f02afbea91086b20da`
-- existing Operator UI, browser harness and `/events` endpoint inspected
+- `main` baseline verified before changes
+- current RAG response/retrieval shape inspected
+- current deterministic tool-plan routing inspected
+- current controlled executor boundary inspected
 
-Actual GitHub validation on PR #14 head `34a83551e8fd8dcfc413734107c2666e59a592bc`:
-- **PR Validation run #36: PASS**
-- **Firebat Container run #36: PASS**
-- browser verification step completed successfully inside Firebat Container workflow
-- durable artifact `guided-agent-firebat` created, artifact id `9335464678`
-- squash merge to `main`: `5e7a57a03ce545357fd34cb333117c6170795b5b`
+Actual GitHub validation on PR #15 head `9ccd1f36ca89a1d25611a2fa546cab0641a792f3`:
+- **PR Validation run #39: PASS**
+- **Firebat Container run #39: PASS**
+- squash merge to `main`: `7b80764d29915ac76e94ee264522bf8f79537e7d`
 
-Local clone/test execution was attempted but the automation container could not resolve `github.com`; no local execution result is claimed. GitHub CI is the actual execution evidence.
+Local clone/test execution was attempted but the automation container could not resolve `github.com`; no local runtime result is claimed. GitHub CI is the execution evidence for P5-A implementation/regression.
 
 ### Not Verified
-- P5 fixed evaluation dataset/harness does not exist yet.
-- positive local-LLM inference with the final semantic model is still not freshly proven.
+- the actual 22-case suite has not yet been executed as final semantic quality evidence.
+- no `artifacts/proof-eval-results.json` is yet claimed as durable final evaluation evidence.
+- unsupported-claim/insufficient-context behavior is not yet quantitatively closed; P5-B execution may expose where an additional deterministic case or acceptance decision is needed.
+- positive local-LLM inference with the final semantic model remains open.
 - P6 README/docs/proof packaging remains untouched.
-- no production-scale, concurrency, auth or real customer integration claim is made.
 
 ### Remaining Risks
-- browser CI still depends on GitHub runner Chrome + test-only Selenium installation.
-- audit ordering authority remains persisted integer `sequence`; timestamps are informative only.
-- current audit payload is deliberately concise and does not preserve full retrieved chunks.
-- P5 must quantify citation/grounding/control quality before Proof v1.0 can close.
+- strict intended-source Top-3 expectations may reveal real semantic retrieval misses.
+- grounding/citation cases may expose source-ranking differences between retrieval-only and answer/citation surfaces.
+- current harness deliberately treats such misses as failures rather than weakening expectations automatically.
+- CPU dependency footprint and legacy semantic provider label remain deferred non-blocking proof risks.
 
 ### Decision
-**Phase 4 closure criteria are met.** A single run can now be reconstructed from persisted chronological events and the Operator UI displays that persisted timeline; actual Chrome proof confirms the UI order equals fresh backend `/events` order.
+**P5-A closure criteria are met.** The fixed evaluation contract and deterministic harness are implemented and regression-verified. Phase 5 remains open until the real fixed-suite result is captured and reviewed.
 
 ### Next Action
-**Phase 5 / P5-A — freeze the 20-case evaluation contract and implement the smallest deterministic evaluation harness.**
+**P5-B — execute the committed 22-case suite in the constrained proof runtime, preserve `proof-eval-results.json`, and triage exact failed IDs without weakening the contract.**
 
 ---
 
@@ -657,13 +653,13 @@ Local clone/test execution was attempted but the automation container could not 
 
 - 실제 사용자가 browser에서 Agent에게 업무를 요청할 수 있는가? **YES — P3**
 - 실제 내부 문서를 semantic search할 수 있는가? **YES — P1**
-- LLM 답변에 검증 가능한 근거/citation이 있는가? **IMPLEMENTED; quality eval remains P5**
+- LLM 답변에 검증 가능한 근거/citation이 있는가? **IMPLEMENTED; fixed quality result remains P5-B**
 - Tool이 필요할 때 AI가 직접 실행하지 않고 controlled plan을 만드는가? **YES — P2**
 - 민감 작업은 human approval을 요구하는가? **YES — P2/P3**
 - 승인된 제한 read-only tool 하나가 실제 실행되는가? **YES — P2/P3 browser proof**
 - reject/unauthorized tool은 실행되지 않는가? **YES — P2 backend safety proof**
 - 모든 과정이 저장되고 UI에서 추적 가능한가? **YES — P4**
-- 이 동작이 automated tests + fixed evaluation으로 검증되는가? **PARTIAL — tests PASS, P5 eval OPEN**
+- 이 동작이 automated tests + fixed evaluation으로 검증되는가? **PARTIAL — harness/tests PASS; actual fixed-suite result OPEN**
 - 외부 사람이 README/Demo/Evidence만 보고 이를 확인할 수 있는가? **PARTIAL — P6 OPEN**
 
 그 이후 기능은 Proof v1.1 또는 실제 고객 요구사항으로 분리한다.

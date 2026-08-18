@@ -21,7 +21,7 @@
 | Phase 3 | **CLOSED — Operator UI + clarification + real browser Golden Path proven** |
 | Phase 4 | **CLOSED — persisted lifecycle events + persisted Operator audit timeline browser-proven** |
 | Phase 5 | **CLOSED — fixed 22-case suite executed 22/22 PASS with durable JSON evidence** |
-| Phase 6 | **IN PROGRESS — P6-A CLOSED; P6-B explicit closure decision CLOSED; P6-C final deployment/regression NEXT** |
+| Phase 6 | **IN PROGRESS — P6-A CLOSED; P6-B explicit closure decision CLOSED; P6-C final deployment/regression RUNNING** |
 | Current Level | **L2++++ — usable Proof path + fixed quality suite + external documentation synchronized** |
 | Target Level | **L3 — Usable / Demonstrable Proof** |
 | Target Release | **Proof v1.0** |
@@ -250,7 +250,7 @@ Closure decision:
 | Persistent audit timeline | VERIFIED | ACCEPTABLE |
 | Fixed evaluation evidence | **22/22 PASS** | ACCEPTABLE |
 | External-facing Proof docs | **SYNCHRONIZED** | ACCEPTABLE |
-| Final deployment/regression after P6 | OPEN | REQUIRED |
+| Final deployment/regression after P6 | **RUNNING — fresh main push trigger** | REQUIRED |
 
 ---
 
@@ -303,7 +303,7 @@ Closure decision:
 | E-602 | Packaging | PROJECT_STATUS / ROADMAP deprecated to Master | PASS — P6-A |
 | E-603 | Packaging | Issue #4 closed `completed` with frozen-scope boundary | PASS — P6-A |
 | E-604 | LLM | existing local-LLM client/env/compose/CI path inspected; no reachable endpoint in current execution/CI environment; explicit non-claim closure decision recorded | **PASS — P6-B DECISION** |
-| E-605 | Deploy | fresh final deployment/regression after packaging | TODO — P6-C |
+| E-605 | Deploy | fresh final deployment/regression after packaging | **RUNNING — triggered by current main Master-only push** |
 
 ---
 
@@ -370,7 +370,7 @@ Decision basis:
 5. therefore positive inference is not claimed; the missing positive runtime evidence is accepted as a documented Proof limitation.
 
 ### P6-C — Final deployment/regression
-**NEXT**
+**RUNNING**
 
 Required:
 - fresh final container/deployment regression on current `main`
@@ -380,6 +380,11 @@ Required:
 - restart/persistence remains intact
 - fixed evaluation remains green where applicable
 - no documentation-to-runtime contradiction found
+
+Current execution:
+- `.github/workflows/firebat-container.yml` supports `push: main` and performs the required health/version, semantic bilingual retrieval, graceful LLM fallback, headless Chrome Operator Golden Path, and restart/persistence gates.
+- because this execution environment cannot reach GitHub directly for local `git`/`gh`, P6-C is being triggered through this authoritative Master-only `main` push, without changing application/runtime scope.
+- closure remains pending until the resulting fresh workflow evidence is inspected.
 
 ---
 
@@ -393,7 +398,7 @@ A user can complete the browser Golden Path, approval-gated read-only execution,
 
 ## Not Yet Closure-Complete
 
-- **P6-C fresh final deployment/regression evidence only**
+- **P6-C fresh final deployment/regression evidence is running and must be inspected before closure.**
 
 ---
 
@@ -401,12 +406,12 @@ A user can complete the browser Golden Path, approval-gated read-only execution,
 
 ## NOW
 
-**Phase 6 / P6-C — final deployment/regression**
+**Phase 6 / P6-C — inspect fresh final regression and close only if all required gates pass**
 
 Smallest next action:
 1. read this Master first and re-check `main`.
-2. run the existing final Firebat/container regression path without adding new product scope.
-3. verify health/database/RAG ready, semantic index/model metadata, bilingual retrieval, Operator browser Golden Path, and restart/persistence.
+2. inspect the fresh `Firebat Container` run produced by the current main push.
+3. verify health/database/RAG ready, semantic index/model metadata, bilingual retrieval, Operator browser Golden Path, and restart/persistence from actual workflow evidence.
 4. rerun or inspect the fixed evaluation gate as appropriate for the final current `main` state.
 5. record exact executed evidence and any failures.
 6. if all required final gates pass, synchronize final closure status in this Master and declare `GUIDED AGENT OS PROOF v1.0 CLOSED`.
@@ -517,23 +522,32 @@ Remaining Risks: fallback-only grounding environment remains explicitly separate
 ### Next Action
 **P6-C — run the existing final deployment/regression path on current `main`; if required gates pass, close Proof v1.0.**
 
+## 2026-08-19 — Phase 6 / P6-C Final Regression Trigger
+**Status:** RUNNING
+
+### Changed
+- updated **only** `GUIDED_AGENT_OS_MASTER.md` to mark P6-C as running.
+- no application code, dependencies, compose configuration, CI workflow, README, or other documentation changed.
+
+### Executed
+- read this Master first from `main`.
+- verified pre-trigger `main` head `b2b274600206c2a3fcf9cdf936d0eeb7afd92fef`.
+- re-read `.github/workflows/firebat-container.yml` and confirmed `push: main` plus `workflow_dispatch` triggers.
+- confirmed the workflow's existing gates cover health/docs/version, semantic index metadata, Korean/English retrieval, graceful local-LLM fallback, actual headless-Chrome Operator Golden Path, persistent run creation, and restart/volume persistence.
+- attempted a local GitHub clone/`gh` path, but the execution sandbox could not resolve `github.com`; no local runtime result is claimed from that failed attempt.
+- this Master-only push is intentionally used as the smallest no-scope-change trigger for a fresh current-main Firebat regression.
+
+### Not Verified
+- the resulting fresh Firebat workflow result has not yet been inspected; P6-C is therefore **not closed**.
+- fixed 22-case evaluation has not been freshly rerun in this trigger step.
+- positive local-LLM inference remains not verified and remains governed by the P6-B explicit non-claim decision.
+
+### Remaining Risks
+- final closure depends on the fresh Firebat run passing all existing gates.
+- if that run fails, the failure must be classified and fixed without weakening the frozen acceptance contract.
+- L-09 and L-11 remain documented non-blocking risks unless the fresh regression shows otherwise.
+
+### Next Action
+**Inspect the fresh current-main Firebat Container evidence. If every P6-C gate passes and no runtime/document contradiction appears, update this Master only and declare Proof v1.0 CLOSED.**
+
 ---
-
-# 12. Final Closure Definition
-
-다음 질문에 모두 **YES**일 때만 `GUIDED AGENT OS PROOF v1.0 CLOSED`를 선언한다.
-
-- 실제 사용자가 browser에서 Agent에게 업무를 요청할 수 있는가? **YES**
-- 실제 내부 문서를 semantic search할 수 있는가? **YES**
-- 근거/citation이 검증되는가? **YES — fixed suite 4/4 citation checks**
-- Tool이 필요할 때 controlled plan을 만드는가? **YES**
-- 민감 작업은 human approval을 요구하는가? **YES**
-- 승인된 제한 read-only tool이 실제 실행되는가? **YES**
-- reject/unauthorized/invalid action은 차단되는가? **YES**
-- 과정이 저장되고 UI에서 추적 가능한가? **YES**
-- automated tests + fixed evaluation으로 검증되는가? **YES — 22/22 PASS**
-- 외부 사람이 README/Evidence만 보고 현재 Proof를 이해할 수 있는가? **YES — P6-A**
-- positive local-LLM final-stack inference 또는 명시적 closure decision이 있는가? **YES — P6-B explicit closure decision; positive inference NOT CLAIMED**
-- final deployment/regression evidence가 있는가? **OPEN — P6-C**
-
-그 이후 기능은 Proof v1.1 또는 실제 고객 요구사항으로 분리한다.

@@ -23,8 +23,9 @@
 | P3-B Verified App HEAD | `8a8d8bc3e6431639c8588bce384de7a286540640` |
 | P4-A Verified App HEAD | `01122f6faf5b6e517f8bfa16f51c208c62037ec3` |
 | P4-B1 Verified App HEAD | `e6feb33b902bf8c4334b79bfccf0e374a90f81b5` |
-| Active Proof PR | None — PR #13 squash-merged after required checks passed |
-| Current Level | **L2++ — browser Golden Path + complete persisted event coverage proven; audit UI/eval/final packaging still open** |
+| P4-B2 Verified App HEAD | `5e7a57a03ce545357fd34cb333117c6170795b5b` |
+| Active Proof PR | None — PR #14 squash-merged after required checks passed |
+| Current Level | **L2+++ — complete browser Golden Path + persisted audit timeline proven; evaluation/final packaging remain** |
 | Target Level | **L3 — Usable / Demonstrable Proof** |
 | Target Release | **Proof v1.0** |
 | Primary Purpose | Wishket AI Agent / RAG / Backend Proof |
@@ -34,7 +35,8 @@
 | Phase 1 | **CLOSED — Real Semantic RAG runtime + bilingual retrieval proven** |
 | Phase 2 | **CLOSED — Human-approved allowlisted read-only execution proven** |
 | Phase 3 | **CLOSED — Operator UI + clarification + real browser Golden Path proven** |
-| Phase 4 | **IN PROGRESS — persistent event coverage CLOSED; persisted UI timeline + browser proof NEXT** |
+| Phase 4 | **CLOSED — persisted lifecycle events + persisted Operator audit timeline browser-proven** |
+| Phase 5 | **NEXT — fixed AI quality evaluation** |
 | Overall Status | **IN PROGRESS** |
 
 ---
@@ -89,8 +91,7 @@ Proof v1.0은 사용자가 브라우저에서 다음 과정을 끝까지 완료�
 10. execution result 저장/표시
 11. 전체 Run lifecycle audit timeline 확인
 
-Browser Golden Path의 1~10은 Phase 3에서 실제 Chrome으로 검증되었다.
-Phase 4에서 모든 frozen lifecycle event의 persistence/reload는 검증되었다. 11의 Operator UI persisted timeline은 아직 미완료다.
+**1~11 전체가 실제 Chrome + persisted backend reload로 검증되었다.**
 
 ---
 
@@ -165,9 +166,7 @@ Phase 4에서 모든 frozen lifecycle event의 persistence/reload는 검증되�
 
 # 4. Verified Current State
 
-## Backend / workflow
-
-Verified controlled backend path:
+## Backend / Workflow — ACCEPTABLE
 
 ```text
 intake
@@ -183,7 +182,7 @@ intake
 → persisted run result
 ```
 
-Implemented:
+Verified foundation:
 - FastAPI / Pydantic
 - SQLite / SQLAlchemy run persistence
 - LangGraph controlled workflow
@@ -212,7 +211,7 @@ Verified:
 Verified:
 - deterministic Tool Registry
 - global read-only allowlist
-- one proof tool: `legacy_db_lookup`
+- proof tool: `legacy_db_lookup`
 - strict `record_id` parameter contract
 - human approval gate
 - per-run `allowed_tools` gate
@@ -225,7 +224,7 @@ Boundary:
 - only the server-side approval boundary reaches executor code.
 - no SQL, write operation, Oracle, real internal API or external action was added.
 
-## Operator UI — PHASE 3 CLOSED
+## Operator UI — CLOSED
 
 Verified:
 - dependency-free single-page Operator Workspace served by FastAPI `/`
@@ -235,12 +234,8 @@ Verified:
 - persisted execution-result presentation
 - actual headless Chrome Golden Path
 - clarification → pending approval → approve → execution result → persisted reload
-- durable screenshot + browser evidence JSON artifact
 
-## Persistent Audit Trail — EVENT COVERAGE CLOSED, UI OPEN
-
-P4-A merged through PR #12 as `01122f6faf5b6e517f8bfa16f51c208c62037ec3`.
-P4-B1 merged through PR #13 as `e6feb33b902bf8c4334b79bfccf0e374a90f81b5`.
+## Persistent Audit Trail — PHASE 4 CLOSED
 
 Implemented:
 - append-only `RunAuditEvent` SQLAlchemy model
@@ -248,8 +243,10 @@ Implemented:
 - `(run_id, sequence)` uniqueness contract
 - `event_type`, `actor`, JSON `payload`, persisted timestamp
 - read-only `GET /api/agents/runs/{run_id}/events`
-- explicit `RAG_RETRIEVED` event derived from the already-produced `rag_answer.retrieved_context`
-- no duplicate retrieval invocation for audit recording
+- explicit `RAG_RETRIEVED` from already-produced `rag_answer.retrieved_context`
+- Operator Workspace persisted Audit Timeline backed only by `/events`
+- timeline renders sequence, event type, actor, timestamp and concise payload
+- timeline refreshes after run creation and approve/reject decisions
 
 Frozen persisted event coverage:
 
@@ -269,21 +266,13 @@ COMPLETED
 FAILED
 ```
 
-`RAG_RETRIEVED` payload is intentionally concise:
-- per-collection retrieved chunk counts
-- total retrieved chunk count
-- citation count
-
-Verified:
-- controlled approved lifecycle persists/reloads chronologically
-- `RAG_RETRIEVED` appears between `NORMALIZED` and `ANSWER_GENERATED`
-- retrieval evidence is summarized from existing workflow output rather than rerunning RAG
-- clarification lifecycle persists independently
-- approval actor and tool execution evidence persist
-- PR #13 PR Validation run #33 PASS
-- PR #13 Firebat Container run #33 PASS
-
-Phase 4 remains OPEN only because the Operator UI does not yet render persisted `/events` and Chrome has not proven that timeline.
+Browser verification through PR #14 Firebat Container run #36:
+- clarification timeline rendered from persisted events
+- pending-approval timeline rendered chronologically
+- final approved path rendered `RAG_RETRIEVED → APPROVED → TOOL_EXECUTED → COMPLETED` in order
+- fresh page-side `/events` reload returned the same event order as the rendered UI
+- persisted execution result also reloaded successfully
+- durable browser artifact produced by existing CI artifact path
 
 ## Deployment / CI
 
@@ -297,11 +286,14 @@ Repository contains:
 - Firebat Container workflow
 - browser proof integrated into Firebat Container regression
 
-Latest verified P4-B1 checks:
-- PR Validation run #33: PASS
-- Firebat Container run #33: PASS
+Latest P4-B2 verification:
+- PR #14 head: `34a83551e8fd8dcfc413734107c2666e59a592bc`
+- PR Validation run #36: **PASS**
+- Firebat Container run #36: **PASS**
+- Firebat artifact: `guided-agent-firebat`, artifact id `9335464678`
+- squash merge: `5e7a57a03ce545357fd34cb333117c6170795b5b`
 
-## Documentation drift
+## Documentation Drift
 
 Still open and intentionally deferred to P6 unless blocking:
 - README does not yet describe final P1/P2/P3/P4 state
@@ -338,12 +330,12 @@ This Master overrides those sources until P6 synchronization.
 | Unauthorized/invalid-param block | VERIFIED | ACCEPTABLE |
 | Execution result persistence | VERIFIED | ACCEPTABLE |
 | Operator UI serving/API wiring | VERIFIED | ACCEPTABLE |
-| Clarification UI | **BROWSER VERIFIED** | ACCEPTABLE |
-| Browser JS Golden Path | **BROWSER VERIFIED** | ACCEPTABLE |
+| Clarification UI | BROWSER VERIFIED | ACCEPTABLE |
+| Browser JS Golden Path | BROWSER VERIFIED | ACCEPTABLE |
 | Persistent audit event model | VERIFIED | ACCEPTABLE |
 | Chronological event reload | VERIFIED | ACCEPTABLE |
-| Frozen event coverage | **VERIFIED INCLUDING `RAG_RETRIEVED`** | ACCEPTABLE |
-| Persisted audit UI timeline | NOT IMPLEMENTED | REQUIRED |
+| Frozen event coverage | VERIFIED INCLUDING `RAG_RETRIEVED` | ACCEPTABLE |
+| Persisted audit UI timeline | **BROWSER VERIFIED** | ACCEPTABLE |
 | AI quality eval | NOT IMPLEMENTED | REQUIRED |
 | Proof packaging | PARTIAL | REQUIRED |
 
@@ -356,95 +348,86 @@ This Master overrides those sources until P6 synchronization.
 | L-01 | BGE-M3 unstable under frozen 1536 MiB envelope | HIGH | RESOLVED FOR PROOF WITH MINILM |
 | L-02 | Approval 이후 real controlled execution 없음 | HIGH | CLOSED — P2-A VERIFIED |
 | L-03 | Swagger-only UX | HIGH | CLOSED — WORKSPACE + REAL BROWSER PROOF |
-| L-04 | Full lifecycle persistent audit timeline 없음 | MEDIUM | **PARTIALLY RESOLVED — STORAGE + FULL EVENT COVERAGE CLOSED; UI OPEN** |
+| L-04 | Full lifecycle persistent audit timeline 없음 | MEDIUM | **CLOSED — P4-B2 BROWSER VERIFIED** |
 | L-05 | 20~30 case retrieval/grounding/control evaluation 없음 | MEDIUM | OPEN — P5 |
 | L-06 | README / PROJECT_STATUS / ROADMAP / Issue drift | MEDIUM | OPEN — P6 |
 | L-09 | CPU-oriented image still resolves large CUDA/NVIDIA Torch dependencies | MEDIUM | OPEN — DEFER UNLESS BLOCKING |
 | L-11 | Semantic provider identifier remains legacy `bge_m3` while actual model metadata is MiniLM | LOW | OPEN — DEFER UNLESS CONFUSING PROOF |
 | L-12 | Positive local-LLM inference not freshly verified with final semantic model | MEDIUM | OPEN — VERIFY BEFORE FINAL CLOSURE |
 | L-13 | P2 execution uses deterministic local fixture, not customer integration | LOW | ACCEPTED BY FROZEN SCOPE |
-| L-14 | Execution result shares `raw_llm_output` instead of dedicated execution table | MEDIUM | ACCEPTED FOR P2/P4; NO CHANGE REQUIRED FOR PROOF |
+| L-14 | Execution result shares `raw_llm_output` instead of dedicated execution table | MEDIUM | ACCEPTED FOR PROOF |
 | L-17 | Browser CI depends on GitHub runner Chrome + test-only Selenium installation | LOW | OPEN — ACCEPTABLE FOR PROOF; WATCH CI REGRESSION |
-| L-18 | Frozen audit contract lacked explicit `RAG_RETRIEVED` persistence | MEDIUM | **CLOSED — P4-B1 VERIFIED** |
-| L-19 | `_append_audit_event` is API-boundary helper rather than a standalone audit service | LOW | ACCEPTABLE FOR PROOF |
+| L-19 | `_append_audit_event` is API-boundary helper rather than standalone audit service | LOW | ACCEPTABLE FOR PROOF |
 
 ---
 
 # 7. Work Plan / Closure Contracts
 
 ## Phase 1 — Real Semantic RAG
-
 **Status: CLOSED**
-
-Closure evidence: real multilingual semantic model, persistent index, bilingual intended-source retrieval, constrained runtime fit, regression/container checks green.
 
 ## Phase 2 — Controlled Tool Execution
-
 **Status: CLOSED**
 
-Closure evidence: registry/allowlist/read-only tool/parameter validation, approval success, reject/no-approval/unauthorized/invalid-param blocks, persisted result, CI/container PASS.
-
 ## Phase 3 — Operator UI
+**Status: CLOSED**
 
+## Phase 4 — Audit Trail
 **Status: CLOSED**
 
 Closure evidence:
-- request/clarification/answer/citation/tool-plan/approval/result UI
-- actual headless Chrome Golden Path
-- persisted execution reload
-- screenshot + JSON artifact
+- append-only persisted lifecycle events
+- complete frozen event coverage including `RAG_RETRIEVED`
+- deterministic sequence-backed reload
+- persisted Operator UI timeline
+- actual Chrome timeline rendering proof
+- fresh `/events` reload equals displayed event order
+- PR Validation + Firebat Container PASS
 
-## Phase 4 — Audit Trail
+## Phase 5 — Evaluation
+**Status: NEXT**
 
-**Status: IN PROGRESS**
+Target: **20~30 fixed cases** covering:
+- retrieval intended-source Top-1 / Top-3
+- citation presence and correctness
+- unsupported claim / insufficient-context behavior
+- risk routing
+- approval/reject behavior
+- unauthorized / invalid-parameter / restricted action blocks
 
-Closure: 특정 run 하나로 전체 처리 과정을 chronological persisted event records만으로 재구성 가능하고, Operator UI timeline이 persisted events를 표시해야 한다.
+Closure:
+- deterministic fixed evaluation dataset
+- repeatable evaluation command
+- machine-readable durable result artifact
+- summary pass/fail metrics suitable for P6 README evidence
+- no expansion into model benchmarking platform or production observability
 
-### P4-A — Persistent Foundation
-
-**Status: CLOSED**
-
-- [x] append-only run audit model
-- [x] deterministic run sequence
-- [x] narrow recording helper
-- [x] read-only event retrieval endpoint
-- [x] reload/order tests
-- [x] PR Validation PASS
-- [x] Firebat Container PASS
-
-### P4-B1 — Complete Frozen Event Coverage
-
-**Status: CLOSED**
-
-- [x] inspect existing retrieval output
-- [x] add explicit `RAG_RETRIEVED` without rerunning retrieval
-- [x] persist concise retrieval evidence
-- [x] verify expected chronological position
-- [x] PR #13 PR Validation run #33 PASS
-- [x] PR #13 Firebat Container run #33 PASS
-- [x] squash merge `e6feb33b902bf8c4334b79bfccf0e374a90f81b5`
-
-### P4-B2 — Persisted Operator Audit Timeline
+### P5-A — Evaluation Contract + Minimal Harness
 
 **Status: NEXT**
 
 Smallest next slice:
-1. wire the existing Operator Workspace audit shell to `GET /api/agents/runs/{run_id}/events`.
-2. render sequence, event type, actor, timestamp and concise payload evidence chronologically.
-3. refresh timeline after create and approve/reject decisions.
-4. extend existing Chrome proof only enough to assert persisted timeline rendering after approved execution.
-5. fresh page-side API reload must return the same event order shown by the UI.
-6. do not start Phase 5 until Phase 4 closure is evidence-backed.
-
-## Phase 5 — Evaluation
-
-Target: **20~30 fixed cases** covering retrieval Top-1/Top-3, citation correctness, unsupported claims, risk routing, approval/reject and unauthorized/restricted actions.
-
-Closure: repeatable command + durable result artifact.
+1. inspect current RAG response schema, policy/routing behavior and existing tests before adding anything.
+2. define a fixed 20-case evaluation dataset using only existing proof knowledge/tools.
+3. implement the smallest deterministic evaluation harness that exercises existing public/backend boundaries without duplicating workflow logic.
+4. emit machine-readable result JSON with per-case checks and aggregate pass counts.
+5. add tests for evaluator determinism/schema.
+6. run through PR Validation and Firebat Container where applicable.
+7. do not start P6 until evaluation evidence is actually produced.
 
 ## Phase 6 — Proof Packaging
+**Status: BLOCKED BY P5**
 
-Required: README sync, architecture/Golden Path diagram, screenshots, evaluation evidence, safety boundary, known limitations, reproduction guide, stale docs/issues synchronization/deprecation.
+Required after P5:
+- README sync
+- architecture / Golden Path diagram
+- screenshots
+- evaluation evidence
+- safety boundary
+- known limitations
+- reproduction guide
+- stale docs/issues synchronization/deprecation
+- final local-LLM positive-path verification or explicit closure decision
 
 ---
 
@@ -473,19 +456,23 @@ Required: README sync, architecture/Golden Path diagram, screenshots, evaluation
 | E-402 | Audit | Controlled approved lifecycle persisted/reloaded chronologically | PASS |
 | E-403 | Audit | Clarification lifecycle persisted/reloaded | PASS |
 | E-406 | Audit | P4-A merge `01122f6faf5b6e517f8bfa16f51c208c62037ec3` | PRESENT |
-| E-407 | Audit | Complete frozen event coverage including `RAG_RETRIEVED` | **PASS** |
-| E-408 | Audit | Persisted Operator UI timeline + browser proof | TODO |
-| E-409 | Audit | PR #13 PR Validation run #33 | **PASS** |
-| E-410 | Audit | PR #13 Firebat Container run #33 | **PASS** |
+| E-407 | Audit | Complete frozen event coverage including `RAG_RETRIEVED` | PASS |
+| E-408 | Audit | Persisted Operator UI timeline + Chrome proof | **PASS** |
+| E-409 | Audit | PR #13 PR Validation run #33 | PASS |
+| E-410 | Audit | PR #13 Firebat Container run #33 | PASS |
 | E-411 | Audit | PR #13 squash merge `e6feb33b902bf8c4334b79bfccf0e374a90f81b5` | PRESENT |
-| E-501 | Eval | Evaluation result | TODO |
+| E-412 | Audit | PR #14 PR Validation run #36 | **PASS** |
+| E-413 | Audit | PR #14 Firebat Container run #36 | **PASS** |
+| E-414 | Audit | PR #14 Firebat artifact `guided-agent-firebat` | PRESENT |
+| E-415 | Audit | PR #14 squash merge `5e7a57a03ce545357fd34cb333117c6170795b5b` | PRESENT |
+| E-501 | Eval | Fixed evaluation result | TODO |
 | E-601 | Deploy | Fresh final deployment verification | TODO |
 
 ---
 
 # 9. Validation Rule
 
-각 iteration 종료 시 반드시 기록:
+각 iteration 종료 시 반드시 기록한다.
 
 ## Changed
 실제로 변경된 코드 / 문서 / 설정.
@@ -520,22 +507,21 @@ Required: README sync, architecture/Golden Path diagram, screenshots, evaluation
 - append-only persistent run audit model
 - deterministic chronological audit reload through `/events`
 - complete frozen audit-event persistence including `RAG_RETRIEVED`
+- persisted Operator audit timeline proven in Chrome against fresh backend reload
 - Docker/Firebat deployment and CI regression
 
 ## Done Enough to Use
-**Backend/API level: YES. Browser Golden Path: YES for the frozen single-tool Proof path. Audit event persistence/reload: YES.**
+**Backend/API level: YES. Browser Golden Path: YES. Persistent audit trail UI: YES for the frozen single-tool Proof path.**
 
 Proof v1.0 is still not closure-complete because:
-- Operator UI audit timeline is not yet backed by persisted events.
-- positive local-LLM inference with the final semantic stack remains open.
 - fixed AI quality evaluation remains open.
+- positive local-LLM inference with the final semantic stack remains open.
 - final proof packaging/doc synchronization remains open.
 
 ## Not Yet Done
-- Persisted audit UI timeline + browser proof
-- Positive local-LLM final-stack verification
-- AI quality evaluation
-- Final proof packaging
+- P5 fixed AI quality evaluation
+- positive local-LLM final-stack verification
+- P6 final proof packaging
 
 ---
 
@@ -543,150 +529,125 @@ Proof v1.0 is still not closure-complete because:
 
 ## NOW
 
-**Phase 4 / P4-B2 — Persisted Operator Audit Timeline**
+**Phase 5 / P5-A — Evaluation Contract + Minimal Harness**
 
 Smallest next action:
-1. replace the placeholder audit shell with rendering sourced only from `/api/agents/runs/{run_id}/events`.
-2. refresh it after run creation and after approve/reject.
-3. show sequence/event type/actor/timestamp/concise payload without duplicating workflow logic in JavaScript.
-4. extend existing Chrome proof to confirm the persisted timeline includes `RAG_RETRIEVED`, `APPROVED`, `TOOL_EXECUTED`, `COMPLETED` in sequence.
-5. compare displayed event order with a fresh `/events` API reload.
+1. inspect existing RAG answer/citation shape and control/risk test surfaces.
+2. freeze a deterministic 20-case dataset; do not start with 30 unless 20 exposes a real coverage gap.
+3. cover retrieval, grounding/citation, insufficient context, routing, approval/reject and hard block paths.
+4. reuse existing APIs/services rather than creating a parallel evaluation-only Agent implementation.
+5. output durable machine-readable evaluation evidence and aggregate metrics.
+6. validate harness determinism and run it in the existing CI/container proof envelope.
 
-Do not start Phase 5 until Phase 4 closure is proven.
+Do not begin P6 packaging before P5 evidence exists.
 
 ---
 
 # 12. Work Log
 
 ## 2026-08-18 — Phase 0 Baseline Freeze
-
 **Status:** CLOSED
 
-**Changed:** authoritative baseline/matrix/scope/evidence/risk contract frozen.
-
-**Executed:** repository/workflow/RAG/tool/CI/docs/Issue inspection.
-
-**Not Verified:** fresh runtime tests at baseline stage.
-
-**Remaining Risks:** carried into phase contracts.
-
----
+Changed: authoritative baseline/matrix/scope/evidence/risk contract frozen.
+Executed: repository/workflow/RAG/tool/CI/docs/Issue inspection.
+Not Verified: fresh runtime tests at baseline stage.
+Remaining Risks: carried into phase contracts.
 
 ## 2026-08-18 — Phase 1 Real Semantic RAG
-
 **Status:** CLOSED
 
-**Changed:** semantic provider boundary + multilingual MiniLM path + persistent semantic index proof gates.
+Changed: semantic provider boundary + multilingual MiniLM path + persistent semantic index proof gates.
+Executed: PR #7/#8 validation, Firebat regression, Korean/English intended-source retrieval, restart/persistence.
+Not Verified: broad quality eval; positive final local-LLM inference.
+Remaining Risks: CPU dependency footprint, legacy provider label, no production-capacity claim.
 
-**Executed:** PR #7/#8 validation, Firebat regression, Korean/English intended-source retrieval, restart/persistence.
-
-**Not Verified:** broad quality eval; positive final local-LLM inference.
-
-**Remaining Risks:** CPU dependency footprint, legacy provider label, no production-capacity claim.
-
----
-
-## 2026-08-18 — Phase 2 P2-A Controlled Read-only Execution
-
+## 2026-08-18 — Phase 2 Controlled Read-only Execution
 **Status:** CLOSED
 
-**Changed:** registry/allowlist, `legacy_db_lookup`, parameter validation, approval executor, persisted execution result and block-path tests.
-
-**Executed:** PR #9 PR Validation PASS; Firebat Container PASS; squash merge `0d6ff79834cec1cfe11189dfe95b7d6dd89b4fc8`.
-
-**Not Verified:** real customer systems; positive local-LLM inference.
-
-**Remaining Risks:** fixture proves control architecture rather than customer integration performance.
-
----
+Changed: registry/allowlist, `legacy_db_lookup`, parameter validation, approval executor, persisted execution result and block-path tests.
+Executed: PR #9 PR Validation PASS; Firebat Container PASS; squash merge `0d6ff79834cec1cfe11189dfe95b7d6dd89b4fc8`.
+Not Verified: real customer systems; positive local-LLM inference.
+Remaining Risks: fixture proves control architecture rather than customer integration performance.
 
 ## 2026-08-18 — Phase 3 Operator UI
-
 **Status:** CLOSED
 
-**Changed:** FastAPI-served workspace, clarification rendering, approval/result UX, Chrome proof harness.
-
-**Executed:** PR #10/#11 checks PASS; Chrome Golden Path PASS; persisted execution reload PASS.
-
-**Not Verified:** persistent audit UI timeline; positive local-LLM final-stack inference.
-
-**Remaining Risks:** Chrome test dependency; proof remains frozen deterministic read-only tool scenario.
-
----
+Changed: FastAPI-served workspace, clarification rendering, approval/result UX, Chrome proof harness.
+Executed: PR #10/#11 checks PASS; Chrome Golden Path PASS; persisted execution reload PASS.
+Not Verified: persistent audit UI timeline at this stage; positive local-LLM final-stack inference.
+Remaining Risks: Chrome test dependency; proof remains frozen deterministic read-only tool scenario.
 
 ## 2026-08-19 — Phase 4 P4-A Persistent Audit Foundation
+**Status:** CLOSED AS FOUNDATION
 
-**Status:** CLOSED AS PERSISTENCE FOUNDATION — PHASE 4 REMAINS OPEN
+Changed: append-only `RunAuditEvent`, deterministic sequence, `/events`, lifecycle recording.
+Executed: PR #12 PR Validation PASS; Firebat Container PASS; merge `01122f6faf5b6e517f8bfa16f51c208c62037ec3`.
+Not Verified: complete event coverage/UI timeline at this stage.
+Remaining Risks: carried into P4-B1/B2.
 
-### Changed
-- `RunAuditEvent` append-only persistence model
-- deterministic per-run sequence
-- lifecycle recording helper
-- read-only `/events` endpoint
-- chronological reload tests
+## 2026-08-19 — Phase 4 P4-B1 Complete Retrieval Audit Coverage
+**Status:** CLOSED
 
-### Executed
-- PR #12 PR Validation PASS
-- PR #12 Firebat Container PASS
-- squash merge `01122f6faf5b6e517f8bfa16f51c208c62037ec3`
+Changed: explicit `RAG_RETRIEVED` persistence using existing workflow output; no duplicate retrieval.
+Executed: PR #13 PR Validation run #33 PASS; Firebat Container run #33 PASS; merge `e6feb33b902bf8c4334b79bfccf0e374a90f81b5`.
+Not Verified: UI timeline at this stage.
+Remaining Risks: ordering authority is integer `sequence`; timestamps are presentation evidence only.
 
-### Not Verified
-- `RAG_RETRIEVED` was not yet present at this stage.
-- Operator UI did not render persisted events.
-
-### Remaining Risks
-- full Phase 4 required frozen event coverage + persisted UI timeline.
-
----
-
-## 2026-08-19 — Phase 4 P4-B1 Complete RAG Retrieval Audit Coverage
+## 2026-08-19 — Phase 4 P4-B2 Persisted Operator Audit Timeline
 
 ### Status
-**CLOSED — PHASE 4 REMAINS OPEN**
+**CLOSED — PHASE 4 CLOSED**
 
 ### Changed
-Merged through PR #13:
-- `app/api/routes.py`
-  - added `_retrieval_audit_payload` summary helper
-  - persisted explicit `RAG_RETRIEVED` when `rag_answer` exists
-  - event uses already-produced `rag_answer.retrieved_context`; no duplicate RAG execution
-  - payload limited to collection counts, total chunks and citation count
-- `tests/test_run_audit_events.py`
-  - frozen approved lifecycle now requires `RAG_RETRIEVED`
-  - verifies chronological position between `NORMALIZED` and `ANSWER_GENERATED`
-  - verifies deterministic retrieval summary payload
+PR #14 merged:
+- `app/operator_ui.py`
+  - replaced placeholder audit shell with persisted `#audit-timeline`
+  - added `/api/agents/runs/{run_id}/events` fetch
+  - chronological event rendering of sequence/type/actor/timestamp/payload
+  - automatic refresh after run creation and approve/reject
+  - no duplicated workflow/audit logic in browser
+- `scripts/verify_operator_browser.py`
+  - verifies clarification timeline
+  - verifies pending-approval frozen lifecycle order
+  - verifies final `RAG_RETRIEVED → APPROVED → TOOL_EXECUTED → COMPLETED` order
+  - fresh page-side `/events` reload must exactly match rendered event type order
+- `tests/test_operator_ui.py`
+  - verifies persisted audit endpoint wiring and event-field rendering contract
 
-No UI work, new service, new tool, auth, external integration or Not Now item was added.
+No new service, JavaScript framework, auth, external integration, write tool or Not Now item was added.
 
 ### Executed
 Repository inspection:
 - authoritative Master read first
-- `main` verified at `d1104ecdecbbab998562b1b5fb3e3e0681209c11` before changes
-- existing workflow/RAG output/API audit boundary inspected
+- pre-change `main` latest commit verified as `93f738bf5284bc2f7b8db7f02afbea91086b20da`
+- existing Operator UI, browser harness and `/events` endpoint inspected
 
-Actual GitHub validation on PR #13 head `28f64bb062738d2883eac630758a7f3873bc2fdd`:
-- **PR Validation run #33: PASS**
-- **Firebat Container run #33: PASS**
-- squash merge to `main`: `e6feb33b902bf8c4334b79bfccf0e374a90f81b5`
+Actual GitHub validation on PR #14 head `34a83551e8fd8dcfc413734107c2666e59a592bc`:
+- **PR Validation run #36: PASS**
+- **Firebat Container run #36: PASS**
+- browser verification step completed successfully inside Firebat Container workflow
+- durable artifact `guided-agent-firebat` created, artifact id `9335464678`
+- squash merge to `main`: `5e7a57a03ce545357fd34cb333117c6170795b5b`
 
-Local clone/test execution was attempted but the automation container could not resolve `github.com`; no local result is claimed. GitHub CI is the actual execution evidence for this iteration.
+Local clone/test execution was attempted but the automation container could not resolve `github.com`; no local execution result is claimed. GitHub CI is the actual execution evidence.
 
 ### Not Verified
-- Operator Workspace still does not fetch/render `/events`.
-- real Chrome proof still does not assert audit timeline contents/order.
-- positive local-LLM inference with final semantic model remains open.
-- P5 fixed evaluation remains open.
+- P5 fixed evaluation dataset/harness does not exist yet.
+- positive local-LLM inference with the final semantic model is still not freshly proven.
+- P6 README/docs/proof packaging remains untouched.
+- no production-scale, concurrency, auth or real customer integration claim is made.
 
 ### Remaining Risks
-- Phase 4 cannot close until persisted events are rendered in the Operator UI and verified in Chrome.
-- ordering authority remains integer `sequence`; timestamps are presentation evidence only.
-- audit payload intentionally does not persist retrieved document contents, avoiding unnecessary duplication and keeping the audit record concise.
+- browser CI still depends on GitHub runner Chrome + test-only Selenium installation.
+- audit ordering authority remains persisted integer `sequence`; timestamps are informative only.
+- current audit payload is deliberately concise and does not preserve full retrieved chunks.
+- P5 must quantify citation/grounding/control quality before Proof v1.0 can close.
 
 ### Decision
-Frozen backend audit-event coverage is now complete. Full Phase 4 remains open.
+**Phase 4 closure criteria are met.** A single run can now be reconstructed from persisted chronological events and the Operator UI displays that persisted timeline; actual Chrome proof confirms the UI order equals fresh backend `/events` order.
 
 ### Next Action
-**P4-B2 — wire persisted `/events` into the Operator audit timeline and prove rendered chronological order in the existing Chrome Golden Path.**
+**Phase 5 / P5-A — freeze the 20-case evaluation contract and implement the smallest deterministic evaluation harness.**
 
 ---
 
@@ -701,8 +662,8 @@ Frozen backend audit-event coverage is now complete. Full Phase 4 remains open.
 - 민감 작업은 human approval을 요구하는가? **YES — P2/P3**
 - 승인된 제한 read-only tool 하나가 실제 실행되는가? **YES — P2/P3 browser proof**
 - reject/unauthorized tool은 실행되지 않는가? **YES — P2 backend safety proof**
-- 모든 과정이 저장되고 추적 가능한가? **PARTIAL — ALL FROZEN EVENTS PERSIST/RELOAD; UI TIMELINE OPEN**
-- 이 동작이 automated tests + evaluation으로 검증되는가? **PARTIAL — tests PASS, P5 eval OPEN**
+- 모든 과정이 저장되고 UI에서 추적 가능한가? **YES — P4**
+- 이 동작이 automated tests + fixed evaluation으로 검증되는가? **PARTIAL — tests PASS, P5 eval OPEN**
 - 외부 사람이 README/Demo/Evidence만 보고 이를 확인할 수 있는가? **PARTIAL — P6 OPEN**
 
 그 이후 기능은 Proof v1.1 또는 실제 고객 요구사항으로 분리한다.

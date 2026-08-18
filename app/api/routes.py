@@ -136,6 +136,20 @@ def _audit_event_to_response(event: RunAuditEvent) -> dict[str, Any]:
     }
 
 
+def _retrieval_audit_payload(rag_answer: dict[str, Any]) -> dict[str, Any]:
+    """Summarize persisted RAG retrieval output without executing retrieval again."""
+    retrieved_context = rag_answer.get("retrieved_context") or {}
+    collection_counts = {
+        str(collection): len(results) if isinstance(results, list) else 0
+        for collection, results in retrieved_context.items()
+    }
+    return {
+        "collection_counts": collection_counts,
+        "retrieved_chunks": sum(collection_counts.values()),
+        "citation_count": len(rag_answer.get("citations") or []),
+    }
+
+
 def _planned_tool_for_execution(run: AgentRun) -> str | None:
     raw_output = run.raw_llm_output or {}
     tool_plan = raw_output.get("tool_plan") or {}
@@ -218,8 +232,9 @@ def create_run(
             _append_audit_event(run, "NORMALIZED")
 
     if agent_type == controlled_rag_agent.AGENT_TYPE:
+        rag_answer = final_state.get("rag_answer")
         run.raw_llm_output = {
-            "rag_answer": final_state.get("rag_answer"),
+            "rag_answer": rag_answer,
             "tool_plan": final_state.get("tool_plan"),
             "human_review_required": final_state.get(
                 "human_review_required",
@@ -228,7 +243,12 @@ def create_run(
             "review_status": final_state.get("review_status"),
             "final_status": final_state.get("final_status"),
         }
-        if final_state.get("rag_answer") is not None:
+        if rag_answer is not None:
+            _append_audit_event(
+                run,
+                "RAG_RETRIEVED",
+                payload=_retrieval_audit_payload(rag_answer),
+            )
             _append_audit_event(run, "ANSWER_GENERATED")
         if final_state.get("tool_plan") is not None:
             _append_audit_event(run, "TOOL_PLANNED")

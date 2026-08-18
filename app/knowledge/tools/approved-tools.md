@@ -1,5 +1,7 @@
 # Approved Tools and APIs
 
+This catalog defines which tools are approved for controlled agent use. Agents may use only the approved integrations below and must follow the listed access requirements and restricted-operation boundaries.
+
 ## Tool Categories
 
 ### Data Access Tools

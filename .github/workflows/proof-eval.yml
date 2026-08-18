@@ -1,0 +1,88 @@
+name: Proof Evaluation
+
+on:
+  pull_request:
+    paths:
+      - app/**
+      - evaluation/**
+      - scripts/run_proof_eval.py
+      - Dockerfile
+      - compose.firebat.yml
+      - requirements.txt
+      - .github/workflows/proof-eval.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  proof-eval:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare Firebat environment
+        run: |
+          cp .env.firebat.example .env.firebat
+          sed -i 's/HOST_PORT=8701/HOST_PORT=18701/' .env.firebat
+          sed -i 's/LOCAL_LLM_TIMEOUT=5/LOCAL_LLM_TIMEOUT=2/' .env.firebat
+          chmod 600 .env.firebat
+          echo 'APP_VERSION=proof-eval' >> "$GITHUB_ENV"
+          echo "GIT_REVISION=${GITHUB_SHA}" >> "$GITHUB_ENV"
+          echo 'HOST_PORT=18701' >> "$GITHUB_ENV"
+
+      - name: Build production image
+        run: docker compose --env-file .env.firebat -f compose.firebat.yml build app
+
+      - name: Start Firebat service
+        run: docker compose --env-file .env.firebat -f compose.firebat.yml up -d
+
+      - name: Wait for semantic runtime
+        run: |
+          chmod +x scripts/healthcheck-firebat.sh
+          HEALTHCHECK_MAX_ATTEMPTS=90 sh scripts/healthcheck-firebat.sh
+
+      - name: Execute fixed Proof v1.0 suite
+        shell: bash
+        run: |
+          set +e
+          docker exec firebat-guided-agent-os \
+            python scripts/run_proof_eval.py \
+            --skip-index-rebuild \
+            --output /app/data/proof-eval-results.json \
+            | tee proof-eval-summary.txt
+          status=${PIPESTATUS[0]}
+          docker cp firebat-guided-agent-os:/app/data/proof-eval-results.json proof-eval-results.json
+          python - <<'PY'
+          import json
+          result = json.load(open('proof-eval-results.json', encoding='utf-8'))
+          print('category_metrics=', json.dumps(result.get('category_metrics', {}), ensure_ascii=False, sort_keys=True))
+          print('failed_ids=', [item['id'] for item in result.get('cases', []) if not item.get('passed')])
+          PY
+          exit "$status"
+
+      - name: Capture diagnostics
+        if: always()
+        run: |
+          docker compose --env-file .env.firebat -f compose.firebat.yml ps || true
+          docker compose --env-file .env.firebat -f compose.firebat.yml logs --tail=250 app > proof-eval-container.log 2>&1 || true
+          docker stats firebat-guided-agent-os --no-stream --format 'container={{.Name}} mem={{.MemUsage}} cpu={{.CPUPerc}}' > proof-eval-runtime.txt 2>/dev/null || true
+
+      - name: Upload Proof evaluation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: guided-agent-proof-eval
+          path: |
+            proof-eval-results.json
+            proof-eval-summary.txt
+            proof-eval-container.log
+            proof-eval-runtime.txt
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Stop Firebat service
+        if: always()
+        run: docker compose --env-file .env.firebat -f compose.firebat.yml down -v || true

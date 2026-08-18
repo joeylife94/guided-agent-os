@@ -16,7 +16,9 @@
 | Repository | `joeylife94/guided-agent-os` |
 | Baseline branch | `main` |
 | Phase 0 Baseline HEAD | `fae00d67227a8bc496842ceb244845f09c0bfeae` |
-| Current Verified HEAD | `44d9f2965aea0836081e043a1c7e6888f389feb9` |
+| Current Verified App HEAD | `44d9f2965aea0836081e043a1c7e6888f389feb9` |
+| Current Master baseline | `main` after P1-A; P1-B work remains unmerged in PR #8 |
+| Active Proof PR | `#8` — `proof/p1b-semantic-smoke` at `8cb94ee904370464e248320a3d487ddf795658fa` |
 | Current Level | **L2 — Integrated Backend Demo** |
 | Target Level | **L3 — Usable / Demonstrable Proof** |
 | Target Release | **Proof v1.0** |
@@ -24,7 +26,7 @@
 | Final Product Goal | **Deployable Controlled AI Agent Proof** |
 | Scope Status | **FROZEN** |
 | Phase 0 | **CLOSED — Baseline Frozen** |
-| Phase 1 | **IN PROGRESS — P1-A CLOSED** |
+| Phase 1 | **IN PROGRESS — P1-A CLOSED / P1-B BLOCKED ON CURRENT MODEL RUNTIME FIT** |
 | Overall Status | **IN PROGRESS** |
 
 ---
@@ -203,12 +205,32 @@ Implemented behavior:
 - retrieval uses the same configured provider and validates collection provider/model/dimension metadata
 - incompatible/stale embedding index produces an explicit rebuild error instead of silent empty retrieval
 - Firebat runtime receives embedding provider/model configuration
-- CI explicitly selects `hash_test` to keep CI deterministic and avoid claiming semantic model runtime verification
+- CI can explicitly select `hash_test` for deterministic regression without claiming semantic proof
+
+### P1-B semantic runtime attempt — PARTIAL EVIDENCE / NOT CLOSED
+
+PR #8 (`proof/p1b-semantic-smoke`) was opened to run the real semantic provider in the production-style Firebat container.
+
+Fresh observed behavior:
+- the initial real-model run failed because the read-only container blocked Hugging Face cache creation under `/home/appuser/.cache`.
+- the security boundary was preserved; cache paths were moved to the existing writable persistent `/app/data` volume via `HF_HOME` and `SENTENCE_TRANSFORMERS_HOME`.
+- after the cache fix, `BAAI/bge-m3` weights loaded successfully in the container.
+- semantic bootstrap rebuilt all three collections and emitted non-empty counts: `domain_knowledge=4`, `agent_policy=6`, `tool_catalog=7`.
+- under the current `1536m` container memory cap, the semantic process was subsequently reported as `Killed`, restarted, and did not reach stable health within the configured 90-attempt health window.
+- this is direct evidence that the current BGE-M3 + dependency/runtime combination does **not yet fit the frozen Firebat proof runtime reliably**.
+- Docker did not explicitly report `OOMKilled` in the collected log, so the exact kill mechanism is not claimed as proven; memory pressure is the leading explanation because the process was killed while operating under the configured 1536 MiB cap.
+- Korean/English retrieval and Top-K source verification were not reached in the final run and therefore remain unverified.
+
+Dependency/runtime observation from the fresh image build:
+- unconstrained `sentence-transformers>=3.0.0` resolved to `sentence-transformers 5.7.0`, `transformers 5.15.0`, and `torch 2.13.0`.
+- the Linux Torch dependency path also installed large CUDA/NVIDIA packages despite this proof runtime being CPU-oriented.
+- this creates avoidable image/runtime footprint risk and must be considered during the P1-B model/runtime reevaluation.
 
 Important boundary:
-- **real BGE-M3 model load/inference has not yet been executed as evidence.**
-- Korean/English semantic retrieval quality has not yet been verified.
-- therefore Phase 1 is not closed.
+- **P1-B is not closed.**
+- real semantic model load and semantic index rebuild now have partial evidence.
+- stable semantic container health, bilingual retrieval quality, intended-source Top-K, and runtime stats do not yet have passing evidence.
+- hash fallback remains prohibited as semantic proof.
 
 ## Tool / control
 
@@ -250,12 +272,24 @@ Fresh P1-A validation on PR #7:
 - persistent agent run: PASS
 - restart persistence: PASS
 
-This fresh container evidence validates the provider boundary and regression path, **not** real semantic-model inference.
+Fresh P1-B branch validation on PR #8 head `8cb94ee904370464e248320a3d487ddf795658fa`:
+- PR Validation: **PASS**
+- production image build: **PASS**
+- writable HF cache fix: **verified to allow real model loading**
+- BGE-M3 weight load: **observed**
+- semantic bootstrap/index rebuild: **observed; 4 / 6 / 7 non-empty collections**
+- Firebat stable health under `1536m`: **FAIL**
+- Korean semantic retrieval smoke: **NOT REACHED**
+- English semantic retrieval smoke: **NOT REACHED**
+- intended source Top-K: **NOT REACHED**
+- runtime `docker stats`: **NOT REACHED**
+
+PR #8 must remain unmerged until P1-B has a stable semantic runtime and the required bilingual retrieval evidence.
 
 ## Documentation drift
 
 Still open:
-- `README.md` broadly reflects controlled RAG but does not yet describe P1-A final state.
+- `README.md` broadly reflects controlled RAG but does not yet describe P1-A/P1-B final state.
 - `docs/PROJECT_STATUS.md` is stale.
 - `docs/ROADMAP.md` is stale.
 - GitHub Issue #4 remains stale/open.
@@ -276,8 +310,10 @@ Decision: Master overrides stale docs. External documentation synchronization re
 | LangGraph controlled path | IMPLEMENTED | ACCEPTABLE |
 | ChromaDB persistence | IMPLEMENTED | ACCEPTABLE |
 | Embedding provider boundary | IMPLEMENTED | ACCEPTABLE FOUNDATION |
-| Real semantic provider config | IMPLEMENTED | NEEDS RUNTIME EVIDENCE |
-| Multi-collection RAG | IMPLEMENTED | NEEDS SEMANTIC RETRIEVAL PROOF |
+| Real semantic provider config | IMPLEMENTED | RUNTIME MODEL CHOICE NEEDS REEVALUATION |
+| Real semantic model load | PARTIALLY VERIFIED | BGE-M3 LOADS BUT CURRENT CONTAINER FIT FAILS |
+| Semantic index rebuild | PARTIALLY VERIFIED | 3 COLLECTIONS REBUILT, STABLE RUNTIME NOT YET PROVEN |
+| Multi-collection RAG | IMPLEMENTED | NEEDS BILINGUAL SEMANTIC RETRIEVAL PROOF |
 | Citation metadata | IMPLEMENTED | NEEDS QUALITY VALIDATION |
 | Local LLM client | IMPLEMENTED | NEEDS GOLDEN-PATH VERIFICATION |
 | LLM unavailable fallback | IMPLEMENTED | FRESHLY REGRESSION-VERIFIED |
@@ -297,14 +333,16 @@ Decision: Master overrides stale docs. External documentation synchronization re
 
 | ID | Risk | Severity | Status |
 |---|---|---:|---|
-| L-01 | Semantic provider boundary는 존재하지만 real BGE-M3 runtime/retrieval 품질 미검증 | HIGH | OPEN |
+| L-01 | Current BGE-M3 semantic path is killed / unstable under the frozen 1536 MiB Firebat container cap | HIGH | OPEN |
 | L-02 | Approval 이후 real controlled execution 없음 | HIGH | OPEN |
 | L-03 | Swagger 중심 UX; operator UI 없음 | HIGH | OPEN |
 | L-04 | Full lifecycle audit timeline 없음 | MEDIUM | OPEN |
 | L-05 | Retrieval/grounding/control evaluation 없음 | MEDIUM | OPEN |
 | L-06 | README 외 PROJECT_STATUS/ROADMAP/Issue 상태 drift | MEDIUM | OPEN |
-| L-07 | BGE-M3 model download/runtime memory/latency requirement 미검증 | MEDIUM | OPEN |
-| L-08 | Fresh container PASS는 explicit `hash_test` 경로이며 semantic container proof가 아님 | MEDIUM | OPEN |
+| L-07 | BGE-M3 model download succeeds but stable memory/latency/runtime fit is not proven | HIGH | OPEN |
+| L-08 | Korean/English semantic retrieval + intended-source Top-K remain unverified | HIGH | OPEN |
+| L-09 | Current unconstrained Torch/SentenceTransformers dependency resolution pulls large CUDA/NVIDIA packages into a CPU-oriented image | MEDIUM | OPEN |
+| L-10 | Exact reason for `Killed` is not directly verified as Docker OOMKilled; memory pressure is inferred, not proven | MEDIUM | OPEN |
 
 ---
 
@@ -330,34 +368,42 @@ Closure evidence:
 
 ### P1-B — Semantic Runtime + Bilingual Retrieval Smoke
 
-**Status: NEXT**
+**Status: BLOCKED — CURRENT BGE-M3 RUNTIME DOES NOT FIT RELIABLY**
 
-Smallest safe slice:
-1. 실제 semantic provider를 로드한다.
-2. current knowledge base index를 semantic provider로 rebuild한다.
-3. collection metadata의 provider/model/dimension을 확인한다.
-4. 최소 Korean query 1개 + English query 1개를 실행한다.
-5. 각 query에서 의도한 source가 Top-K에 들어오는지 기록한다.
-6. runtime/download/resource failure가 있으면 provider/model 선택을 재평가하되 hash fallback은 사용하지 않는다.
+Evidence accumulated:
+1. real BGE-M3 model download/load executed.
+2. read-only cache blocker identified and fixed without weakening the read-only container.
+3. semantic index rebuild executed.
+4. all three collections became non-empty: `4 / 6 / 7`.
+5. current process was killed and became unstable under the configured `1536m` memory cap.
+6. bilingual retrieval smoke and Top-K verification were not reached.
 
-P1-B closure requires:
-- actual semantic model load evidence
+Smallest next slice:
+1. source-verify and select a **smaller multilingual retrieval-oriented SentenceTransformer model** suitable for the CPU-oriented 1536 MiB proof runtime.
+2. keep the existing explicit provider boundary; do not reintroduce hash fallback.
+3. avoid increasing the memory cap as the first workaround; prefer a model/runtime that fits the existing proof envelope.
+4. rerun the exact P1-B semantic proof: model load → index rebuild → metadata check → Korean query → English query → intended source Top-K → runtime stats.
+5. if dependency footprint remains excessive, constrain the CPU runtime dependency path without broad infrastructure changes.
+
+P1-B closure still requires:
+- actual selected semantic model load evidence
 - actual semantic index rebuild evidence
 - three collections non-empty
 - Korean retrieval evidence
 - English retrieval evidence
 - expected source Top-K evidence
+- stable semantic container health
 - actual runtime/resource requirement recorded
 
 ### Phase 1 Acceptance Criteria
 
-- [ ] Real semantic embedding executed
-- [ ] Index rebuild 성공
-- [ ] Existing three collections 정상 동작
+- [x] Real semantic embedding model load attempted and observed with BGE-M3
+- [x] Semantic index rebuild observed with non-empty collections
+- [ ] Existing three collections proven under stable runtime
 - [ ] Korean query retrieval verified
 - [ ] English query retrieval verified
 - [ ] Relevant document Top-K verified
-- [ ] Semantic container/runtime execution verified
+- [ ] Semantic container/runtime execution verified stable
 - [x] Regression tests PASS for P1-A boundary
 
 ### Closure
@@ -475,9 +521,13 @@ Closure: 외부 검토자가 5~10분 안에 무엇을 만들었고 무엇을 실
 | E-101 | RAG | P1-A provider boundary merged via PR #7 at `44d9f2965aea0836081e043a1c7e6888f389feb9` | PRESENT |
 | E-102 | RAG | PR #7 PR Validation — pytest/unittest/compileall/diff check | PASS |
 | E-103 | RAG | PR #7 Firebat Container regression with explicit `hash_test` | PASS — TEST PROVIDER |
-| E-104 | RAG | Real semantic model load + index rebuild | TODO |
-| E-105 | RAG | Korean + English semantic retrieval result | TODO |
-| E-106 | RAG | Semantic runtime/container resource verification | TODO |
+| E-104 | RAG | PR #8 real BGE-M3 weights loaded after writable HF cache fix | PRESENT — PARTIAL |
+| E-105 | RAG | PR #8 semantic bootstrap rebuilt `domain_knowledge=4`, `agent_policy=6`, `tool_catalog=7` | PRESENT — PARTIAL |
+| E-106 | RAG | PR #8 Firebat process reported `Killed` / unstable under `1536m`; health failed | FAIL — RUNTIME FIT |
+| E-107 | RAG | PR #8 PR Validation on head `8cb94ee904370464e248320a3d487ddf795658fa` | PASS |
+| E-108 | RAG | Korean + English semantic retrieval result | TODO — NOT REACHED |
+| E-109 | RAG | Intended legacy DB source in semantic Top-K | TODO — NOT REACHED |
+| E-110 | RAG | Stable semantic runtime/container resource stats | TODO |
 | E-201 | Execution | Approved tool execution | TODO |
 | E-202 | Execution | Reject/unauthorized execution blocked | TODO |
 | E-301 | UI | Golden Path screenshot/E2E | TODO |
@@ -515,16 +565,19 @@ Closure: 외부 검토자가 5~10분 안에 무엇을 만들었고 무엇을 실
 - LangGraph controlled RAG workflow
 - ChromaDB integration
 - explicit semantic embedding provider boundary
+- real BGE-M3 load attempt and semantic index rebuild evidence
 - Local LLM integration boundary
 - Tool planning / human review routing
 - Docker deployment structure
 - fresh P1-A regression/container evidence
+- fresh P1-B runtime-fit failure evidence
 
 ## Done Enough to Use
 **아직 없음.**
 
 ## Not Yet Done
-- Real semantic RAG runtime/retrieval proof
+- Stable real semantic RAG runtime/retrieval proof
+- Korean/English semantic Top-K proof
 - Real controlled execution
 - Operator UI
 - Complete audit trail
@@ -537,16 +590,22 @@ Closure: 외부 검토자가 5~10분 안에 무엇을 만들었고 무엇을 실
 
 ## NOW
 
-**Phase 1 / P1-B — Semantic Runtime + Bilingual Retrieval Smoke**
+**Phase 1 / P1-B — Semantic Runtime Model Reevaluation**
+
+Smallest next action:
+- select a smaller multilingual retrieval-oriented semantic model that can fit the current CPU-oriented `1536m` Firebat proof envelope.
+- preserve the existing semantic provider/index metadata contract.
+- rerun the same semantic proof without hash fallback.
 
 Required before closing P1-B:
-- actual semantic model loaded
+- selected real semantic model loaded stably
 - semantic index rebuilt
 - three collections non-empty
 - Korean query executed
 - English query executed
 - intended source verified in Top-K
 - actual model/runtime/download/resource constraints recorded
+- stable container health
 - no hash fallback
 
 ---
@@ -680,6 +739,70 @@ P1-A's purpose was to create a safe, explicit semantic provider boundary without
 
 ### Next Action
 **Phase 1 / P1-B — load the semantic provider, rebuild the index, execute Korean + English retrieval smoke cases, and record runtime constraints.**
+
+---
+
+## 2026-08-18 — Phase 1 P1-B Real Semantic Runtime Attempt
+
+### Status
+**NOT CLOSED — BLOCKED ON CURRENT BGE-M3 RUNTIME FIT**
+
+### Changed
+Work exists only on open PR #8; it is not merged into `main`:
+- `.github/workflows/firebat-container.yml`
+  - removed the forced hash-test path for the P1-B proof branch
+  - added real semantic metadata verification
+  - added Korean + English retrieval smoke definitions
+  - added intended-source Top-K assertion
+  - added runtime-stat artifact capture
+  - fixed semantic inspection piping with `docker exec -i`
+- `compose.firebat.yml`
+  - preserved `read_only: true`
+  - routed Hugging Face / SentenceTransformers cache into the existing writable `/app/data` volume
+
+No separate Markdown artifact created. This Master records the authoritative result.
+
+### Executed
+Actual GitHub/Firebat runs on PR #8:
+
+**PR Validation — PASS** on head `8cb94ee904370464e248320a3d487ddf795658fa`.
+
+**Firebat semantic execution attempts:**
+- production image build: PASS
+- initial read-only HF cache attempt: FAIL with read-only cache-path error
+- writable cache correction: model download/load progressed successfully
+- BGE-M3 weights: actual load observed
+- semantic index bootstrap: actual rebuild observed
+- collection counts: `domain_knowledge=4`, `agent_policy=6`, `tool_catalog=7`
+- latest stable-health check under `1536m`: FAIL
+- process log included `Killed`, followed by restart
+
+Build dependency observation:
+- `sentence-transformers 5.7.0`
+- `transformers 5.15.0`
+- `torch 2.13.0`
+- large CUDA/NVIDIA dependency set pulled into a CPU-oriented image
+
+### Not Verified
+- exact kill reason is not directly proven as Docker `OOMKilled`.
+- stable BGE-M3 health under current proof envelope is not verified.
+- Korean semantic retrieval was not reached in the final run.
+- English semantic retrieval was not reached in the final run.
+- intended source Top-K was not reached.
+- steady-state semantic runtime memory/CPU stats were not captured.
+- local LLM positive inference path was not re-verified.
+
+### Remaining Risks
+- BGE-M3 is too heavy or otherwise unstable for the current `1536m` CPU-oriented proof container.
+- unconstrained Torch dependency resolution materially inflates image/runtime footprint with CUDA libraries.
+- increasing memory without first considering a smaller model would weaken the constrained Proof objective.
+- semantic quality remains unproven until bilingual retrieval completes on a stable runtime.
+
+### Decision
+Do **not** close P1-B and do **not** merge PR #8 in its current state. The observed failure is useful runtime-fit evidence, not a successful semantic proof. The existing provider boundary is retained; hash fallback remains prohibited.
+
+### Next Action
+**Source-verify a smaller multilingual retrieval-oriented SentenceTransformer model that fits the current CPU-oriented 1536 MiB Firebat envelope, update the semantic model configuration/provider labeling minimally, then rerun the same P1-B bilingual Top-K proof.**
 
 ---
 

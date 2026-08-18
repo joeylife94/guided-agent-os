@@ -106,7 +106,7 @@ jobs:
           python - <<'PY'
           import json
 
-          expected = 'app/knowledge/tools/legacy-db-access-guideline.md'
+          expected = 'tools/legacy-db-access-guideline.md'
           for label, path in [('ko', '/tmp/query-ko.json'), ('en', '/tmp/query-en.json')]:
               value = json.load(open(path, encoding='utf-8'))
               results = value['results']

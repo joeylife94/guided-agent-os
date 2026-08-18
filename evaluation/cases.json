@@ -21,5 +21,7 @@
   {"id":"T01","category":"tool_control","tool_name":"legacy_db_lookup","approved":true,"allowed_tools":["legacy_db_lookup"],"parameters":{"record_id":"LEG-001"},"expect":"success","expect_found":true},
   {"id":"T02","category":"tool_control","tool_name":"legacy_db_lookup","approved":true,"allowed_tools":["legacy_db_lookup"],"parameters":{"record_id":"LEG-999"},"expect":"success","expect_found":false},
   {"id":"T03","category":"tool_control","tool_name":"legacy_db_lookup","approved":false,"allowed_tools":["legacy_db_lookup"],"parameters":{"record_id":"LEG-001"},"expect":"blocked"},
-  {"id":"T04","category":"tool_control","tool_name":"not_registered","approved":true,"allowed_tools":["not_registered"],"parameters":{"record_id":"LEG-001"},"expect":"blocked"}
+  {"id":"T04","category":"tool_control","tool_name":"not_registered","approved":true,"allowed_tools":["not_registered"],"parameters":{"record_id":"LEG-001"},"expect":"blocked"},
+  {"id":"T05","category":"tool_control","tool_name":"legacy_db_lookup","approved":true,"allowed_tools":[],"parameters":{"record_id":"LEG-001"},"expect":"blocked"},
+  {"id":"T06","category":"tool_control","tool_name":"legacy_db_lookup","approved":true,"allowed_tools":["legacy_db_lookup"],"parameters":{},"expect":"blocked"}
 ]

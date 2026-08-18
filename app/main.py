@@ -4,12 +4,13 @@ import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from app.api.rag_routes import router as rag_router
 from app.api.routes import router
 from app.models.database import Base, SessionLocal, engine
+from app.operator_ui import operator_workspace
 from app.services.rag_indexer import get_index_stats
 
 # Create all tables on startup (idempotent).
@@ -26,8 +27,8 @@ app = FastAPI(
         "required fields, asks clarification questions, normalizes input, "
         "persists runs, and supports a controlled_rag_agent workflow with "
         "local grounded RAG answers, planned-only tool/API plans, and human "
-        "review routing. It does not execute SQL, tools, APIs, or external "
-        "account actions."
+        "review routing. Controlled read-only tool execution is available only "
+        "through the explicit server-side approval boundary."
     ),
     version=APP_VERSION,
     docs_url="/docs",
@@ -59,9 +60,9 @@ app.include_router(rag_router)
 
 
 @app.get("/", include_in_schema=False)
-def root() -> RedirectResponse:
-    """Open the interactive API documentation."""
-    return RedirectResponse(url="/docs")
+def root():
+    """Open the dependency-free operator workspace."""
+    return operator_workspace()
 
 
 @app.get("/health", tags=["system"])

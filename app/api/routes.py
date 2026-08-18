@@ -17,7 +17,8 @@ from app.schemas.agent_run import (
     ClarificationQuestion,
     RejectRequest,
 )
-from app.templates import freelance, public_enterprise_ai, controlled_rag_agent
+from app.services.tool_executor import ToolExecutionError, execute_approved_tool
+from app.templates import controlled_rag_agent, freelance, public_enterprise_ai
 
 router = APIRouter(prefix="/api/agents", tags=["agents"])
 
@@ -31,6 +32,7 @@ _TEMPLATE_REGISTRY = {
     public_enterprise_ai.AGENT_TYPE: public_enterprise_ai,
     controlled_rag_agent.AGENT_TYPE: controlled_rag_agent,
 }
+
 
 def _get_template_config(agent_type: str) -> dict[str, Any]:
     """Return the config dict for a given agent_type, or raise 404."""
@@ -51,7 +53,7 @@ def _get_template_config(agent_type: str) -> dict[str, Any]:
     raise HTTPException(
         status_code=404,
         detail=f"Agent type '{agent_type}' is not registered. "
-               f"Supported types: {supported_types}",
+        f"Supported types: {supported_types}",
     )
 
 
@@ -105,6 +107,22 @@ def _commit_and_refresh(db: Session, run: AgentRun) -> AgentRun:
     return run
 
 
+def _planned_tool_for_execution(run: AgentRun) -> str | None:
+    raw_output = run.raw_llm_output or {}
+    tool_plan = raw_output.get("tool_plan") or {}
+    if not tool_plan.get("requires_tool_or_api"):
+        return None
+    recommended = tool_plan.get("recommended_tools") or []
+    if not recommended:
+        raise ToolExecutionError(
+            "Tool execution was required but the persisted plan has no recommended tool"
+        )
+    tool_name = recommended[0].get("name")
+    if not isinstance(tool_name, str) or not tool_name.strip():
+        raise ToolExecutionError("Persisted tool plan contains an invalid tool name")
+    return tool_name.strip()
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
@@ -115,21 +133,9 @@ def create_run(
     body: dict[str, Any],
     db: Session = Depends(get_db),
 ) -> AgentRunResponse:
-    """
-    Start a new agent run for the specified agent type.
-
-    The request body is the raw intake form payload for that agent type.
-    Supported agent types are registered in `_TEMPLATE_REGISTRY`.
-
-    Returns the newly created run, which will be in one of these states:
-    - **needs_clarification** — required fields were missing; check
-      `clarification_questions` in the response.
-    - **validated** — all required fields were present. Phase 1 stops here.
-    - **error** — the workflow encountered an unrecoverable error.
-    """
+    """Start a new agent run for the specified agent type."""
     template_config = _get_template_config(agent_type)
 
-    # Create the DB record first so we have an ID
     run = AgentRun(
         id=str(uuid.uuid4()),
         agent_type=agent_type,
@@ -138,7 +144,6 @@ def create_run(
     )
     db.add(run)
 
-    # Execute the LangGraph workflow
     initial_state: dict[str, Any] = {
         "run_id": run.id,
         "agent_type": agent_type,
@@ -158,7 +163,6 @@ def create_run(
         _commit_and_refresh(db, run)
         return _run_to_response(run)
 
-    # Persist workflow results
     run.status = final_state.get("status", "error")
     run.missing_fields = final_state.get("missing_fields", [])
     run.clarification_questions = final_state.get("clarification_questions", [])
@@ -167,8 +171,6 @@ def create_run(
     run.score = final_state.get("score")
 
     if agent_type == controlled_rag_agent.AGENT_TYPE:
-        # Persist Phase 3 outputs together for audit, and expose them through
-        # dedicated response fields in _run_to_response.
         run.raw_llm_output = {
             "rag_answer": final_state.get("rag_answer"),
             "tool_plan": final_state.get("tool_plan"),
@@ -185,7 +187,6 @@ def create_run(
     if final_state.get("error"):
         run.error_message = final_state["error"]
 
-    # Persist action drafts
     for draft_data in final_state.get("action_drafts", []):
         db.add(
             ActionDraftModel(
@@ -215,11 +216,7 @@ def approve_run(
     body: ApproveRequest,
     db: Session = Depends(get_db),
 ) -> AgentRunResponse:
-    """
-    Approve a future-phase run that is in 'pending_approval' status.
-
-    Phase 1 validation runs stop at 'validated' and cannot be approved.
-    """
+    """Approve a pending run and execute its single controlled read-only tool."""
     run = db.get(AgentRun, run_id)
     if not run:
         raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found.")
@@ -232,12 +229,31 @@ def approve_run(
             ),
         )
 
-    run.status = "archived"
+    raw_output = dict(run.raw_llm_output or {})
+    try:
+        tool_name = _planned_tool_for_execution(run)
+        execution_result = None
+        if tool_name is not None:
+            execution_result = execute_approved_tool(
+                tool_name=tool_name,
+                parameters=(run.intake_data or {}).get("tool_parameters", {}),
+                approved=True,
+                allowed_tools=(run.intake_data or {}).get("allowed_tools", []),
+            )
+    except ToolExecutionError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
     if body.note:
         run.reviewer_note = body.note
-    # Mark all action drafts as approved
     for draft in run.action_drafts:
         draft.is_approved = True
+
+    raw_output["review_status"] = "approved"
+    raw_output["final_status"] = "archived"
+    if execution_result is not None:
+        raw_output["execution_result"] = execution_result
+    run.raw_llm_output = raw_output
+    run.status = "archived"
 
     _commit_and_refresh(db, run)
     return _run_to_response(run)
@@ -249,11 +265,7 @@ def reject_run(
     body: RejectRequest,
     db: Session = Depends(get_db),
 ) -> AgentRunResponse:
-    """
-    Reject a future-phase run that is in 'pending_approval' status.
-
-    Phase 1 validation runs stop at 'validated' and cannot be rejected.
-    """
+    """Reject a pending run without executing any tool."""
     run = db.get(AgentRun, run_id)
     if not run:
         raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found.")
@@ -270,6 +282,12 @@ def reject_run(
     run.reviewer_note = body.reason
     for draft in run.action_drafts:
         draft.is_approved = False
+
+    raw_output = dict(run.raw_llm_output or {})
+    raw_output["review_status"] = "rejected"
+    raw_output["final_status"] = "rejected"
+    raw_output.pop("execution_result", None)
+    run.raw_llm_output = raw_output
 
     _commit_and_refresh(db, run)
     return _run_to_response(run)

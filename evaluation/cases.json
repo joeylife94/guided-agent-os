@@ -1,0 +1,25 @@
+[
+  {"id":"R01","category":"retrieval","query":"How should the agent access a legacy database record?","expected_source":"tools/legacy-db-access-guideline.md","max_rank":3},
+  {"id":"R02","category":"retrieval","query":"레거시 DB 기록은 어떤 방식으로 조회해야 하나요?","expected_source":"tools/legacy-db-access-guideline.md","max_rank":3},
+  {"id":"R03","category":"retrieval","query":"Which tools are approved for controlled agent use?","expected_source":"tools/approved-tools.md","max_rank":3},
+  {"id":"R04","category":"retrieval","query":"승인된 도구만 사용해야 하는 기준을 알려줘","expected_source":"tools/approved-tools.md","max_rank":3},
+  {"id":"R05","category":"retrieval","query":"When is human review required for an agent action?","expected_source":"policies/human-review-policy.md","max_rank":3},
+  {"id":"R06","category":"retrieval","query":"사람의 승인이 필요한 경우는 언제인가요?","expected_source":"policies/human-review-policy.md","max_rank":3},
+  {"id":"R07","category":"retrieval","query":"What are the citation requirements for grounded answers?","expected_source":"policies/source-citation-policy.md","max_rank":3},
+  {"id":"R08","category":"retrieval","query":"근거 기반 답변의 출처 표기 규칙을 알려줘","expected_source":"policies/source-citation-policy.md","max_rank":3},
+
+  {"id":"G01","category":"grounding","query":"Explain the approved way to look up legacy DB data.","expected_source":"tools/legacy-db-access-guideline.md"},
+  {"id":"G02","category":"grounding","query":"레거시 데이터 조회 시 따라야 할 통제 절차를 설명해줘.","expected_source":"tools/legacy-db-access-guideline.md"},
+  {"id":"G03","category":"grounding","query":"Explain when a human reviewer must approve an agent action.","expected_source":"policies/human-review-policy.md"},
+  {"id":"G04","category":"grounding","query":"답변에 출처를 포함해야 하는 기준을 설명해줘.","expected_source":"policies/source-citation-policy.md"},
+
+  {"id":"C01","category":"routing","user_request":"Summarize the available policy guidance only.","risk_level":"low","data_sources":["agent_policy"],"expect_requires_tool":false,"expect_approval":false},
+  {"id":"C02","category":"routing","user_request":"Look up legacy database record LEG-001.","risk_level":"low","data_sources":["legacy_db"],"expect_requires_tool":true,"expect_approval":true,"expect_tool":"legacy_db_lookup"},
+  {"id":"C03","category":"routing","user_request":"Retrieve an internal record for review.","risk_level":"restricted","data_sources":["internal_system"],"expect_requires_tool":true,"expect_approval":true},
+  {"id":"C04","category":"routing","user_request":"Explain the policy text without calling any system.","risk_level":"high","data_sources":["agent_policy"],"expect_requires_tool":true,"expect_approval":true},
+
+  {"id":"T01","category":"tool_control","tool_name":"legacy_db_lookup","approved":true,"allowed_tools":["legacy_db_lookup"],"parameters":{"record_id":"LEG-001"},"expect":"success","expect_found":true},
+  {"id":"T02","category":"tool_control","tool_name":"legacy_db_lookup","approved":true,"allowed_tools":["legacy_db_lookup"],"parameters":{"record_id":"LEG-999"},"expect":"success","expect_found":false},
+  {"id":"T03","category":"tool_control","tool_name":"legacy_db_lookup","approved":false,"allowed_tools":["legacy_db_lookup"],"parameters":{"record_id":"LEG-001"},"expect":"blocked"},
+  {"id":"T04","category":"tool_control","tool_name":"not_registered","approved":true,"allowed_tools":["not_registered"],"parameters":{"record_id":"LEG-001"},"expect":"blocked"}
+]

@@ -17,9 +17,10 @@
 | Baseline branch | `main` |
 | Phase 0 Baseline HEAD | `fae00d67227a8bc496842ceb244845f09c0bfeae` |
 | P1-A Verified App HEAD | `44d9f2965aea0836081e043a1c7e6888f389feb9` |
-| Current Verified App HEAD | `ebbaafc89363ef31012b235e3c8822920895bbe3` |
-| Active Proof PR | None — PR #8 merged after passing P1-B evidence |
-| Current Level | **L2+ — Integrated Backend Demo with verified semantic RAG runtime** |
+| P1-B Verified App HEAD | `ebbaafc89363ef31012b235e3c8822920895bbe3` |
+| P2-A Verified App HEAD | `0d6ff79834cec1cfe11189dfe95b7d6dd89b4fc8` |
+| Active Proof PR | None — PR #9 merged after required checks passed |
+| Current Level | **L2+ — backend Golden Path now reaches verified controlled read-only execution** |
 | Target Level | **L3 — Usable / Demonstrable Proof** |
 | Target Release | **Proof v1.0** |
 | Primary Purpose | Wishket AI Agent / RAG / Backend Proof |
@@ -27,7 +28,8 @@
 | Scope Status | **FROZEN** |
 | Phase 0 | **CLOSED — Baseline Frozen** |
 | Phase 1 | **CLOSED — Real Semantic RAG runtime + bilingual retrieval proven** |
-| Phase 2 | **NEXT — Controlled Tool Execution** |
+| Phase 2 | **CLOSED — Human-approved allowlisted read-only execution proven** |
+| Phase 3 | **NEXT — Minimal Operator UI** |
 | Overall Status | **IN PROGRESS** |
 
 ---
@@ -36,7 +38,7 @@
 
 Guided Agent OS를 기업 내부 업무를 가정한 **Controlled AI Agent Backend Proof** 수준까지 완성한다.
 
-최종 Golden Path:
+Final Golden Path:
 
 ```text
 Structured Intake
@@ -89,28 +91,21 @@ Proof v1.0은 사용자가 브라우저에서 다음 과정을 끝까지 완료�
 ## IN SCOPE
 
 ### P0 — Baseline / Documentation
-- current implementation 확인
-- active workflow 확인
-- RAG 구현 확인
-- tool control 구현 확인
-- CI / deployment 구조 확인
-- README / PROJECT_STATUS / ROADMAP drift 확인
-- open issue 상태 확인
-- implemented / missing matrix freeze
+- implementation / missing matrix freeze
+- CI/deployment/current-doc drift 확인
 
 ### P1 — Real Semantic RAG
 - production-grade local semantic embedding
 - Korean / English retrieval
-- persistent Chroma integration 유지
-- retrieval validation
+- persistent Chroma integration
+- intended-source retrieval validation
 
 ### P2 — Controlled Tool Execution
 - Tool Registry / allowlist
 - parameter validation
 - read-only tool 1개
 - approve → execute
-- reject → no execute
-- unauthorized → blocked
+- reject / no approval / unauthorized / invalid params → blocked
 - execution result persistence
 
 ### P3 — Operator UI
@@ -119,7 +114,7 @@ Proof v1.0은 사용자가 브라우저에서 다음 과정을 끝까지 완료�
 - tool plan
 - approve / reject
 - result
-- audit timeline
+- audit timeline presentation shell
 
 ### P4 — Audit Trail
 - persistent lifecycle event records
@@ -160,11 +155,7 @@ Proof v1.0은 사용자가 브라우저에서 다음 과정을 끝까지 완료�
 
 ## Backend / workflow
 
-Implemented and inspected:
-- FastAPI API server
-- templates: `freelance`, `public_enterprise_ai`, `controlled_rag_agent`
-- SQLite/SQLAlchemy Agent Run persistence
-- active `controlled_rag_agent` path:
+Verified current controlled path:
 
 ```text
 intake
@@ -174,165 +165,120 @@ intake
 → generate_rag_answer
 → generate_tool_plan
 → route_human_review
-→ END
+→ pending_approval
+→ approve/reject API boundary
+→ [approved allowlisted read-only execution OR blocked/rejected]
+→ persisted run result
 ```
 
-- controlled RAG outputs persisted/exposed through the current run response path
-
-## RAG foundation
-
 Implemented:
-- local Markdown knowledge base
-- persistent ChromaDB
-- `domain_knowledge`
-- `agent_policy`
-- `tool_catalog`
-- source metadata / citation output
-- optional local OpenAI-compatible LLM answer path
-- retrieval-only fallback when the LLM is unavailable
+- FastAPI
+- Pydantic
+- SQLite / SQLAlchemy run persistence
+- LangGraph controlled workflow
+- templates: `freelance`, `public_enterprise_ai`, `controlled_rag_agent`
 
-### P1-A embedding boundary — CLOSED
+## Semantic RAG — CLOSED
 
-Merged through PR #7 at `44d9f2965aea0836081e043a1c7e6888f389feb9`.
-
-Implemented behavior:
-- explicit `EmbeddingProvider` boundary
-- configurable SentenceTransformers semantic provider
-- explicit `RAG_EMBEDDING_PROVIDER` / `RAG_EMBEDDING_MODEL` configuration
-- deterministic hash embedding retained only as explicit `hash_test`
-- no silent semantic → hash fallback
-- index metadata records provider, model, dimensions
-- index rebuild uses one provider instance for all document embeddings
-- retrieval uses the same configured provider and validates collection provider/model/dimension metadata
-- incompatible/stale embedding index produces an explicit rebuild error instead of silent empty retrieval
-- Firebat runtime receives embedding provider/model configuration
-- CI can explicitly select `hash_test` for deterministic regression without claiming semantic proof
-
-### P1-B semantic runtime + bilingual retrieval — CLOSED
-
-PR #8 was completed and squash-merged to `main` as `ebbaafc89363ef31012b235e3c8822920895bbe3`.
-
-Selected proof model:
+Verified model:
 - `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`
-- SentenceTransformers runtime path
-- embedding dimension observed from actual collection metadata: `384`
-- existing provider identifier remains `bge_m3` for compatibility with the P1-A provider contract; **the actual model identity is the `embedding_model` metadata field above**.
+- dimensions: `384`
+- persistent Chroma collections:
+  - `domain_knowledge=4`
+  - `agent_policy=6`
+  - `tool_catalog=7`
 
-Why the model changed:
-- BGE-M3 successfully loaded and rebuilt the semantic index but was unstable under the frozen `1536m` Firebat memory envelope.
-- the smaller multilingual MiniLM model was selected rather than increasing the memory envelope or restoring hash fallback.
-
-Fresh successful P1-B runtime evidence:
-- production image build: PASS
-- container startup: PASS
-- semantic bootstrap: PASS
-- stable health before semantic retrieval: PASS
-- semantic collections: `domain_knowledge=4`, `agent_policy=6`, `tool_catalog=7`
-- collection metadata: model `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`, dimensions `384`
-- Korean semantic query: PASS
-- English semantic query: PASS
-- intended source `tools/legacy-db-access-guideline.md`: ranked #1 and #2 for both Korean and English global Top-3 checks
-- Korean top results:
-  - `tools/legacy-db-access-guideline.md` — `0.6741865873336792`
-  - `tools/legacy-db-access-guideline.md` — `0.5557947158813477`
-  - `tools/approved-tools.md` — `0.4243924617767334`
-- English top results:
-  - `tools/legacy-db-access-guideline.md` — `0.8019968271255493`
-  - `tools/legacy-db-access-guideline.md` — `0.7076278328895569`
-  - `tools/approved-tools.md` — `0.39176106452941895`
+Verified P1-B evidence:
+- semantic model loaded
+- semantic index rebuilt
+- Korean query retrieval PASS
+- English query retrieval PASS
+- intended `tools/legacy-db-access-guideline.md` ranked #1/#2 in captured Top-3 for both languages
 - runtime sample after bilingual retrieval: `1.167GiB / 1.5GiB`, CPU `0.30%`
-- graceful local-LLM unavailable fallback: PASS
-- persistent agent run creation: PASS
-- container recreation: PASS
-- post-restart health: PASS
-- persisted run retrieval after recreation: PASS
-- no hash fallback used for the P1-B semantic proof
+- local-LLM unavailable fallback PASS
+- restart persistence PASS
+- no hash fallback used for semantic proof
 
-P1-B CI history note:
-- first smaller-model run reached healthy semantic retrieval but failed only because CI expected `app/knowledge/tools/...` while actual persisted metadata uses `tools/...`.
-- the assertion was corrected to the actual source-path contract.
-- the rerun passed all P1-B gates.
+## Controlled Tool Execution — CLOSED
 
-Remaining semantic-runtime risk:
-- current dependency resolution still installs a large GPU/CUDA-oriented Torch dependency set in a CPU-oriented image.
-- this did **not** block the successful MiniLM semantic proof, but remains a footprint/maintainability concern to defer unless it blocks later Proof work.
+Merged through PR #9 as `0d6ff79834cec1cfe11189dfe95b7d6dd89b4fc8`.
 
-## Tool / control
+Implemented boundary:
+- minimal deterministic Tool Registry
+- global read-only allowlist
+- one real proof tool: `legacy_db_lookup`
+- deterministic local fixture lookup only; no customer/external system
+- strict required parameter contract: `record_id`
+- explicit human approval gate
+- explicit per-run `allowed_tools` gate
+- registry membership gate
+- read-only allowlist gate
+- invalid/unexpected parameters rejected
+- approved execution result persisted in existing `raw_llm_output.execution_result`
+- approve/reject review state persisted consistently
 
-Implemented:
-- deterministic system-access/risk detection
-- tool recommendation planning
-- `planned_only` execution mode
-- `allowed_to_execute = false`
-- approval routing
-- approve/reject status endpoints
-- explicit blocked-action list
+Approved execution path:
 
-Known boundary:
-- no actual Tool Registry / Executor exists.
-- approve currently updates status only; it does not execute an allowlisted tool.
+```text
+Persisted Tool Plan
+→ /approve
+→ Human Approval Boundary
+→ Registry Check
+→ Global Read-only Allowlist Check
+→ Per-run allowed_tools Check
+→ Parameter Validation
+→ legacy_db_lookup
+→ Execution Result
+→ AgentRun persistence
+```
+
+Blocked paths verified:
+- no human approval → execution blocked
+- reject → no execution result
+- unregistered planned tool → blocked
+- registered tool not explicitly allowed for run → blocked
+- invalid parameters → blocked
+
+Important boundary:
+- LLM still does **not** directly invoke tools.
+- only the existing server-side approval boundary can reach executor code.
+- no SQL, write operation, Oracle, real internal API or external action was added.
 
 ## Deployment / CI
 
-Repository contains:
-- non-root production Docker image path
-- Docker Compose Firebat deployment
-- persistent SQLite/Chroma volume
+Current repository contains:
+- non-root production Docker image
+- Firebat Docker Compose deployment
+- persistent SQLite / Chroma volume
 - startup bootstrap
 - `/health` / `/version`
 - PR Validation workflow
 - Firebat Container workflow
 
-Fresh P1-A validation on PR #7:
-- dependency installation: PASS
-- pytest suite: PASS
-- unittest discovery: PASS
-- compileall: PASS
-- whitespace check: PASS
-- production container build: PASS
-- Firebat start: PASS
-- health/docs/version: PASS
-- RAG retrieval smoke with explicit `hash_test`: PASS
-- graceful local-LLM fallback: PASS
-- persistent agent run: PASS
-- restart persistence: PASS
-
-Fresh final P1-B validation on PR #8 head `f07046a7c8eb282714ab73ff722fc428f62fd406`:
+Fresh PR #9 validation at head `95e80317c560cc4c4f6e5612434d9b290b8e910e`:
 
 **PR Validation — PASS**
-- dependency install: PASS
-- pytest suite: PASS
-- unittest discovery: PASS
-- compileall: PASS
-- whitespace check: PASS
+- dependency installation
+- full pytest suite, including P2-A controlled execution tests
+- unittest discovery
+- compileall
+- whitespace/diff check
 
 **Firebat Container — PASS**
-- production image build: PASS
-- Firebat start: PASS
-- health/docs/version: PASS
-- real semantic model/index metadata check: PASS
-- Korean retrieval + intended Top-K source: PASS
-- English retrieval + intended Top-K source: PASS
-- semantic runtime stats capture: PASS
-- local-LLM unavailable fallback: PASS
-- persistent run creation: PASS
-- image metadata: PASS
-- container recreation: PASS
-- post-restart semantic health: PASS
-- persisted run retrieval: PASS
-- persistent volume inspection: PASS
+- production container regression remained green after executor changes
+- existing health/docs/version, RAG/runtime and persistence gates remained green
 
-PR #8 merged after all required P1-B gates were green.
+PR #9 squash-merged to `main` as `0d6ff79834cec1cfe11189dfe95b7d6dd89b4fc8`.
 
 ## Documentation drift
 
-Still open:
-- `README.md` broadly reflects controlled RAG but does not yet describe final P1 semantic model/runtime state.
-- `docs/PROJECT_STATUS.md` is stale.
-- `docs/ROADMAP.md` is stale.
-- GitHub Issue #4 remains stale/open.
+Still open and intentionally deferred to P6 unless blocking:
+- README does not yet describe final P1/P2 proof state
+- `docs/PROJECT_STATUS.md` stale
+- `docs/ROADMAP.md` stale
+- Issue #4 stale/open
 
-Decision: Master overrides stale docs. External documentation synchronization remains deferred to Proof Packaging unless it blocks earlier acceptance.
+This Master overrides those sources until P6 synchronization.
 
 ---
 
@@ -347,20 +293,19 @@ Decision: Master overrides stale docs. External documentation synchronization re
 | Run persistence | IMPLEMENTED | ACCEPTABLE |
 | LangGraph controlled path | IMPLEMENTED | ACCEPTABLE |
 | ChromaDB persistence | IMPLEMENTED | ACCEPTABLE |
-| Embedding provider boundary | IMPLEMENTED | ACCEPTABLE |
-| Real semantic provider config | IMPLEMENTED | ACCEPTABLE |
-| Real semantic model load | VERIFIED | ACCEPTABLE |
-| Semantic index rebuild | VERIFIED | ACCEPTABLE |
-| Multi-collection semantic RAG | VERIFIED | KOREAN + ENGLISH SMOKE PASS |
-| Intended-source semantic Top-K | VERIFIED | PASS |
-| Citation metadata | IMPLEMENTED | NEEDS QUALITY EVALUATION IN P5 |
-| Local LLM client | IMPLEMENTED | POSITIVE INFERENCE PATH STILL NEEDS GOLDEN-PATH VERIFICATION |
-| LLM unavailable fallback | IMPLEMENTED | FRESHLY VERIFIED |
-| Tool planning | IMPLEMENTED | ACCEPTABLE FOUNDATION |
-| Human review routing | IMPLEMENTED | ACCEPTABLE FOUNDATION |
-| Approve / reject status | IMPLEMENTED | NEEDS REAL EXECUTION PATH |
-| Real read-only tool execution | NOT IMPLEMENTED | REQUIRED |
-| Tool allowlist / executor | NOT IMPLEMENTED | REQUIRED |
+| Real semantic model | VERIFIED | ACCEPTABLE |
+| Korean / English retrieval | VERIFIED | ACCEPTABLE |
+| Intended-source semantic Top-K | VERIFIED | ACCEPTABLE |
+| Citation metadata | IMPLEMENTED | QUALITY EVAL IN P5 |
+| Local LLM client | IMPLEMENTED | POSITIVE INFERENCE STILL NEEDS GOLDEN-PATH VERIFICATION |
+| LLM unavailable fallback | VERIFIED | ACCEPTABLE |
+| Tool planning | IMPLEMENTED | ACCEPTABLE |
+| Human review routing | IMPLEMENTED | ACCEPTABLE |
+| Tool Registry / allowlist | VERIFIED | ACCEPTABLE |
+| Read-only tool execution | VERIFIED | ACCEPTABLE |
+| Reject/no-approval block | VERIFIED | ACCEPTABLE |
+| Unauthorized/invalid-param block | VERIFIED | ACCEPTABLE |
+| Execution result persistence | VERIFIED | ACCEPTABLE |
 | Operator UI | NOT IMPLEMENTED | REQUIRED |
 | Persistent audit timeline | NOT IMPLEMENTED | REQUIRED |
 | AI quality eval | NOT IMPLEMENTED | REQUIRED |
@@ -372,18 +317,17 @@ Decision: Master overrides stale docs. External documentation synchronization re
 
 | ID | Risk | Severity | Status |
 |---|---|---:|---|
-| L-01 | Original BGE-M3 path was unstable under frozen 1536 MiB Firebat cap | HIGH | RESOLVED FOR PROOF BY SMALLER MODEL |
-| L-02 | Approval 이후 real controlled execution 없음 | HIGH | OPEN |
+| L-01 | BGE-M3 unstable under frozen 1536 MiB envelope | HIGH | RESOLVED FOR PROOF WITH MINILM |
+| L-02 | Approval 이후 real controlled execution 없음 | HIGH | **CLOSED — P2-A VERIFIED** |
 | L-03 | Swagger 중심 UX; operator UI 없음 | HIGH | OPEN |
-| L-04 | Full lifecycle audit timeline 없음 | MEDIUM | OPEN |
-| L-05 | Retrieval/grounding/control evaluation 없음 | MEDIUM | OPEN |
-| L-06 | README 외 PROJECT_STATUS/ROADMAP/Issue 상태 drift | MEDIUM | OPEN |
-| L-07 | Selected MiniLM semantic runtime fit under current 1536m envelope | HIGH | VERIFIED / CLOSED FOR P1 |
-| L-08 | Korean/English semantic retrieval + intended-source Top-K | HIGH | VERIFIED / CLOSED FOR P1 |
-| L-09 | Current unconstrained Torch/SentenceTransformers dependency resolution pulls large CUDA/NVIDIA packages into a CPU-oriented image | MEDIUM | OPEN — DEFER UNLESS BLOCKING |
-| L-10 | Exact reason for historical BGE-M3 `Killed` event was not directly verified as Docker OOMKilled | LOW | HISTORICAL / ACCEPTED |
-| L-11 | Provider identifier remains `bge_m3` while configured semantic model is MiniLM; actual model metadata is accurate but provider label is legacy/misleading | LOW | OPEN — DEFER UNLESS CONFUSING PROOF |
-| L-12 | Positive local-LLM inference path has not been freshly verified with the final P1 semantic model | MEDIUM | OPEN — VERIFY IN GOLDEN PATH BEFORE FINAL CLOSURE |
+| L-04 | Full lifecycle persistent audit timeline 없음 | MEDIUM | OPEN |
+| L-05 | 20~30 case retrieval/grounding/control evaluation 없음 | MEDIUM | OPEN |
+| L-06 | README / PROJECT_STATUS / ROADMAP / Issue drift | MEDIUM | OPEN — P6 |
+| L-09 | CPU-oriented image still resolves large CUDA/NVIDIA Torch dependencies | MEDIUM | OPEN — DEFER UNLESS BLOCKING |
+| L-11 | Semantic provider identifier remains legacy `bge_m3` while actual model metadata is MiniLM | LOW | OPEN — DEFER UNLESS CONFUSING PROOF |
+| L-12 | Positive local-LLM inference not freshly verified with final semantic model | MEDIUM | OPEN — VERIFY BEFORE FINAL CLOSURE |
+| L-13 | P2-A execution is deterministic local fixture proof, not a real customer system integration | LOW | ACCEPTED BY FROZEN SCOPE |
+| L-14 | Execution result lives in existing `raw_llm_output` JSON rather than a dedicated execution table | MEDIUM | ACCEPTED FOR P2; REVISIT ONLY IF P4 AUDIT REQUIRES |
 
 ---
 
@@ -391,101 +335,51 @@ Decision: Master overrides stale docs. External documentation synchronization re
 
 ## Phase 1 — Real Semantic RAG
 
-### Goal
-테스트용 retrieval을 실제 multilingual semantic retrieval로 교체한다.
-
-### P1-A — Embedding Provider Boundary
-
 **Status: CLOSED**
 
 Closure evidence:
-- explicit provider/config boundary implemented
-- semantic provider configured
-- index/query provider metadata compatibility enforced
-- no silent hash fallback
-- explicit test-only hash provider
-- full PR Validation PASS
-- Firebat Container regression PASS with explicit test provider
-
-### P1-B — Semantic Runtime + Bilingual Retrieval Smoke
-
-**Status: CLOSED**
-
-Closure evidence:
-1. selected real semantic model `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` loaded successfully.
-2. semantic index rebuild executed successfully.
-3. all three collections were non-empty: `4 / 6 / 7`.
-4. Korean retrieval executed successfully.
-5. English retrieval executed successfully.
-6. intended legacy DB source ranked in global Top-3 for both queries; in the captured run it ranked #1 and #2 for both languages.
-7. production-style Firebat container remained healthy under the frozen `1536m` envelope.
-8. observed runtime sample after bilingual retrieval: `1.167GiB / 1.5GiB`, CPU `0.30%`.
-9. graceful LLM-unavailable fallback and restart persistence remained green.
-10. no hash fallback was used for semantic proof.
-11. PR Validation and Firebat Container workflows both passed on final PR #8 head.
-12. PR #8 squash-merged to `main` as `ebbaafc89363ef31012b235e3c8822920895bbe3`.
-
-### Phase 1 Acceptance Criteria
-
-- [x] Real semantic embedding model loaded
-- [x] Semantic index rebuilt
-- [x] Existing three collections proven under stable runtime
-- [x] Korean query retrieval verified
-- [x] English query retrieval verified
-- [x] Relevant intended document Top-K verified
-- [x] Semantic container/runtime execution verified stable
-- [x] Runtime memory/CPU sample recorded
-- [x] Regression tests PASS
-- [x] No hash fallback in semantic proof
-
-### Closure
-**CLOSED.** Semantic retrieval evidence is sufficient to move to controlled execution. Broader RAG quality evaluation remains Phase 5, not a reason to keep P1 open.
+- explicit semantic provider boundary
+- real multilingual model loaded
+- persistent semantic index
+- Korean/English retrieval
+- intended source Top-K
+- constrained Firebat runtime fit
+- regression/container checks green
 
 ---
 
 ## Phase 2 — Controlled Tool Execution
 
-### Goal
-Human Approval 이후 제한된 업무 하나를 실제 수행한다.
+**Status: CLOSED**
 
-### Minimum Deliverable
-`legacy_record_lookup` 또는 동등한 local read-only lookup tool 1개.
+Acceptance Criteria:
+- [x] Tool Registry
+- [x] Tool Allowlist
+- [x] Read-only Tool 1개
+- [x] Parameters validation
+- [x] No approval → no execution
+- [x] Reject → no execution
+- [x] Unauthorized tool → blocked
+- [x] Approved allowlisted tool → execute
+- [x] Result persisted
+- [x] Tests PASS
 
-### Acceptance Criteria
-- [ ] Tool Registry
-- [ ] Tool Allowlist
-- [ ] Read-only Tool 1개
-- [ ] Parameters validation
-- [ ] No approval → no execution
-- [ ] Reject → no execution
-- [ ] Unauthorized tool → blocked
-- [ ] Approved allowlisted tool → execute
-- [ ] Result persisted
-- [ ] Tests PASS
+### P2-A Closure
 
-### P2-A — Smallest Next Slice
+**CLOSED.**
 
-**Goal:** create the controlled execution boundary without overbuilding external integrations.
-
-Smallest safe implementation target:
-1. inspect current approve/reject endpoint and `AgentRun` persistence contract.
-2. define a minimal local Tool Registry with one allowlisted read-only tool: `legacy_record_lookup` (or an equivalent deterministic local fixture lookup).
-3. define explicit parameter validation for the single tool.
-4. add an Executor that refuses execution unless:
-   - run is in an approval-eligible state,
-   - human approval has been recorded,
-   - tool exists in registry,
-   - tool is allowlisted/read-only,
-   - parameters validate.
-5. persist execution result on the existing run/result structure using the smallest schema extension that preserves auditability.
-6. add narrow tests for approve → execute, reject → block, no approval → block, unauthorized tool → block, invalid parameters → block.
-7. do **not** add real Oracle/customer systems, multiple tools, write operations, authentication, or external actions.
-
-P2-A closes only with actual test execution evidence, not code presence alone.
+Reason:
+- smallest controlled execution boundary exists and is actually exercised by tests.
+- approval, allowlist, read-only and parameter gates are explicit.
+- safe success and required failure paths are verified.
+- adding more tools/external systems would expand beyond Proof v1.0 need.
 
 ---
 
 ## Phase 3 — Operator UI
+
+### Goal
+Swagger 없이 비개발자가 Golden Path를 수행할 수 있는 최소 UI를 제공한다.
 
 ### Acceptance Criteria
 - [ ] Request form
@@ -495,16 +389,31 @@ P2-A closes only with actual test execution evidence, not code presence alone.
 - [ ] Citations
 - [ ] Tool Plan
 - [ ] Approve / Reject
-- [ ] Result
-- [ ] Audit Timeline
+- [ ] Execution Result
+- [ ] Audit Timeline presentation shell
 
-Closure: Swagger 없이 browser UI만으로 Golden Path 완료.
+### P3-A — Smallest Next Slice
+
+Do **not** start with a large frontend framework migration or admin system.
+
+Next iteration must first inspect the current static/template/frontend surface and choose the smallest existing-stack-compatible UI path.
+
+Minimum first target:
+1. determine whether an existing server-rendered/static surface can host the proof UI without introducing unnecessary infrastructure.
+2. render one controlled-agent request form.
+3. submit to existing `controlled_rag_agent` API.
+4. display returned status, grounded answer/citations and tool plan.
+5. expose approve/reject controls only for `pending_approval`.
+6. after approval, display persisted `execution_result`.
+7. preserve backend API as the source of truth; do not duplicate workflow logic in frontend.
+
+P3 does not close until the Golden Path is browser-usable without Swagger.
 
 ---
 
 ## Phase 4 — Audit Trail
 
-Minimum events:
+Minimum persistent events:
 
 ```text
 REQUEST_RECEIVED
@@ -566,28 +475,26 @@ Closure: 외부 검토자가 5~10분 안에 무엇을 만들었고 무엇을 실
 |---|---|---|---|
 | E-001 | Baseline | Phase 0 baseline inspection at `fae00d67227a8bc496842ceb244845f09c0bfeae` | PRESENT |
 | E-002 | Baseline | Active LangGraph controlled-RAG path inspected | PRESENT |
-| E-003 | Baseline | Original hash embedding implementation inspected | PRESENT |
-| E-004 | Baseline | Planned-only tool generator / approval endpoints inspected | PRESENT |
-| E-005 | Baseline | PR #6 historical CI/container validation record inspected | PRESENT — HISTORICAL |
+| E-005 | Baseline | PR #6 historical CI/container validation | PRESENT — HISTORICAL |
 | E-006 | Baseline | README / PROJECT_STATUS / ROADMAP / Issue #4 drift identified | PRESENT |
-| E-101 | RAG | P1-A provider boundary merged via PR #7 at `44d9f2965aea0836081e043a1c7e6888f389feb9` | PRESENT |
-| E-102 | RAG | PR #7 PR Validation — pytest/unittest/compileall/diff check | PASS |
-| E-103 | RAG | PR #7 Firebat Container regression with explicit `hash_test` | PASS — TEST PROVIDER |
-| E-104 | RAG | Historical PR #8 BGE-M3 weights loaded after writable HF cache fix | PRESENT — HISTORICAL PARTIAL |
-| E-105 | RAG | Historical BGE-M3 semantic bootstrap rebuilt `4 / 6 / 7` collections | PRESENT — HISTORICAL PARTIAL |
-| E-106 | RAG | Historical BGE-M3 process reported `Killed` / unstable under `1536m` | FAIL — SUPERSEDED MODEL |
-| E-107 | RAG | Final PR #8 PR Validation on head `f07046a7c8eb282714ab73ff722fc428f62fd406` | PASS |
-| E-108 | RAG | MiniLM semantic index metadata: `4 / 6 / 7`, model exact, dimensions `384` | PASS |
-| E-109 | RAG | Korean semantic retrieval intended source global Top-3 (#1/#2) | PASS |
-| E-110 | RAG | English semantic retrieval intended source global Top-3 (#1/#2) | PASS |
-| E-111 | RAG | Stable semantic runtime sample after bilingual retrieval: `1.167GiB / 1.5GiB`, CPU `0.30%` | PRESENT |
-| E-112 | RAG | Final PR #8 Firebat Container workflow including fallback + persistence + restart | PASS |
-| E-113 | RAG | PR #8 squash merge to `main` at `ebbaafc89363ef31012b235e3c8822920895bbe3` | PRESENT |
-| E-201 | Execution | Approved allowlisted tool execution | TODO |
-| E-202 | Execution | Reject/unauthorized execution blocked | TODO |
-| E-203 | Execution | Invalid/no-approval execution blocked | TODO |
-| E-301 | UI | Golden Path screenshot/E2E | TODO |
-| E-401 | Audit | Complete Run Timeline | TODO |
+| E-101 | RAG | P1-A provider boundary merged via PR #7 | PRESENT |
+| E-102 | RAG | PR #7 PR Validation | PASS |
+| E-103 | RAG | PR #7 Firebat regression using explicit test provider | PASS |
+| E-107 | RAG | Final PR #8 PR Validation | PASS |
+| E-108 | RAG | MiniLM semantic metadata `4 / 6 / 7`, dimensions `384` | PASS |
+| E-109 | RAG | Korean intended-source semantic Top-3 | PASS |
+| E-110 | RAG | English intended-source semantic Top-3 | PASS |
+| E-111 | RAG | Stable semantic runtime sample `1.167GiB / 1.5GiB`, CPU `0.30%` | PRESENT |
+| E-112 | RAG | PR #8 Firebat semantic/fallback/persistence/restart workflow | PASS |
+| E-113 | RAG | PR #8 merge at `ebbaafc89363ef31012b235e3c8822920895bbe3` | PRESENT |
+| E-201 | Execution | Approved `legacy_db_lookup` execution test + persisted result retrieval | **PASS** |
+| E-202 | Execution | Reject, unregistered tool and per-run unauthorized tool block tests | **PASS** |
+| E-203 | Execution | No-approval and invalid-parameter block tests | **PASS** |
+| E-204 | Execution | PR #9 PR Validation at `95e80317c560cc4c4f6e5612434d9b290b8e910e` | **PASS** |
+| E-205 | Execution | PR #9 Firebat Container regression | **PASS** |
+| E-206 | Execution | PR #9 squash merge at `0d6ff79834cec1cfe11189dfe95b7d6dd89b4fc8` | PRESENT |
+| E-301 | UI | Browser Golden Path | TODO |
+| E-401 | Audit | Complete persistent Run Timeline | TODO |
 | E-501 | Eval | Evaluation result | TODO |
 | E-601 | Deploy | Fresh final deployment verification | TODO |
 
@@ -619,29 +526,27 @@ Closure: 외부 검토자가 5~10분 안에 무엇을 만들었고 무엇을 실
 - Backend architecture
 - Structured intake / validation / clarification
 - LangGraph controlled RAG workflow
-- ChromaDB integration
-- explicit semantic embedding provider boundary
-- real multilingual semantic model runtime
-- Korean + English semantic retrieval
-- intended-source Top-K evidence
-- semantic runtime resource sample under the frozen Firebat envelope
-- Local LLM integration boundary
+- persistent ChromaDB semantic retrieval
+- Korean + English intended-source retrieval proof
+- Local LLM integration boundary and fallback
 - Tool planning / human review routing
-- Docker deployment structure
-- fresh P1-A regression/container evidence
-- fresh P1-B production-style semantic evidence
+- one controlled read-only execution boundary
+- explicit registry / allowlists / parameter validation
+- approve → execute → persisted result
+- reject/no-approval/unauthorized/invalid-param safety evidence
+- Docker/Firebat deployment structure and CI regression
 
 ## Done Enough to Use
-**아직 없음.**
+**Backend/API level only.**
 
-Reason:
-- approval 이후 실제 controlled read-only execution이 아직 없다.
-- operator UI / complete audit path도 아직 없다.
+The controlled backend workflow can now reach a persisted read-only execution result, but the project is not yet Proof-v1.0 usable because:
+- operator UI does not exist.
+- persistent lifecycle audit timeline does not exist.
+- positive local-LLM Golden Path and final eval remain open.
 
 ## Not Yet Done
-- Real controlled execution
 - Operator UI
-- Complete audit trail
+- Persistent audit trail
 - Positive local-LLM Golden Path verification
 - AI quality evaluation
 - Final proof packaging
@@ -652,25 +557,16 @@ Reason:
 
 ## NOW
 
-**Phase 2 / P2-A — Minimal Controlled Read-only Execution Boundary**
+**Phase 3 / P3-A — Minimal Operator UI path selection + first browser workflow slice**
 
 Smallest next action:
-1. inspect `AgentRun`, approve/reject endpoints, current tool-plan output and persistence path.
-2. implement one deterministic local read-only tool (`legacy_record_lookup` or equivalent) behind a minimal registry/allowlist.
-3. make execution impossible without recorded approval, allowlist membership, read-only classification and valid parameters.
-4. persist result with the smallest auditable schema change.
-5. run narrow tests for approved success and every required block path.
+1. inspect current `app/main.py`, routes, static/template dependencies and Docker serving path.
+2. choose the smallest UI implementation compatible with the existing FastAPI deployment.
+3. implement a single controlled-agent workspace, not an admin system.
+4. connect it to existing run creation and approval APIs.
+5. prove at least request → result rendering in browser-oriented integration tests before expanding UI states.
 
-Required before closing P2-A:
-- one actual tool execution path exists
-- approval required and verified
-- reject/no approval blocks execution
-- unauthorized tool blocks execution
-- invalid parameters block execution
-- result persists
-- relevant tests actually execute and pass
-
-Do not expand into additional tools, external systems, write operations, auth, Oracle, email, Slack, SaaS or admin features.
+Do not add React/Next.js or a separate frontend service unless repository inspection proves the existing FastAPI/static approach cannot satisfy Proof v1.0.
 
 ---
 
@@ -678,14 +574,7 @@ Do not expand into additional tools, external systems, write operations, auth, O
 
 ## 2026-08-18 — Proof v1.0 Scope Definition
 
-### Decision
-Production SaaS가 아닌 **Deployable Controlled AI Agent Proof**로 목표 고정.
-
-### Scope
-Real semantic RAG, human-approved read-only execution, minimal UI, audit trail, evaluation, proof packaging.
-
-### Next
-Phase 0 baseline freeze.
+**Decision:** Production SaaS가 아닌 **Deployable Controlled AI Agent Proof**로 목표 고정.
 
 ---
 
@@ -695,35 +584,16 @@ Phase 0 baseline freeze.
 **CLOSED**
 
 ### Changed
-- `GUIDED_AGENT_OS_MASTER.md`만 갱신.
-- baseline HEAD, implemented/missing matrix, documentation drift, evidence, risks, Phase 1 next slice를 authoritative하게 기록.
+- Master baseline, implemented/missing matrix, drift, evidence, risks, next slice frozen.
 
 ### Executed
-Repository inspection 수행:
-- `main` HEAD
-- README
-- active LangGraph workflow
-- RAG embedding/index/retrieval implementation
-- tool planning / approve/reject
-- CI workflows
-- PROJECT_STATUS / ROADMAP
-- Issue #4
-- PR #6 validation record
+- repository/main/workflow/RAG/tool/CI/docs/Issue inspection.
 
 ### Not Verified
-- fresh pytest/container
-- actual Firebat host
-- local LLM inference
-- semantic model execution
+- fresh runtime tests at baseline stage.
 
 ### Remaining Risks
-- hash-only semantic gap
-- no real tool execution
-- no UI/audit/eval
-- stale docs
-
-### Next Action
-Phase 1 / P1-A.
+- recorded into subsequent phase contracts.
 
 ---
 
@@ -733,180 +603,110 @@ Phase 1 / P1-A.
 **CLOSED**
 
 ### Changed
-Application/runtime changes merged through PR #7:
-- `app/services/rag_embeddings.py`
-  - explicit provider protocol
-  - SentenceTransformers semantic provider
-  - configurable semantic model
-  - explicit `hash_test`
-  - no silent fallback
-- `app/services/rag_indexer.py`
-  - one provider per rebuild
-  - provider/model/dimension collection metadata
-- `app/services/rag_retriever.py`
-  - same configured provider for query
-  - stale/incompatible index detection
-- `requirements.txt`
-  - `sentence-transformers` runtime dependency
-- `tests/conftest.py`
-  - explicit `hash_test` selection
-- `tests/test_rag_embeddings.py`
-  - provider/config/no-fallback tests
-- `.env.firebat.example`
-  - semantic provider/model config
-- `compose.firebat.yml`
-  - provider/model runtime propagation
-- `.github/workflows/firebat-container.yml`
-  - explicit CI `hash_test` selection
-
-Master updated after merge; no separate Markdown artifact created.
+- explicit semantic provider boundary
+- test-only hash path
+- metadata compatibility checks
+- runtime configuration
 
 ### Executed
-Actual GitHub validation on PR #7:
-
-**PR Validation — PASS**
-- dependency install
-- pytest suite
-- unittest discovery
-- compileall
-- whitespace/diff check
-
-**Firebat Container — PASS**
-- image build
-- container startup
-- health/docs/version
-- RAG retrieval smoke
-- local-LLM unavailable fallback
-- run creation
-- container recreation
-- persisted run retrieval
-
-PR #7 squash-merged to `main` as `44d9f2965aea0836081e043a1c7e6888f389feb9`.
+- PR #7 PR Validation PASS
+- PR #7 Firebat Container PASS
 
 ### Not Verified
-- real semantic model runtime
-- Korean semantic query
-- English semantic query
-- semantic model memory/container fit
-- local LLM positive inference path
+- real semantic model runtime at P1-A.
 
 ### Remaining Risks
-- semantic runtime fit and quality not yet proven at P1-A closure.
-- later Proof phases remain open.
-
-### Decision
-P1-A's purpose was to create a safe, explicit semantic provider boundary. Real semantic execution remained P1-B.
-
-### Next Action
-P1-B.
+- semantic fit deferred to P1-B and later closed.
 
 ---
 
-## 2026-08-18 — Phase 1 P1-B Historical BGE-M3 Runtime Attempt
-
-### Status
-**FAILED MODEL FIT — RETAINED AS DIAGNOSTIC EVIDENCE**
-
-### Changed
-On PR #8:
-- semantic Firebat proof path added
-- writable Hugging Face cache routed through existing `/app/data` volume without weakening `read_only: true`
-- bilingual query and runtime-stat checks prepared
-
-### Executed
-- production image build
-- actual BGE-M3 model load
-- semantic index rebuild
-- non-empty counts `4 / 6 / 7`
-
-### Not Verified
-- stable BGE-M3 health
-- bilingual retrieval
-- Top-K quality
-- runtime sample
-
-### Remaining Risks
-- historical BGE-M3 kill mechanism was not proven as explicit Docker OOMKilled.
-- GPU-heavy Torch dependency footprint remained.
-
-### Decision
-Do not increase memory or fall back to hash. Select a smaller multilingual semantic model within the same frozen `1536m` proof envelope.
-
----
-
-## 2026-08-18 — Phase 1 P1-B Smaller Multilingual Semantic Runtime
+## 2026-08-18 — Phase 1 P1-B Semantic Runtime
 
 ### Status
 **CLOSED**
 
 ### Changed
-Changes completed on PR #8 and merged:
-- `.env.firebat.example`
-  - semantic model changed from `BAAI/bge-m3` to `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`
-  - frozen semantic provider boundary retained
-- `.github/workflows/firebat-container.yml`
-  - semantic metadata assertion updated for MiniLM + `384` dimensions
-  - Korean query retained
-  - English query retained
-  - intended legacy DB guideline Top-3 assertion retained
-  - runtime resource capture retained
-  - source-path assertion corrected from `app/knowledge/tools/...` to actual metadata contract `tools/...`
-
-No separate Markdown artifact created. This Master is the authoritative result.
+- selected multilingual MiniLM model under frozen Firebat envelope
+- bilingual retrieval/metadata/runtime proof gates
 
 ### Executed
-Actual GitHub Actions on final PR #8 head `f07046a7c8eb282714ab73ff722fc428f62fd406`:
-
-**PR Validation — PASS**
-- dependency installation
-- pytest
-- unittest discovery
-- compileall
-- whitespace check
-
-**Firebat Container — PASS**
-- production image built
-- container started
-- `/health`, `/docs`, `/version` passed
-- semantic index metadata confirmed:
-  - `domain_knowledge=4`
-  - `agent_policy=6`
-  - `tool_catalog=7`
-  - model `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`
-  - dimensions `384`
-- Korean retrieval passed:
-  - intended `tools/legacy-db-access-guideline.md` ranked #1 and #2 globally
-- English retrieval passed:
-  - intended `tools/legacy-db-access-guideline.md` ranked #1 and #2 globally
-- runtime sample captured:
-  - memory `1.167GiB / 1.5GiB`
-  - CPU `0.30%`
-- graceful local-LLM unavailable fallback passed
-- persistent agent run creation passed
-- image version/revision metadata passed
-- container recreation passed
-- post-restart health passed
-- persisted run retrieval passed
-- persistent volume inspection passed
-
-PR #8 squash-merged to `main` as `ebbaafc89363ef31012b235e3c8822920895bbe3`.
+- PR #8 PR Validation PASS
+- PR #8 Firebat Container PASS
+- Korean/English retrieval PASS
+- intended-source Top-K PASS
+- restart/persistence PASS
 
 ### Not Verified
-- broader retrieval quality across a 20~30 case set is not verified; this belongs to Phase 5.
-- positive local-LLM inference with the final semantic model is not freshly verified.
-- CPU-only dependency slimming is not implemented.
-- exact historical BGE-M3 kill cause remains unproven and no longer blocks Proof progression.
+- broad 20~30 case quality evaluation
+- positive local-LLM inference with final semantic model
 
 ### Remaining Risks
-- current image still resolves large CUDA/NVIDIA Torch dependencies despite CPU-oriented execution.
-- provider identifier `bge_m3` is a legacy label while actual model metadata correctly names MiniLM.
-- one captured runtime sample proves fit for this proof path, not production capacity planning or sustained-load behavior.
+- CPU image dependency footprint
+- legacy provider label
+- production capacity not claimed
+
+---
+
+## 2026-08-18 — Phase 2 P2-A Controlled Read-only Execution
+
+### Status
+**CLOSED**
+
+### Changed
+Application changes merged through PR #9:
+- `app/services/tool_executor.py`
+  - minimal deterministic Tool Registry
+  - one read-only `legacy_db_lookup` tool
+  - global read-only allowlist
+  - explicit human approval requirement
+  - per-run `allowed_tools` requirement
+  - strict `record_id` parameter validation
+- `app/api/routes.py`
+  - existing `/approve` boundary resolves persisted planned tool
+  - executes only through controlled executor
+  - persists `execution_result` in existing run output
+  - approve/reject review status kept consistent
+- `app/templates/controlled_rag_agent.py`
+  - `tool_parameters` added as optional intake metadata
+- `tests/test_controlled_tool_execution.py`
+  - approved success + persisted retrieval
+  - reject block
+  - no-approval block
+  - unregistered tool block
+  - per-run unauthorized tool block
+  - invalid parameter block
+
+No external tool, write operation, auth system or separate frontend was added.
+
+### Executed
+Actual GitHub Actions on PR #9 head `95e80317c560cc4c4f6e5612434d9b290b8e910e`:
+
+**PR Validation — PASS**
+- full pytest suite, including new P2-A tests
+- unittest discovery
+- compileall
+- whitespace/diff check
+
+**Firebat Container — PASS**
+- existing production-style container/RAG/persistence regression remained green after P2-A code changes
+
+PR #9 squash-merged to `main` as `0d6ff79834cec1cfe11189dfe95b7d6dd89b4fc8`.
+
+### Not Verified
+- no real customer/Oracle/API integration; intentionally out of scope.
+- browser UI has not exercised the approval/execution path.
+- dedicated execution-event table does not exist.
+- positive local-LLM inference remains unverified.
+
+### Remaining Risks
+- execution result currently shares `raw_llm_output`; Phase 4 may require a dedicated event model for durable audit semantics.
+- deterministic fixture tool proves control architecture, not customer-system integration performance.
 
 ### Decision
-P1-B closure criteria are met. The semantic Proof goal is bilingual controlled retrieval evidence under the existing constrained Firebat envelope, not load testing or broad quality benchmarking. Those later concerns remain explicitly scoped to Phase 5/final validation as appropriate.
+P2-A and Phase 2 closure criteria are met. More tools or external integration would be overbuilding.
 
 ### Next Action
-**Phase 2 / P2-A — implement the smallest human-approved allowlisted read-only execution path with one deterministic local tool and hard block-path tests.**
+**Phase 3 / P3-A — inspect the current FastAPI serving surface and implement the smallest single-page operator workflow without introducing a separate frontend stack unless necessary.**
 
 ---
 

@@ -21,8 +21,9 @@
 | P2-A Verified App HEAD | `0d6ff79834cec1cfe11189dfe95b7d6dd89b4fc8` |
 | P3-A Verified App HEAD | `ce85e38f8ae615dc2c61355f54da215d597acd66` |
 | P3-B Verified App HEAD | `8a8d8bc3e6431639c8588bce384de7a286540640` |
-| Active Proof PR | None — PR #11 squash-merged after required checks passed |
-| Current Level | **L2++ — browser Golden Path proven; persistent audit/eval/final packaging still open** |
+| P4-A Verified App HEAD | `01122f6faf5b6e517f8bfa16f51c208c62037ec3` |
+| Active Proof PR | None — PR #12 squash-merged after required checks passed |
+| Current Level | **L2++ — browser Golden Path + persisted audit foundation proven; full audit UI/eval/final packaging still open** |
 | Target Level | **L3 — Usable / Demonstrable Proof** |
 | Target Release | **Proof v1.0** |
 | Primary Purpose | Wishket AI Agent / RAG / Backend Proof |
@@ -32,7 +33,7 @@
 | Phase 1 | **CLOSED — Real Semantic RAG runtime + bilingual retrieval proven** |
 | Phase 2 | **CLOSED — Human-approved allowlisted read-only execution proven** |
 | Phase 3 | **CLOSED — Operator UI + clarification + real browser Golden Path proven** |
-| Phase 4 | **NEXT — Persistent lifecycle Audit Trail** |
+| Phase 4 | **IN PROGRESS — P4-A persistent event foundation CLOSED; P4-B complete timeline/UI NEXT** |
 | Overall Status | **IN PROGRESS** |
 
 ---
@@ -64,7 +65,7 @@ Allowlisted Read-only Tool Execution
         ↓
 Execution Result Persistence
         ↓
-Audit Trail
+Persistent Audit Trail
 ```
 
 Production SaaS 완성이 목표가 아니다. 위 workflow를 실제로 재현·검증·시연할 수 있으면 Proof v1.0을 닫는다.
@@ -87,7 +88,8 @@ Proof v1.0은 사용자가 브라우저에서 다음 과정을 끝까지 완료�
 10. execution result 저장/표시
 11. 전체 Run lifecycle audit timeline 확인
 
-Browser Golden Path의 1~10은 Phase 3에서 실제 Chrome으로 검증되었다. 11은 Phase 4에서 닫는다.
+Browser Golden Path의 1~10은 Phase 3에서 실제 Chrome으로 검증되었다.
+Phase 4 P4-A에서 lifecycle event persistence/reload 기반은 검증되었고, 11의 Operator UI timeline은 P4-B에서 닫는다.
 
 ---
 
@@ -229,69 +231,62 @@ Important boundary:
 P3-A merged through PR #10 as `ce85e38f8ae615dc2c61355f54da215d597acd66`.
 P3-B merged through PR #11 as `8a8d8bc3e6431639c8588bce384de7a286540640`.
 
-Implemented:
+Verified:
 - dependency-free single-page Operator Workspace served by FastAPI `/`
-- no React/Next.js or separate frontend service
-- `/docs` remains available
-- controlled-agent request form
 - backend-driven validation/clarification
-- explicit `clarification_questions` rendering
-- grounded answer presentation
-- citation presentation
-- tool-plan presentation
-- approve/reject controls visible only for `pending_approval`
-- approve/reject calls use existing server-side API boundaries
-- persisted `raw_output.execution_result` presentation after approval
-- backend API remains the source of truth; workflow logic is not duplicated in the UI
+- grounded answer / citations / tool plan presentation
+- approve/reject controls for `pending_approval`
+- persisted execution-result presentation
+- actual headless Chrome Golden Path
+- clarification → pending approval → approve → execution result → persisted reload
+- durable screenshot + browser evidence JSON artifact
 
-P3-B actual browser proof on PR #11 head `9487881181c3f5faafe19a5add0ad350ca499dc1`:
+## Persistent Audit Foundation — P4-A CLOSED
 
-**PR Validation — PASS**
-- workflow run #27
-- dependency installation
-- full pytest suite including updated operator UI contracts
-- unittest discovery
-- compileall
-- whitespace/diff check
+Merged through PR #12 as `01122f6faf5b6e517f8bfa16f51c208c62037ec3`.
 
-**Firebat Container — PASS**
-- workflow run #27
-- production image build/start
-- health/docs/version regression
-- semantic RAG bilingual retrieval regression
-- local-LLM unavailable fallback regression
-- headless Google Chrome workspace execution
-- persistence/restart regression
+Implemented:
+- append-only `RunAuditEvent` SQLAlchemy model
+- run foreign key + deterministic per-run integer `sequence`
+- `(run_id, sequence)` uniqueness contract
+- `event_type`, `actor`, JSON `payload`, persisted timestamp
+- `AgentRun.audit_events` relationship ordered by sequence
+- narrow `_append_audit_event` recording helper at the API persistence boundary
+- read-only `GET /api/agents/runs/{run_id}/events`
 
-**Actual Chrome checks — PASS**
-1. `workspace_loaded`
-2. `clarification_rendered`
-3. `pending_approval_rendered`
-4. `approved_execution_rendered`
-5. `persisted_execution_reloaded`
+Persisted event coverage currently wired:
 
-Captured clarification:
-- `What is the business context for this request? Who is making the request and why?`
+```text
+REQUEST_RECEIVED
+VALIDATION_PASSED
+CLARIFICATION_REQUIRED
+NORMALIZED
+ANSWER_GENERATED
+TOOL_PLANNED
+APPROVAL_REQUESTED
+APPROVED
+REJECTED
+TOOL_EXECUTED
+COMPLETED
+FAILED
+```
 
-Captured approved execution:
-- status: `executed`
-- tool: `legacy_db_lookup`
-- read_only: `true`
-- parameter: `record_id=LEG-001`
-- result: record found
-- final run status: `archived`
-- persisted status after fresh API read: `archived`
+P4-A focused proof:
+- controlled approved run persisted and reloaded as sequence `1..N`
+- expected lifecycle order survived fresh API/DB-session retrieval
+- human actor captured for approval
+- executed tool/read-only status captured in audit payload
+- clarification path persisted independently
+- existing controlled execution regression remained green
 
-Durable workflow artifact:
-- artifact name: `guided-agent-firebat`
-- artifact ID: `9328956752`
-- digest: `sha256:c35f4f43dcb1648efcc38da47a16c748114c04895b06f41424c3893fb958ec85`
-- includes `operator-browser-evidence.json`
-- includes `operator-golden-path.png`
+Required frozen event not yet emitted explicitly:
+- `RAG_RETRIEVED`
 
-Phase 3 closure boundary:
-- real browser request/clarification/approval/execution-result rendering is proven.
-- persistent lifecycle audit events are **not** part of this closure; they remain Phase 4.
+P4-A boundary:
+- persistence foundation and chronological reload are proven.
+- complete frozen event coverage is not yet proven.
+- Operator UI audit timeline is not yet backed by `/events`.
+- therefore **Phase 4 remains OPEN**.
 
 ## Deployment / CI
 
@@ -305,10 +300,20 @@ Repository contains:
 - Firebat Container workflow
 - browser proof integrated into Firebat Container regression
 
+P4-A PR #12:
+- PR Validation run #30: PASS
+- Firebat Container run #30: PASS
+- production image build/start regression: PASS
+- health/docs/version regression: PASS
+- semantic RAG bilingual regression: PASS
+- graceful LLM fallback regression: PASS
+- existing Chrome Operator Golden Path regression: PASS
+- persistence/restart regression: PASS
+
 ## Documentation drift
 
 Still open and intentionally deferred to P6 unless blocking:
-- README does not yet describe final P1/P2/P3 state
+- README does not yet describe final P1/P2/P3/P4 state
 - `docs/PROJECT_STATUS.md` stale
 - `docs/ROADMAP.md` stale
 - Issue #4 stale/open
@@ -344,7 +349,10 @@ This Master overrides those sources until P6 synchronization.
 | Operator UI serving/API wiring | VERIFIED | ACCEPTABLE |
 | Clarification UI | **BROWSER VERIFIED** | ACCEPTABLE |
 | Browser JS Golden Path | **BROWSER VERIFIED** | ACCEPTABLE |
-| Persistent audit timeline | NOT IMPLEMENTED | REQUIRED |
+| Persistent audit event model | **VERIFIED — P4-A** | ACCEPTABLE FOUNDATION |
+| Chronological event reload | **VERIFIED — P4-A** | ACCEPTABLE FOUNDATION |
+| Frozen event coverage | PARTIAL — `RAG_RETRIEVED` GAP | REQUIRED |
+| Persisted audit UI timeline | NOT IMPLEMENTED | REQUIRED |
 | AI quality eval | NOT IMPLEMENTED | REQUIRED |
 | Proof packaging | PARTIAL | REQUIRED |
 
@@ -356,18 +364,18 @@ This Master overrides those sources until P6 synchronization.
 |---|---|---:|---|
 | L-01 | BGE-M3 unstable under frozen 1536 MiB envelope | HIGH | RESOLVED FOR PROOF WITH MINILM |
 | L-02 | Approval 이후 real controlled execution 없음 | HIGH | CLOSED — P2-A VERIFIED |
-| L-03 | Swagger-only UX | HIGH | **CLOSED — WORKSPACE + REAL BROWSER PROOF** |
-| L-04 | Full lifecycle persistent audit timeline 없음 | MEDIUM | **OPEN — P4** |
+| L-03 | Swagger-only UX | HIGH | CLOSED — WORKSPACE + REAL BROWSER PROOF |
+| L-04 | Full lifecycle persistent audit timeline 없음 | MEDIUM | **PARTIALLY RESOLVED — STORAGE/RELOAD CLOSED; UI + FULL EVENT COVERAGE OPEN** |
 | L-05 | 20~30 case retrieval/grounding/control evaluation 없음 | MEDIUM | OPEN — P5 |
 | L-06 | README / PROJECT_STATUS / ROADMAP / Issue drift | MEDIUM | OPEN — P6 |
 | L-09 | CPU-oriented image still resolves large CUDA/NVIDIA Torch dependencies | MEDIUM | OPEN — DEFER UNLESS BLOCKING |
 | L-11 | Semantic provider identifier remains legacy `bge_m3` while actual model metadata is MiniLM | LOW | OPEN — DEFER UNLESS CONFUSING PROOF |
 | L-12 | Positive local-LLM inference not freshly verified with final semantic model | MEDIUM | OPEN — VERIFY BEFORE FINAL CLOSURE |
 | L-13 | P2 execution uses deterministic local fixture, not customer integration | LOW | ACCEPTED BY FROZEN SCOPE |
-| L-14 | Execution result shares `raw_llm_output` instead of dedicated execution table | MEDIUM | ACCEPTED FOR P2; REVISIT ONLY IF P4 REQUIRES |
-| L-15 | Operator UI JavaScript Golden Path not browser-executed yet | HIGH | **CLOSED — P3-B CHROME PASS** |
-| L-16 | Clarification questions are not rendered in Operator UI | MEDIUM | **CLOSED — P3-B CHROME PASS** |
+| L-14 | Execution result shares `raw_llm_output` instead of dedicated execution table | MEDIUM | ACCEPTED FOR P2/P4; NO CHANGE REQUIRED FOR PROOF |
 | L-17 | Browser CI depends on GitHub runner Chrome + test-only Selenium installation | LOW | OPEN — ACCEPTABLE FOR PROOF; WATCH CI REGRESSION |
+| L-18 | Frozen audit contract includes `RAG_RETRIEVED`, but P4-A does not yet persist it explicitly | MEDIUM | **OPEN — P4-B** |
+| L-19 | `_append_audit_event` is API-boundary helper rather than a standalone audit service | LOW | ACCEPTABLE FOR PROOF UNLESS P4-B CAUSES DUPLICATION |
 
 ---
 
@@ -389,32 +397,18 @@ Closure evidence: registry/allowlist/read-only tool/parameter validation, approv
 
 **Status: CLOSED**
 
-Acceptance Criteria:
-- [x] Request form
-- [x] Run submission wiring
-- [x] Clarification display
-- [x] Grounded Answer presentation
-- [x] Citations presentation
-- [x] Tool Plan presentation
-- [x] Approve / Reject controls
-- [x] Execution Result presentation
-- [x] Actual browser Golden Path execution evidence
-
 Closure evidence:
-- PR #11 PR Validation PASS
-- PR #11 Firebat Container PASS
-- actual headless Chrome execution
-- clarification rendering proof
-- pending approval rendering proof
-- approved execution rendering proof
-- persisted execution reload proof
-- screenshot + JSON workflow artifacts
+- request/clarification/answer/citation/tool-plan/approval/result UI
+- PR #11 validation + Firebat PASS
+- actual headless Chrome Golden Path
+- persisted execution reload
+- screenshot + JSON artifact
 
 ## Phase 4 — Audit Trail
 
-**Status: NEXT**
+**Status: IN PROGRESS**
 
-Minimum persistent events:
+Frozen minimum persistent events:
 
 ```text
 REQUEST_RECEIVED
@@ -434,16 +428,36 @@ FAILED
 
 Closure: 특정 run 하나로 전체 처리 과정을 chronological event records만으로 재구성 가능하고, Operator UI timeline이 persisted events를 표시해야 한다.
 
-### P4-A — Smallest Next Slice
+### P4-A — Persistent Foundation
 
-1. inspect the existing SQLAlchemy model/persistence boundary before changing schema.
-2. add the smallest `RunEvent`-style persistent model required by the frozen event contract.
-3. add one narrow event-recording service/helper instead of scattering raw inserts.
-4. wire only the minimal create-run lifecycle events needed to prove persistence first.
-5. add tests that reload events from a new DB session and preserve chronological ordering.
-6. do **not** build UI timeline rendering until persistent event storage is proven.
+**Status: CLOSED**
 
-P4-A closure is persistence foundation only; full Phase 4 closes after all required event points and UI timeline are wired.
+Acceptance:
+- [x] SQLAlchemy persistence boundary inspected
+- [x] append-only run audit model
+- [x] deterministic run sequence
+- [x] narrow recording helper
+- [x] create/clarification/approval/execution/rejection/failure event wiring
+- [x] read-only event retrieval endpoint
+- [x] reload/order tests
+- [x] PR Validation PASS
+- [x] Firebat Container PASS
+- [x] squash merge to main
+
+Boundary: full Phase 4 does not close here.
+
+### P4-B — Complete Persisted Timeline + Operator UI
+
+**Status: NEXT**
+
+Smallest next slice:
+1. inspect retrieval state/output and add explicit `RAG_RETRIEVED` evidence without duplicating RAG execution.
+2. verify every frozen required event has a reachable/tested persistence path.
+3. wire the existing Operator Workspace audit shell to `GET /api/agents/runs/{run_id}/events`.
+4. render sequence, event type, actor, timestamp and concise payload evidence chronologically.
+5. extend real Chrome proof to confirm persisted timeline rendering after approve/execution.
+6. verify fresh reload still reconstructs the same event order.
+7. do not start Phase 5 until P4 closure is evidence-backed.
 
 ## Phase 5 — Evaluation
 
@@ -473,27 +487,33 @@ Required: README sync, architecture/Golden Path diagram, screenshots, evaluation
 | E-110 | RAG | English intended-source semantic Top-3 | PASS |
 | E-111 | RAG | Stable semantic runtime sample `1.167GiB / 1.5GiB`, CPU `0.30%` | PRESENT |
 | E-112 | RAG | PR #8 Firebat semantic/fallback/persistence/restart workflow | PASS |
-| E-113 | RAG | PR #8 merge at `ebbaafc89363ef31012b235e3c8822920895bbe3` | PRESENT |
-| E-201 | Execution | Approved `legacy_db_lookup` execution test + persisted result retrieval | PASS |
+| E-113 | RAG | PR #8 merge `ebbaafc89363ef31012b235e3c8822920895bbe3` | PRESENT |
+| E-201 | Execution | Approved `legacy_db_lookup` execution + persisted result retrieval | PASS |
 | E-202 | Execution | Reject/unregistered/per-run unauthorized block tests | PASS |
 | E-203 | Execution | No-approval and invalid-parameter block tests | PASS |
 | E-204 | Execution | PR #9 PR Validation | PASS |
 | E-205 | Execution | PR #9 Firebat Container regression | PASS |
 | E-206 | Execution | PR #9 squash merge `0d6ff79834cec1cfe11189dfe95b7d6dd89b4fc8` | PRESENT |
-| E-301 | UI | FastAPI Operator Workspace root HTML contract tests | PASS |
-| E-302 | UI | Existing controlled run/approve/reject API wiring asserted in UI contract tests | PASS |
+| E-301 | UI | FastAPI Operator Workspace root contract tests | PASS |
+| E-302 | UI | Controlled run/approve/reject API wiring asserted in UI tests | PASS |
 | E-303 | UI | PR #10 PR Validation | PASS |
 | E-304 | UI | PR #10 Firebat Container regression | PASS |
 | E-305 | UI | PR #10 squash merge `ce85e38f8ae615dc2c61355f54da215d597acd66` | PRESENT |
-| E-306 | UI | Real Chrome Golden Path: workspace → clarification → pending approval → approve → execution result | **PASS** |
-| E-307 | UI | Fresh persisted run reload after browser approval returned execution result + `archived` | **PASS** |
-| E-308 | UI | PR #11 PR Validation run #27 | **PASS** |
-| E-309 | UI | PR #11 Firebat Container run #27 including Chrome | **PASS** |
-| E-310 | UI | `operator-browser-evidence.json` workflow artifact | PRESENT |
-| E-311 | UI | `operator-golden-path.png` workflow artifact | PRESENT |
+| E-306 | UI | Real Chrome Golden Path | PASS |
+| E-307 | UI | Fresh persisted run reload after browser approval | PASS |
+| E-308 | UI | PR #11 PR Validation run #27 | PASS |
+| E-309 | UI | PR #11 Firebat Container run #27 including Chrome | PASS |
+| E-310 | UI | `operator-browser-evidence.json` artifact | PRESENT |
+| E-311 | UI | `operator-golden-path.png` artifact | PRESENT |
 | E-312 | UI | PR #11 squash merge `8a8d8bc3e6431639c8588bce384de7a286540640` | PRESENT |
-| E-401 | Audit | Persistent RunEvent foundation | TODO |
-| E-402 | Audit | Complete persistent Run Timeline | TODO |
+| E-401 | Audit | `RunAuditEvent` append-only model + deterministic per-run sequence | **PASS** |
+| E-402 | Audit | Controlled approved lifecycle persisted/reloaded chronologically | **PASS** |
+| E-403 | Audit | Clarification lifecycle persisted/reloaded | **PASS** |
+| E-404 | Audit | PR #12 PR Validation run #30 | **PASS** |
+| E-405 | Audit | PR #12 Firebat Container run #30 | **PASS** |
+| E-406 | Audit | PR #12 squash merge `01122f6faf5b6e517f8bfa16f51c208c62037ec3` | PRESENT |
+| E-407 | Audit | Complete frozen event coverage including `RAG_RETRIEVED` | TODO |
+| E-408 | Audit | Persisted Operator UI timeline + browser proof | TODO |
 | E-501 | Eval | Evaluation result | TODO |
 | E-601 | Deploy | Fresh final deployment verification | TODO |
 
@@ -534,19 +554,23 @@ Required: README sync, architecture/Golden Path diagram, screenshots, evaluation
 - dependency-free Operator Workspace served from FastAPI
 - browser-proven clarification / approval / execution-result UX
 - durable Chrome evidence JSON + screenshot
+- append-only persistent run audit foundation
+- deterministic chronological audit reload through `/events`
 - Docker/Firebat deployment and CI regression
 
 ## Done Enough to Use
-**Backend/API level: YES. Browser Golden Path: YES for the frozen single-tool Proof path.**
+**Backend/API level: YES. Browser Golden Path: YES for the frozen single-tool Proof path. Audit storage/reload: YES.**
 
 Proof v1.0 is still not closure-complete because:
-- persistent lifecycle audit timeline does not exist.
+- explicit `RAG_RETRIEVED` audit event is not yet persisted.
+- Operator UI audit timeline is not yet backed by persisted events.
 - positive local-LLM inference with the final semantic stack remains open.
 - fixed AI quality evaluation remains open.
 - final proof packaging/doc synchronization remains open.
 
 ## Not Yet Done
-- Persistent audit trail + UI timeline backed by persisted events
+- Complete frozen audit-event coverage
+- Persisted audit UI timeline + browser proof
 - Positive local-LLM final-stack verification
 - AI quality evaluation
 - Final proof packaging
@@ -557,15 +581,16 @@ Proof v1.0 is still not closure-complete because:
 
 ## NOW
 
-**Phase 4 / P4-A — Persistent audit event foundation**
+**Phase 4 / P4-B — Complete persisted timeline + Operator UI**
 
 Smallest next action:
-1. inspect `AgentRun`/database creation/test fixtures.
-2. add the narrowest persistent lifecycle event model + recording helper.
-3. prove event persistence and chronological reload in tests.
-4. update this Master with exact event coverage and gaps.
+1. inspect the actual RAG workflow state to find the narrowest source for `RAG_RETRIEVED` evidence.
+2. persist that missing frozen event without re-running retrieval.
+3. prove all frozen required event points are reachable in tests.
+4. wire the existing audit shell to persisted `/events` data.
+5. extend browser proof only enough to verify chronological persisted timeline rendering after execution.
 
-Do not start Phase 5 or UI timeline rendering until persistent event storage itself is proven.
+Do not start Phase 5 until Phase 4 closure is proven.
 
 ---
 
@@ -629,80 +654,80 @@ Do not start Phase 5 or UI timeline rendering until persistent event storage its
 
 ## 2026-08-18 — Phase 3 P3-B Browser Golden Path
 
+**Status:** CLOSED — PHASE 3 CLOSED
+
+**Changed:** clarification rendering + real Chrome proof harness + Firebat browser regression artifact capture.
+
+**Executed:** PR #11 PR Validation PASS; Firebat Container PASS; Chrome Golden Path PASS; persisted execution reload PASS; squash merge `8a8d8bc3e6431639c8588bce384de7a286540640`.
+
+**Not Verified:** persistent audit event storage; positive local-LLM final-stack inference; separate reject screenshot path.
+
+**Remaining Risks:** Chrome test dependency; proof remains frozen deterministic read-only tool scenario.
+
+---
+
+## 2026-08-19 — Phase 4 P4-A Persistent Audit Foundation
+
 ### Status
-**CLOSED — PHASE 3 CLOSED**
+**CLOSED AS PERSISTENCE FOUNDATION — PHASE 4 REMAINS OPEN**
 
 ### Changed
-Application/test/CI changes merged through PR #11:
-- `app/operator_ui.py`
-  - explicit clarification panel + question rendering
-  - server-side validation remains source of truth
-  - required business fields can reach backend clarification rather than being fully blocked by browser-native validation
-- `tests/test_operator_ui.py`
-  - clarification UI contract assertions
-  - backend-validation ownership assertions
-- `scripts/verify_operator_browser.py`
-  - real headless Chrome proof harness
-  - clarification path
-  - pending-approval path
-  - approval execution path
-  - fresh persisted-run reload check
-  - screenshot + evidence JSON capture
-- `.github/workflows/firebat-container.yml`
-  - installs test-only Selenium
-  - executes Chrome proof against running production-style Firebat container
-  - uploads browser evidence artifacts
+Merged through PR #12:
+- `app/models/models.py`
+  - `RunAuditEvent` append-only persistence model
+  - run relationship
+  - deterministic per-run integer sequence
+  - `(run_id, sequence)` uniqueness
+  - actor/payload/timestamp evidence
+- `app/api/routes.py`
+  - narrow `_append_audit_event` helper
+  - persisted lifecycle events at create/clarification/validation/normalization/answer/tool-plan/approval/rejection/execution/completion/failure boundaries
+  - read-only `GET /api/agents/runs/{run_id}/events`
+- `tests/test_run_audit_events.py`
+  - controlled approved lifecycle ordering/reload proof
+  - clarification lifecycle persistence proof
 
-No React/Next.js, auth, extra production tool, persistent audit model or Not Now item was added.
+No UI timeline, auth, extra tool, new frontend framework, external integration or Not Now item was added.
 
 ### Executed
-Actual GitHub Actions on PR #11 head `9487881181c3f5faafe19a5add0ad350ca499dc1`:
+Actual GitHub evidence on PR #12 head `1324f098d11634588af7bac0c2e400eea7a1bd7e`:
 
 **PR Validation — PASS**
-- run #27
-- full test suite
-- unittest discovery
-- compileall
-- whitespace/diff check
+- run #30
+- dependency installation PASS
+- full pytest PASS
+- unittest discovery PASS
+- compileall PASS
+- whitespace/diff check PASS
 
 **Firebat Container — PASS**
-- run #27
-- production image build/start
-- health/docs/version
-- semantic RAG bilingual retrieval regression
-- local-model unavailable fallback regression
-- actual headless Google Chrome browser execution
-- persistence/restart regression
+- run #30
+- production image build/start PASS
+- health/docs/version PASS
+- semantic RAG bilingual regression PASS
+- graceful local-model fallback PASS
+- existing headless Chrome workspace regression PASS
+- persistent run/restart regression PASS
 
-**Browser Evidence — PASS**
-- workspace loaded
-- business-context clarification rendered
-- complete request reached `pending_approval`
-- approve button executed allowlisted read-only `legacy_db_lookup`
-- DOM rendered `status=executed`, `tool_name=legacy_db_lookup`, `record_id=LEG-001`
-- run transitioned to `archived`
-- fresh API reload confirmed persisted `execution_result` and `archived`
-- `operator-golden-path.png` captured
-- `operator-browser-evidence.json` captured
-
-PR #11 squash-merged to `main` as `8a8d8bc3e6431639c8588bce384de7a286540640`.
+PR #12 squash-merged to `main` as `01122f6faf5b6e517f8bfa16f51c208c62037ec3`.
 
 ### Not Verified
-- persistent lifecycle audit event storage is not implemented.
-- audit UI remains a shell and is not backed by event records.
-- positive local-LLM inference with the final semantic model is still not freshly proven.
-- reject visual path was not separately captured because backend reject/block behavior is already verified and expanding browser proof solely for that was not required by P3-B closure.
+- explicit `RAG_RETRIEVED` event is not yet persisted.
+- every frozen event point has not yet been separately exercised in one complete test matrix.
+- Operator UI does not yet request/render `/events`.
+- browser proof does not yet show a persisted audit timeline.
+- positive local-LLM inference with final semantic model remains open.
 
 ### Remaining Risks
-- browser proof CI relies on Chrome availability on the GitHub runner and test-only Selenium installation.
-- current Golden Path proves the frozen deterministic read-only tool scenario, not arbitrary customer integrations.
-- auditability remains the next material usability gap.
+- Phase 4 cannot close until missing `RAG_RETRIEVED` evidence and persisted UI timeline are proven.
+- helper is currently located at the API persistence boundary; extraction to a service is unnecessary unless P4-B creates duplication.
+- event timestamps may share wall-clock resolution; ordering authority is the persisted integer `sequence`, not timestamp alone.
 
 ### Decision
-Phase 3 closes. The actual browser no longer depends on Swagger to complete the controlled request → clarification → approval → execution-result path.
+P4-A closes. Persistent chronological lifecycle evidence now exists and survives retrieval. Full Phase 4 remains open.
 
 ### Next Action
-**Phase 4 / P4-A — implement and prove the persistent lifecycle event foundation before wiring the audit timeline UI.**
+**P4-B — close the missing `RAG_RETRIEVED` event coverage, then render persisted `/events` as the Operator UI audit timeline and prove it in Chrome.**
 
 ---
 
@@ -717,7 +742,7 @@ Phase 3 closes. The actual browser no longer depends on Swagger to complete the 
 - 민감 작업은 human approval을 요구하는가? **YES — P2/P3**
 - 승인된 제한 read-only tool 하나가 실제 실행되는가? **YES — P2/P3 browser proof**
 - reject/unauthorized tool은 실행되지 않는가? **YES — P2 backend safety proof**
-- 모든 과정이 저장되고 추적 가능한가? **NO — P4 OPEN**
+- 모든 과정이 저장되고 추적 가능한가? **PARTIAL — P4-A STORAGE/RELOAD YES; FULL EVENT COVERAGE + UI TIMELINE OPEN**
 - 이 동작이 automated tests + evaluation으로 검증되는가? **PARTIAL — tests PASS, P5 eval OPEN**
 - 외부 사람이 README/Demo/Evidence만 보고 이를 확인할 수 있는가? **PARTIAL — P6 OPEN**
 

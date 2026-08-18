@@ -31,7 +31,6 @@ jobs:
           cp .env.firebat.example .env.firebat
           sed -i 's/HOST_PORT=8701/HOST_PORT=18701/' .env.firebat
           sed -i 's/LOCAL_LLM_TIMEOUT=5/LOCAL_LLM_TIMEOUT=2/' .env.firebat
-          sed -i 's/RAG_EMBEDDING_PROVIDER=bge_m3/RAG_EMBEDDING_PROVIDER=hash_test/' .env.firebat
           chmod 600 .env.firebat
           echo 'APP_VERSION=ci' >> "$GITHUB_ENV"
           echo "GIT_REVISION=${GITHUB_SHA}" >> "$GITHUB_ENV"
@@ -62,20 +61,68 @@ jobs:
           assert value['environment'] == 'production'
           PY
 
-      - name: Verify RAG retrieval and graceful model fallback
+      - name: Verify semantic RAG runtime and bilingual retrieval
+        shell: bash
         run: |
-          curl -fsS --get \
-            --data-urlencode 'q=legacy database access' \
-            --data-urlencode 'top_k=1' \
-            "http://127.0.0.1:${HOST_PORT}/api/rag/query-all" > /tmp/query.json
+          docker exec -i firebat-guided-agent-os python - <<'PY' > /tmp/embedding.json
+          import json
+          from app.services.rag_indexer import get_chroma_client, get_index_stats
+          from app.services.rag_document_loader import get_collection_names
+
+          client = get_chroma_client()
+          collections = {}
+          for name in get_collection_names():
+              collection = client.get_collection(name=name)
+              collections[name] = {
+                  'count': collection.count(),
+                  'metadata': collection.metadata,
+              }
+          print(json.dumps({'counts': get_index_stats(), 'collections': collections}, ensure_ascii=False))
+          PY
+          cat /tmp/embedding.json
+
           python - <<'PY'
           import json
-          value = json.load(open('/tmp/query.json', encoding='utf-8'))
-          results = value['results']
-          assert set(results) == {'domain_knowledge', 'agent_policy', 'tool_catalog'}
-          assert all(results[name] for name in results)
+          value = json.load(open('/tmp/embedding.json', encoding='utf-8'))
+          assert set(value['counts']) == {'domain_knowledge', 'agent_policy', 'tool_catalog'}
+          assert all(count > 0 for count in value['counts'].values())
+          for item in value['collections'].values():
+              metadata = item['metadata'] or {}
+              assert metadata['embedding_provider'] == 'bge_m3'
+              assert metadata['embedding_model'] == 'sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2'
+              assert int(metadata['embedding_dimensions']) == 384
           PY
 
+          curl -fsS --get \
+            --data-urlencode 'q=레거시 데이터베이스 접근은 어떻게 통제해야 하나요?' \
+            --data-urlencode 'top_k=3' \
+            "http://127.0.0.1:${HOST_PORT}/api/rag/query-all" > /tmp/query-ko.json
+
+          curl -fsS --get \
+            --data-urlencode 'q=How should legacy database access be controlled?' \
+            --data-urlencode 'top_k=3' \
+            "http://127.0.0.1:${HOST_PORT}/api/rag/query-all" > /tmp/query-en.json
+
+          python - <<'PY'
+          import json
+
+          expected = 'tools/legacy-db-access-guideline.md'
+          for label, path in [('ko', '/tmp/query-ko.json'), ('en', '/tmp/query-en.json')]:
+              value = json.load(open(path, encoding='utf-8'))
+              results = value['results']
+              assert set(results) == {'domain_knowledge', 'agent_policy', 'tool_catalog'}
+              flat = [item for collection in results.values() for item in collection]
+              assert flat
+              ranked = sorted(flat, key=lambda item: item['score'], reverse=True)
+              top_sources = [item['metadata']['source_path'] for item in ranked[:3]]
+              print(label, 'top3', [(item['metadata']['source_path'], item['score']) for item in ranked[:3]])
+              assert expected in top_sources, (label, top_sources)
+          PY
+
+          docker stats firebat-guided-agent-os --no-stream --format 'container={{.Name}} mem={{.MemUsage}} cpu={{.CPUPerc}}' | tee /tmp/semantic-runtime.txt
+
+      - name: Verify graceful model fallback
+        run: |
           curl -fsS -X POST \
             -H 'Content-Type: application/json' \
             -d '{"question":"How should legacy database access be controlled?","top_k_per_collection":1}' \
@@ -129,6 +176,10 @@ jobs:
         run: |
           docker compose --env-file .env.firebat -f compose.firebat.yml ps || true
           docker compose --env-file .env.firebat -f compose.firebat.yml logs --tail=250 app > firebat-container.log 2>&1 || true
+          cp /tmp/embedding.json semantic-embedding.json 2>/dev/null || true
+          cp /tmp/query-ko.json semantic-query-ko.json 2>/dev/null || true
+          cp /tmp/query-en.json semantic-query-en.json 2>/dev/null || true
+          cp /tmp/semantic-runtime.txt semantic-runtime.txt 2>/dev/null || true
 
       - name: Upload diagnostics
         if: always()
@@ -138,6 +189,10 @@ jobs:
           path: |
             firebat-build.log
             firebat-container.log
+            semantic-embedding.json
+            semantic-query-ko.json
+            semantic-query-en.json
+            semantic-runtime.txt
           if-no-files-found: ignore
           retention-days: 14
 

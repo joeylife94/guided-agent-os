@@ -21,14 +21,15 @@
 | Phase 3 | **CLOSED — Operator UI + clarification + real browser Golden Path proven** |
 | Phase 4 | **CLOSED — persisted lifecycle events + persisted Operator audit timeline browser-proven** |
 | Phase 5 | **CLOSED — fixed 22-case suite executed 22/22 PASS with durable JSON evidence** |
-| Phase 6 | **NEXT — Proof Packaging + final local-LLM closure decision** |
-| Current Level | **L2++++ — functional Proof path and fixed quality suite proven; packaging/final closure remain** |
+| Phase 6 | **IN PROGRESS — P6-A external Proof synchronization CLOSED; final LLM/deployment closure remains** |
+| Current Level | **L2++++ — usable Proof path + fixed quality suite + external documentation synchronized** |
 | Target Level | **L3 — Usable / Demonstrable Proof** |
 | Target Release | **Proof v1.0** |
 | Final Product Goal | **Deployable Controlled AI Agent Proof** |
 | Scope Status | **FROZEN** |
 | Overall Status | **IN PROGRESS** |
 | Latest verified app/eval merge | `8498183f584332887a38ae5e925e6b810177e99b` |
+| Latest documentation baseline before Master update | `ad186521956f7bce78d60e10c024e23a95a4de5d` |
 
 ---
 
@@ -69,8 +70,10 @@ Production SaaS 완성이 목표가 아니다. 위 workflow를 실제로 재현�
 - persisted audit timeline
 - 20~30 fixed evaluation cases
 - machine-readable evaluation evidence
-- README / architecture / demo / known limitations / reproduction guide
+- README / architecture / Golden Path / known limitations / reproduction guide
+- stale external status/roadmap/Issue synchronization or explicit deprecation
 - final local-LLM positive-path verification or explicit closure decision
+- fresh final deployment/regression evidence
 
 ## NOT NOW
 
@@ -180,27 +183,32 @@ Fixed suite:
 - tool control: **6/6 PASS**
 - aggregate: **22/22 PASS**
 
-Durable evidence:
-- workflow: **Proof Evaluation run #2**
-- run id: `32177070127`
-- tested PR head: `40033b966994dc06332cf858d1b4a781a1168347`
-- artifact: `guided-agent-proof-eval`
-- artifact id: `9339491975`
-- artifact digest: `sha256:ab24f530331d9e90dda4ff4fad552f8e36a3735dbd924e1365002f7819f3935b`
-- retained machine-readable file: `proof-eval-results.json`
-- runtime sample: `204.3MiB / 1.5GiB`, CPU `0.12%`
+Important evidence:
+- Proof Evaluation run id `32177070127`
+- tested PR head `40033b966994dc06332cf858d1b4a781a1168347`
+- artifact `guided-agent-proof-eval`
+- artifact id `9339491975`
+- artifact digest `sha256:ab24f530331d9e90dda4ff4fad552f8e36a3735dbd924e1365002f7819f3935b`
+- machine-readable result `proof-eval-results.json`
+- runtime sample `204.3MiB / 1.5GiB`, CPU `0.12%`
 
-Important history:
-- first real fixed-suite execution returned **21/22 PASS**.
-- only failure: `R03`, expected `tools/approved-tools.md` Top-3 but observed rank `5` for `Which tools are approved for controlled agent use?`.
-- the expectation was **not weakened**.
-- the actual approved-tools knowledge document was minimally clarified to state its controlled-agent purpose explicitly.
-- rerun produced `R03` rank `1` and **22/22 PASS**.
+The first real suite execution was 21/22. `R03` exposed a real retrieval miss (rank 5). The expectation was not weakened; the approved-tools knowledge document was clarified, and the rerun placed it rank 1 for final 22/22 PASS.
 
-Grounding boundary observed in the suite:
-- citation structure/source checks passed 4/4.
-- GitHub Firebat CI had no reachable local LLM; grounding cases exercised the documented unavailable-model fallback (`model_available=false`) rather than positive inference.
-- positive local-LLM inference remains a separate final-closure item, not silently counted as P5 evidence.
+Grounding boundary:
+- citation/source checks passed 4/4.
+- GitHub Firebat CI had no reachable local LLM, so these cases exercised the documented unavailable-model fallback.
+- positive local-LLM inference remains a separate final closure item.
+
+## External Proof Packaging — P6-A CLOSED
+
+Verified on `main` after direct re-read:
+- `README.md` now reflects the proven P1–P5 architecture rather than the older planned-only state.
+- README includes Golden Path, architecture, safety boundary, 22/22 evaluation summary/evidence, known limitations, core API surface, and Docker Compose reproduction guidance.
+- `docs/PROJECT_STATUS.md` is explicitly deprecated as a compatibility pointer to this Master.
+- `docs/ROADMAP.md` is explicitly deprecated as a compatibility pointer to this Master.
+- GitHub Issue #4 is closed as completed for the frozen Proof scope and points back to this Master.
+
+No application code changed during P6-A.
 
 ---
 
@@ -227,7 +235,8 @@ Grounding boundary observed in the suite:
 | Operator browser Golden Path | VERIFIED | ACCEPTABLE |
 | Persistent audit timeline | VERIFIED | ACCEPTABLE |
 | Fixed evaluation evidence | **22/22 PASS** | ACCEPTABLE |
-| Proof packaging | PARTIAL | REQUIRED |
+| External-facing Proof docs | **SYNCHRONIZED** | ACCEPTABLE |
+| Final deployment/regression after P6 | OPEN | REQUIRED |
 
 ---
 
@@ -239,16 +248,15 @@ Grounding boundary observed in the suite:
 | L-02 | Approval 이후 real controlled execution 없음 | HIGH | CLOSED |
 | L-03 | Swagger-only UX | HIGH | CLOSED |
 | L-04 | Full lifecycle persistent audit timeline 없음 | MEDIUM | CLOSED |
-| L-05 | Fixed retrieval/grounding/control quality evidence 없음 | MEDIUM | **CLOSED — 22/22 PASS** |
-| L-06 | README / PROJECT_STATUS / ROADMAP / Issue drift | MEDIUM | **OPEN — P6** |
+| L-05 | Fixed retrieval/grounding/control quality evidence 없음 | MEDIUM | CLOSED — 22/22 PASS |
+| L-06 | README / PROJECT_STATUS / ROADMAP / Issue drift | MEDIUM | **CLOSED — P6-A** |
 | L-09 | CPU-oriented image still resolves large CUDA/NVIDIA Torch dependencies | MEDIUM | OPEN — DEFER UNLESS BLOCKING |
-| L-11 | Semantic provider identifier remains legacy `bge_m3` while model metadata is MiniLM | LOW | OPEN — DEFER UNLESS CONFUSING PROOF |
+| L-11 | Semantic provider identifier remains legacy `bge_m3` while model metadata is MiniLM | LOW | OPEN — DOCUMENTED IN README |
 | L-12 | Positive local-LLM inference not freshly verified with final semantic model | MEDIUM | **OPEN — FINAL CLOSURE ITEM** |
 | L-13 | P2 execution uses deterministic local fixture, not customer integration | LOW | ACCEPTED BY FROZEN SCOPE |
 | L-14 | Execution result shares `raw_llm_output` instead of dedicated execution table | MEDIUM | ACCEPTED FOR PROOF |
 | L-17 | Browser CI depends on GitHub runner Chrome + Selenium | LOW | ACCEPTABLE FOR PROOF |
 | L-19 | Audit append helper is API-boundary helper rather than standalone service | LOW | ACCEPTABLE FOR PROOF |
-| L-20 | Fixed eval expectations could reveal real retrieval misses | MEDIUM | **RESOLVED — R03 FOUND/FIXED WITHOUT EXPECTATION WEAKENING** |
 
 ---
 
@@ -273,12 +281,15 @@ Grounding boundary observed in the suite:
 | E-506 | Eval | first real suite execution: 21/22, `R03` rank 5 | PRESENT — FAILURE DISCOVERED |
 | E-507 | Eval | targeted approved-tools corpus clarification; expectations unchanged | PRESENT |
 | E-508 | Eval | Proof Evaluation run #2: **22/22 PASS** | PASS |
-| E-509 | Eval | `proof-eval-results.json`, artifact `9339491975`, digest `sha256:ab24f530331d9e90dda4ff4fad552f8e36a3735dbd924e1365002f7819f3935b` | PRESENT |
+| E-509 | Eval | `proof-eval-results.json`, artifact `9339491975`, fixed digest | PRESENT |
 | E-510 | Eval | PR #16 PR Validation run #43 | PASS |
 | E-511 | Eval | PR #16 Firebat Container run #42 | PASS |
 | E-512 | Eval | PR #16 squash merge `8498183f584332887a38ae5e925e6b810177e99b` | PRESENT |
-| E-601 | Deploy | fresh final deployment verification after packaging | TODO — P6 |
-| E-602 | LLM | positive final-stack local-LLM inference or explicit closure decision | TODO — P6 |
+| E-601 | Packaging | README re-read after Proof synchronization | **PASS — P6-A** |
+| E-602 | Packaging | PROJECT_STATUS / ROADMAP deprecated to Master | **PASS — P6-A** |
+| E-603 | Packaging | Issue #4 closed `completed` with frozen-scope boundary | **PASS — P6-A** |
+| E-604 | LLM | positive final-stack local-LLM inference or explicit closure decision | TODO — P6-B |
+| E-605 | Deploy | fresh final deployment/regression after packaging | TODO — P6-C |
 
 ---
 
@@ -328,20 +339,38 @@ Closure basis:
 - implementation/content defect fixed without weakening case contract
 - final 22/22 PASS
 
-## Phase 6 — Proof Packaging
+## Phase 6 — Proof Packaging / Final Closure
+**IN PROGRESS**
+
+### P6-A — External-facing Proof synchronization
+**CLOSED**
+
+Acceptance evidence:
+- README truthfully synchronized to P1–P5.
+- Golden Path and architecture are visible externally.
+- safety boundary and limitations are explicit.
+- 22/22 fixed-eval summary and artifact references are visible.
+- Docker Compose reproduction guidance is present.
+- stale PROJECT_STATUS and ROADMAP no longer claim authority.
+- Issue #4 no longer appears as unfinished core architecture work.
+
+### P6-B — Positive local-LLM closure decision
 **NEXT**
 
 Required:
-- synchronize README with P1–P5 reality
-- architecture / Golden Path diagram
-- demo screenshots/evidence pointers
-- fixed evaluation summary and artifact evidence
-- safety boundary
-- known limitations
-- reproduction guide
-- stale `PROJECT_STATUS.md` / `ROADMAP.md` / Issue #4 synchronization or explicit deprecation
-- positive final-stack local-LLM inference **or explicit documented closure decision if the environment cannot provide it without expanding frozen scope**
-- fresh final deployment/regression check
+- attempt positive local-LLM inference with the final MiniLM semantic stack in an environment where the configured local OpenAI-compatible endpoint is actually reachable; **or**
+- if such runtime is unavailable without expanding frozen scope, explicitly document the closure decision and keep fallback evidence separate from positive inference.
+
+Do not claim positive inference from GitHub fallback-only evidence.
+
+### P6-C — Final deployment/regression
+**BLOCKED BY P6-B DECISION**
+
+Required after P6-B:
+- fresh final container/deployment regression
+- health/database/RAG ready
+- restart/persistence remains intact
+- no documentation-to-runtime contradiction found
 
 ---
 
@@ -351,13 +380,12 @@ Required:
 
 **YES for the frozen Proof path.**
 
-A user can complete the browser Golden Path, approval-gated read-only execution, persisted result, and audit timeline. The fixed quality/control suite is now 22/22 PASS.
+A user can complete the browser Golden Path, approval-gated read-only execution, persisted result, and audit timeline. The fixed quality/control suite is 22/22 PASS and the external README now describes that state accurately.
 
 ## Not Yet Closure-Complete
 
-- P6 external-facing packaging/document synchronization
-- positive local-LLM final-stack verification or explicit closure decision
-- final deployment/regression evidence after P6 sync
+- positive final-stack local-LLM verification or explicit documented closure decision
+- fresh final deployment/regression evidence after the closure decision
 
 ---
 
@@ -365,14 +393,14 @@ A user can complete the browser Golden Path, approval-gated read-only execution,
 
 ## NOW
 
-**Phase 6 / P6-A — external-facing Proof synchronization**
+**Phase 6 / P6-B — positive local-LLM closure decision**
 
 Smallest next action:
-1. inspect `README.md`, `docs/PROJECT_STATUS.md`, `docs/ROADMAP.md`, and Issue #4 against this Master.
-2. update/deprecate only stale statements required for Proof consistency.
-3. add concise P1–P5 architecture, Golden Path, evaluation result, safety boundary, evidence pointers, limitations, and reproduction guidance to the main external-facing README.
-4. do not add new product features.
-5. keep positive local-LLM verification as a distinct closure item; do not count fallback evidence as positive inference.
+1. read this Master first and re-check `main`.
+2. inspect the existing local-LLM configuration/test path; do not add a new provider or cloud dependency.
+3. if an existing reachable local OpenAI-compatible endpoint can be used, execute one positive grounded-answer inference against the final MiniLM RAG stack and record exact model/runtime evidence.
+4. if the runtime endpoint is unavailable in the execution environment and making it available would require scope expansion, document an explicit closure decision instead of inventing success.
+5. only after P6-B is resolved, run P6-C final deployment/regression.
 
 ---
 
@@ -390,15 +418,15 @@ Remaining Risks: carried into phase contracts.
 **Status:** CLOSED
 
 Changed: semantic provider boundary + multilingual MiniLM path + persistent semantic index proof gates.
-Executed: PR #7/#8 validation, Firebat regression, Korean/English intended-source retrieval, restart/persistence.
-Not Verified: broad quality eval; positive final local-LLM inference.
+Executed: PR validation, Firebat regression, Korean/English intended-source retrieval, restart/persistence.
+Not Verified: positive final local-LLM inference.
 Remaining Risks: CPU dependency footprint, legacy provider label.
 
 ## 2026-08-18 — Phase 2 Controlled Read-only Execution
 **Status:** CLOSED
 
 Changed: registry/allowlist, `legacy_db_lookup`, validation, approval executor, persisted execution result and block-path tests.
-Executed: PR #9 validation + Firebat PASS.
+Executed: PR validation + Firebat PASS.
 Not Verified: real customer systems; positive local-LLM inference.
 Remaining Risks: fixture proves control architecture, not customer integration performance.
 
@@ -406,7 +434,7 @@ Remaining Risks: fixture proves control architecture, not customer integration p
 **Status:** CLOSED
 
 Changed: FastAPI workspace, clarification rendering, approval/result UX, Chrome proof harness.
-Executed: PR #10/#11 checks PASS; Chrome Golden Path and persisted reload PASS.
+Executed: PR checks PASS; Chrome Golden Path and persisted reload PASS.
 Not Verified: positive local-LLM final-stack inference.
 Remaining Risks: browser test dependency accepted for proof.
 
@@ -414,57 +442,53 @@ Remaining Risks: browser test dependency accepted for proof.
 **Status:** CLOSED
 
 Changed: append-only audit model, frozen event coverage, persisted Operator timeline.
-Executed: PR #12/#13/#14 validation, Firebat, Chrome persisted-timeline proof.
-Not Verified: P5 at that stage; positive local-LLM inference.
+Executed: validation, Firebat, Chrome persisted-timeline proof.
+Not Verified: positive local-LLM inference.
 Remaining Risks: deterministic sequence is ordering authority.
 
 ## 2026-08-19 — Phase 5 Evaluation
 **Status:** CLOSED
 
+Changed: fixed Proof Evaluation workflow and targeted approved-tools corpus clarification after real `R03` failure.
+Executed: first suite 21/22; rerun 22/22; PR Validation PASS; Firebat Container PASS.
+Not Verified: positive local-LLM inference.
+Remaining Risks: fallback-only grounding environment remains explicitly separated from positive inference.
+
+## 2026-08-19 — Phase 6 / P6-A External Proof Synchronization
+**Status:** CLOSED
+
 ### Changed
-- added dedicated `.github/workflows/proof-eval.yml` to execute the existing fixed suite in the Firebat proof environment and retain JSON/runtime diagnostics.
-- after first execution exposed only `R03`, minimally clarified `app/knowledge/tools/approved-tools.md` so the document explicitly states that it defines tools approved for controlled agent use.
-- **did not change `evaluation/cases.json` or relax `R03` Top-3 expectation.**
+- replaced stale long-form README with a concise Proof v1.0 external document reflecting the verified P1–P5 implementation.
+- README now contains Golden Path, architecture, safety boundary, semantic model/runtime boundary, fixed-eval result/evidence, known limitations, API surface, and Docker Compose reproduction guide.
+- deprecated `docs/PROJECT_STATUS.md` to a compatibility pointer to this Master.
+- deprecated `docs/ROADMAP.md` to a compatibility pointer to this Master.
+- closed GitHub Issue #4 as `completed` for the frozen Proof scope and documented non-claims.
+- no application code, schema, workflow, dependency, or runtime configuration changed.
 
 ### Executed
-Baseline verified first:
-- Master read first.
-- `main` before P5-B: `e884f863db39b717ed018d4abbb676adda65298a`.
-
-First real P5-B run:
-- Proof Evaluation run #1 / run id `32176549561`.
-- result: **21/22 PASS**.
-- retrieval: 7/8; grounding: 4/4; routing: 4/4; tool_control: 6/6.
-- only failed ID: `R03`.
-- `R03`: expected `tools/approved-tools.md` <= rank 3; observed rank `5`.
-- evidence artifact uploaded successfully.
-
-Targeted fix rerun on PR head `40033b966994dc06332cf858d1b4a781a1168347`:
-- Proof Evaluation run #2 / run id `32177070127`: **PASS**.
-- final result: **22/22 PASS**.
-- retrieval 8/8; grounding 4/4; routing 4/4; tool_control 6/6.
-- `R03` observed rank improved to `1`.
-- artifact `9339491975`, digest `sha256:ab24f530331d9e90dda4ff4fad552f8e36a3735dbd924e1365002f7819f3935b`.
-- runtime sample: `204.3MiB / 1.5GiB`, CPU `0.12%`.
-- PR Validation run #43: **PASS**.
-- Firebat Container run #42: **PASS**.
-- PR #16 squash-merged to `main`: `8498183f584332887a38ae5e925e6b810177e99b`.
+- Master was read before changes.
+- verified pre-change `main` head `5deb33a87697464d0096243016e9d31ce16288bd`.
+- inspected stale README, PROJECT_STATUS, ROADMAP, Issue #4, compose runtime, and `.env.firebat.example`.
+- re-read updated README from `main` and confirmed current Proof positioning / P1–P5 capabilities.
+- re-read updated PROJECT_STATUS from `main` and confirmed explicit deprecation to Master.
+- re-read updated ROADMAP from `main` and confirmed explicit deprecation to Master.
+- Issue #4 response confirmed `state=closed`, `state_reason=completed`.
 
 ### Not Verified
-- positive local-LLM inference was **not** produced in GitHub Firebat CI; grounding cases used the already-documented unavailable-model fallback.
-- P6 README/docs synchronization not yet performed.
-- no claim of production/customer-system integration.
+- no pytest/build/container execution was run because this iteration changed documentation/issue state only.
+- positive final-stack local-LLM inference remains unverified.
+- fresh post-packaging deployment/regression remains unverified.
 
 ### Remaining Risks
-- positive local-LLM final-stack inference remains open.
-- README/status/roadmap/Issue drift remains until P6.
-- CPU dependency footprint and legacy provider identifier remain non-blocking proof risks.
+- L-12 positive local-LLM inference remains the next closure item.
+- P6-C final deployment/regression is still required.
+- legacy `bge_m3` provider identifier and large Torch dependency footprint remain documented non-blocking risks.
 
 ### Decision
-**Phase 5 CLOSED.** Real fixed-suite evidence exists and the final committed Proof path is 22/22 PASS without expectation weakening.
+**P6-A CLOSED.** External Proof state is synchronized with the authoritative implementation evidence; no product scope was expanded.
 
 ### Next Action
-**P6-A — synchronize external-facing Proof documentation/evidence with the now-proven P1–P5 state; do not add new features.**
+**P6-B — attempt positive local-LLM inference using the existing final-stack path, or record an explicit closure decision if the required runtime is unavailable without scope expansion.**
 
 ---
 
@@ -481,7 +505,8 @@ Targeted fix rerun on PR head `40033b966994dc06332cf858d1b4a781a1168347`:
 - reject/unauthorized/invalid action은 차단되는가? **YES**
 - 과정이 저장되고 UI에서 추적 가능한가? **YES**
 - automated tests + fixed evaluation으로 검증되는가? **YES — 22/22 PASS**
-- positive local-LLM final-stack inference 또는 명시적 closure decision이 있는가? **OPEN — P6**
-- 외부 사람이 README/Demo/Evidence만 보고 확인 가능한가? **OPEN — P6**
+- 외부 사람이 README/Evidence만 보고 현재 Proof를 이해할 수 있는가? **YES — P6-A**
+- positive local-LLM final-stack inference 또는 명시적 closure decision이 있는가? **OPEN — P6-B**
+- final deployment/regression evidence가 있는가? **OPEN — P6-C**
 
 그 이후 기능은 Proof v1.1 또는 실제 고객 요구사항으로 분리한다.

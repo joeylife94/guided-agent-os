@@ -15,7 +15,8 @@
 | Project | Guided Agent OS |
 | Repository | `joeylife94/guided-agent-os` |
 | Baseline branch | `main` |
-| Baseline HEAD | `fae00d67227a8bc496842ceb244845f09c0bfeae` |
+| Phase 0 Baseline HEAD | `fae00d67227a8bc496842ceb244845f09c0bfeae` |
+| Current Verified HEAD | `44d9f2965aea0836081e043a1c7e6888f389feb9` |
 | Current Level | **L2 — Integrated Backend Demo** |
 | Target Level | **L3 — Usable / Demonstrable Proof** |
 | Target Release | **Proof v1.0** |
@@ -23,7 +24,7 @@
 | Final Product Goal | **Deployable Controlled AI Agent Proof** |
 | Scope Status | **FROZEN** |
 | Phase 0 | **CLOSED — Baseline Frozen** |
-| Current Phase | **Phase 1 — Real Semantic RAG** |
+| Phase 1 | **IN PROGRESS — P1-A CLOSED** |
 | Overall Status | **IN PROGRESS** |
 
 ---
@@ -152,20 +153,15 @@ Proof v1.0은 사용자가 브라우저에서 다음 과정을 끝까지 완료�
 
 ---
 
-# 4. Phase 0 Baseline Freeze — CLOSED
+# 4. Verified Current State
 
-## Baseline Date
+## Backend / workflow
 
-**2026-08-18**
-
-## Verified Repository State
-
-### Active backend / workflow
-
-- FastAPI API server exists.
-- Registered templates include `freelance`, `public_enterprise_ai`, `controlled_rag_agent`.
-- Agent runs are persisted through SQLite/SQLAlchemy.
-- Active `controlled_rag_agent` LangGraph path is:
+Implemented and previously inspected:
+- FastAPI API server
+- templates: `freelance`, `public_enterprise_ai`, `controlled_rag_agent`
+- SQLite/SQLAlchemy Agent Run persistence
+- active `controlled_rag_agent` path:
 
 ```text
 intake
@@ -178,27 +174,43 @@ intake
 → END
 ```
 
-- Non-controlled templates stop after validation/normalization.
-- Controlled RAG outputs are persisted in `raw_llm_output` and exposed in the run response.
+- controlled RAG outputs persisted/exposed through the current run response path
 
-### RAG
+## RAG foundation
 
 Implemented:
 - local Markdown knowledge base
-- ChromaDB persistent index
-- multi-collection retrieval
+- persistent ChromaDB
 - `domain_knowledge`
 - `agent_policy`
 - `tool_catalog`
 - source metadata / citation output
-- optional local OpenAI-compatible LLM path
-- model-unavailable retrieval fallback
+- optional local OpenAI-compatible LLM answer path
+- retrieval-only fallback when the LLM is unavailable
 
-Known boundary:
-- current embedding is a **64-dimensional deterministic hashed bag-of-words test embedding**.
-- it is adequate for deterministic integration tests, but does **not** satisfy Proof v1.0 semantic RAG acceptance.
+### P1-A embedding boundary — IMPLEMENTED
 
-### Tool / control
+Merged through PR #7 at `44d9f2965aea0836081e043a1c7e6888f389feb9`.
+
+Implemented behavior:
+- explicit `EmbeddingProvider` boundary
+- default runtime semantic provider: SentenceTransformers + `BAAI/bge-m3`
+- explicit `RAG_EMBEDDING_PROVIDER` / `RAG_EMBEDDING_MODEL` configuration
+- deterministic hash embedding retained only as explicit `hash_test`
+- no silent semantic → hash fallback
+- index metadata records provider, model, dimensions
+- index rebuild uses one provider instance for all document embeddings
+- retrieval uses the same configured provider and validates collection provider/model/dimension metadata
+- incompatible/stale embedding index produces an explicit rebuild error instead of silent empty retrieval
+- Firebat runtime receives embedding provider/model configuration
+- CI explicitly selects `hash_test` to keep CI deterministic and avoid claiming semantic model runtime verification
+
+Important boundary:
+- **real BGE-M3 model load/inference has not yet been executed as evidence.**
+- Korean/English semantic retrieval quality has not yet been verified.
+- therefore Phase 1 is not closed.
+
+## Tool / control
 
 Implemented:
 - deterministic system-access/risk detection
@@ -213,7 +225,7 @@ Known boundary:
 - no actual Tool Registry / Executor exists.
 - approve currently updates status only; it does not execute an allowlisted tool.
 
-### Deployment / CI
+## Deployment / CI
 
 Repository contains:
 - non-root production Docker image path
@@ -221,39 +233,34 @@ Repository contains:
 - persistent SQLite/Chroma volume
 - startup bootstrap
 - `/health` / `/version`
-- PR validation workflow
-- Firebat container workflow
+- PR Validation workflow
+- Firebat Container workflow
 
-Historical PR #6 records successful validation of:
-- dependency install
-- pytest
-- unittest discovery
-- compileall
-- whitespace check
-- production image build
-- non-root startup
-- DB/RAG bootstrap
-- health/docs/version
-- non-empty retrieval
-- graceful no-model fallback
-- run creation
-- restart persistence
+Fresh P1-A validation on PR #7:
+- dependency installation: PASS
+- pytest suite: PASS
+- unittest discovery: PASS
+- compileall: PASS
+- whitespace check: PASS
+- production container build: PASS
+- Firebat start: PASS
+- health/docs/version: PASS
+- RAG retrieval smoke with explicit `hash_test`: PASS
+- graceful local-LLM fallback: PASS
+- persistent agent run: PASS
+- restart persistence: PASS
 
-Important boundary:
-- current `main` HEAD contains only Master-document commits after the last implementation commit.
-- no fresh test/build/container run was executed during this baseline inspection.
+This fresh container evidence validates the provider boundary and regression path, **not** real semantic-model inference.
 
-### Documentation drift
+## Documentation drift
 
-`README.md` broadly reflects the controlled RAG Phase 1–3 implementation.
+Still open:
+- `README.md` broadly reflects controlled RAG but does not yet describe P1-A final state.
+- `docs/PROJECT_STATUS.md` is stale.
+- `docs/ROADMAP.md` is stale.
+- GitHub Issue #4 remains stale/open.
 
-`docs/PROJECT_STATUS.md` is stale (last updated 2026-06-14) and incorrectly says RAG, additional templates, and active approval flow are not implemented.
-
-`docs/ROADMAP.md` is also stale and still describes later workflow capabilities as planned even though parts are active in code.
-
-GitHub Issue #4 remains open and contains unchecked tasks, while major portions such as `controlled_rag_agent`, RAG services, tool planning, workflow extension, persistence, tests, and README updates are already present.
-
-**Decision:** `GUIDED_AGENT_OS_MASTER.md` overrides these stale documents. External documentation synchronization is deferred to Proof Packaging unless it blocks an earlier acceptance check.
+Decision: Master overrides stale docs. External documentation synchronization remains deferred to Proof Packaging unless it blocks earlier acceptance.
 
 ---
 
@@ -268,10 +275,12 @@ GitHub Issue #4 remains open and contains unchecked tasks, while major portions 
 | Run persistence | IMPLEMENTED | ACCEPTABLE |
 | LangGraph controlled path | IMPLEMENTED | ACCEPTABLE |
 | ChromaDB persistence | IMPLEMENTED | ACCEPTABLE |
-| Multi-collection RAG | IMPLEMENTED | NEEDS SEMANTIC EMBEDDING |
+| Embedding provider boundary | IMPLEMENTED | ACCEPTABLE FOUNDATION |
+| Real semantic provider config | IMPLEMENTED | NEEDS RUNTIME EVIDENCE |
+| Multi-collection RAG | IMPLEMENTED | NEEDS SEMANTIC RETRIEVAL PROOF |
 | Citation metadata | IMPLEMENTED | NEEDS QUALITY VALIDATION |
 | Local LLM client | IMPLEMENTED | NEEDS GOLDEN-PATH VERIFICATION |
-| LLM unavailable fallback | IMPLEMENTED | ACCEPTABLE, RE-VERIFY LATER |
+| LLM unavailable fallback | IMPLEMENTED | FRESHLY REGRESSION-VERIFIED |
 | Tool planning | IMPLEMENTED | ACCEPTABLE FOUNDATION |
 | Human review routing | IMPLEMENTED | ACCEPTABLE FOUNDATION |
 | Approve / reject status | IMPLEMENTED | NEEDS REAL EXECUTION PATH |
@@ -288,13 +297,14 @@ GitHub Issue #4 remains open and contains unchecked tasks, while major portions 
 
 | ID | Risk | Severity | Status |
 |---|---|---:|---|
-| L-01 | Test-grade hash embedding; semantic retrieval proof 부족 | HIGH | OPEN |
+| L-01 | Semantic provider boundary는 존재하지만 real BGE-M3 runtime/retrieval 품질 미검증 | HIGH | OPEN |
 | L-02 | Approval 이후 real controlled execution 없음 | HIGH | OPEN |
 | L-03 | Swagger 중심 UX; operator UI 없음 | HIGH | OPEN |
 | L-04 | Full lifecycle audit timeline 없음 | MEDIUM | OPEN |
 | L-05 | Retrieval/grounding/control evaluation 없음 | MEDIUM | OPEN |
 | L-06 | README 외 PROJECT_STATUS/ROADMAP/Issue 상태 drift | MEDIUM | OPEN |
-| L-07 | Current main에서 fresh full-suite/container validation 미실행 | MEDIUM | OPEN |
+| L-07 | BGE-M3 model download/runtime memory/latency requirement 미검증 | MEDIUM | OPEN |
+| L-08 | Fresh container PASS는 explicit `hash_test` 경로이며 semantic container proof가 아님 | MEDIUM | OPEN |
 
 ---
 
@@ -305,28 +315,50 @@ GitHub Issue #4 remains open and contains unchecked tasks, while major portions 
 ### Goal
 테스트용 retrieval을 실제 multilingual semantic retrieval로 교체한다.
 
-### Smallest Safe Implementation Slice
+### P1-A — Embedding Provider Boundary
 
-**P1-A — Embedding Provider Boundary**
+**Status: CLOSED**
 
-1. 기존 `rag_embeddings.py` 호출 지점을 확인한다.
-2. semantic embedding provider를 명시적 interface/config boundary 뒤에 둔다.
-3. 기본 Proof provider는 local multilingual model로 고정한다.
-4. index/query가 같은 provider와 embedding dimension을 사용하도록 보장한다.
-5. model unavailable/configuration error를 명확하게 실패 처리한다. hash fallback으로 조용히 회귀하지 않는다.
+Closure evidence:
+- explicit provider/config boundary implemented
+- default semantic provider configured
+- index/query provider metadata compatibility enforced
+- no silent hash fallback
+- explicit test-only hash provider
+- full PR Validation PASS
+- Firebat Container regression PASS with explicit test provider
 
-Candidate default: **BGE-M3 또는 동급 multilingual embedding model**.
+### P1-B — Semantic Runtime + Bilingual Retrieval Smoke
+
+**Status: NEXT**
+
+Smallest safe slice:
+1. 실제 semantic provider를 로드한다.
+2. current knowledge base index를 semantic provider로 rebuild한다.
+3. collection metadata의 provider/model/dimension을 확인한다.
+4. 최소 Korean query 1개 + English query 1개를 실행한다.
+5. 각 query에서 의도한 source가 Top-K에 들어오는지 기록한다.
+6. runtime/download/resource failure가 있으면 provider/model 선택을 재평가하되 hash fallback은 사용하지 않는다.
+
+P1-B closure requires:
+- actual semantic model load evidence
+- actual semantic index rebuild evidence
+- three collections non-empty
+- Korean retrieval evidence
+- English retrieval evidence
+- expected source Top-K evidence
+- actual runtime/resource requirement recorded
 
 ### Phase 1 Acceptance Criteria
 
-- [ ] Real semantic embedding integrated
+- [ ] Real semantic embedding executed
 - [ ] Index rebuild 성공
 - [ ] Existing three collections 정상 동작
 - [ ] Korean query retrieval verified
 - [ ] English query retrieval verified
 - [ ] Relevant document Top-K verified
-- [ ] Container execution verified
-- [ ] Regression tests PASS
+- [ ] Semantic container/runtime execution verified
+- [x] Regression tests PASS for P1-A boundary
 
 ### Closure
 Golden evaluation set에서 semantic retrieval 결과를 Proof evidence로 제시할 수 있어야 한다.
@@ -339,11 +371,9 @@ Golden evaluation set에서 semantic retrieval 결과를 Proof evidence로 제�
 Human Approval 이후 제한된 업무 하나를 실제 수행한다.
 
 ### Minimum Deliverable
-
 `legacy_record_lookup` 또는 동등한 local read-only lookup tool 1개.
 
 ### Acceptance Criteria
-
 - [ ] Tool Registry
 - [ ] Tool Allowlist
 - [ ] Read-only Tool 1개
@@ -360,7 +390,6 @@ Human Approval 이후 제한된 업무 하나를 실제 수행한다.
 ## Phase 3 — Operator UI
 
 ### Acceptance Criteria
-
 - [ ] Request form
 - [ ] Run submission
 - [ ] Clarification display
@@ -437,15 +466,18 @@ Closure: 외부 검토자가 5~10분 안에 무엇을 만들었고 무엇을 실
 
 | ID | Phase | Evidence | Status |
 |---|---|---|---|
-| E-001 | Baseline | `main` baseline inspection at `fae00d67227a8bc496842ceb244845f09c0bfeae` | PRESENT |
+| E-001 | Baseline | Phase 0 baseline inspection at `fae00d67227a8bc496842ceb244845f09c0bfeae` | PRESENT |
 | E-002 | Baseline | Active LangGraph controlled-RAG path inspected | PRESENT |
-| E-003 | Baseline | Hash embedding implementation inspected | PRESENT |
+| E-003 | Baseline | Original hash embedding implementation inspected | PRESENT |
 | E-004 | Baseline | Planned-only tool generator / approval endpoints inspected | PRESENT |
 | E-005 | Baseline | PR #6 historical CI/container validation record inspected | PRESENT — HISTORICAL |
 | E-006 | Baseline | README / PROJECT_STATUS / ROADMAP / Issue #4 drift identified | PRESENT |
-| E-101 | RAG | Real semantic embedding integration | TODO |
-| E-102 | RAG | Korean + English retrieval results | TODO |
-| E-103 | RAG | Fresh regression/container validation | TODO |
+| E-101 | RAG | P1-A provider boundary merged via PR #7 at `44d9f2965aea0836081e043a1c7e6888f389feb9` | PRESENT |
+| E-102 | RAG | PR #7 PR Validation — pytest/unittest/compileall/diff check | PASS |
+| E-103 | RAG | PR #7 Firebat Container regression with explicit `hash_test` | PASS — TEST PROVIDER |
+| E-104 | RAG | Real semantic model load + index rebuild | TODO |
+| E-105 | RAG | Korean + English semantic retrieval result | TODO |
+| E-106 | RAG | Semantic runtime/container resource verification | TODO |
 | E-201 | Execution | Approved tool execution | TODO |
 | E-202 | Execution | Reject/unauthorized execution blocked | TODO |
 | E-301 | UI | Golden Path screenshot/E2E | TODO |
@@ -478,23 +510,21 @@ Closure: 외부 검토자가 5~10분 안에 무엇을 만들었고 무엇을 실
 # 10. Current Work Status
 
 ## Done Enough to Show
-
 - Backend architecture
 - Structured intake / validation / clarification
 - LangGraph controlled RAG workflow
 - ChromaDB integration
+- explicit semantic embedding provider boundary
 - Local LLM integration boundary
 - Tool planning / human review routing
 - Docker deployment structure
-- Historical CI / persistence evidence
+- fresh P1-A regression/container evidence
 
 ## Done Enough to Use
-
 **아직 없음.**
 
 ## Not Yet Done
-
-- Real semantic RAG
+- Real semantic RAG runtime/retrieval proof
 - Real controlled execution
 - Operator UI
 - Complete audit trail
@@ -507,18 +537,17 @@ Closure: 외부 검토자가 5~10분 안에 무엇을 만들었고 무엇을 실
 
 ## NOW
 
-**Phase 1 — Real Semantic RAG**
+**Phase 1 / P1-B — Semantic Runtime + Bilingual Retrieval Smoke**
 
-### Next smallest task
-
-**P1-A — inspect embedding call graph and implement a semantic embedding provider boundary without changing unrelated workflow behavior.**
-
-Required before closing P1-A:
-- exact changed files recorded
-- narrow embedding/index/retrieval tests actually executed
-- full regression status recorded if executed
-- model/download/runtime requirement recorded
-- no silent fallback to hash embeddings
+Required before closing P1-B:
+- actual semantic model loaded
+- semantic index rebuilt
+- three collections non-empty
+- Korean query executed
+- English query executed
+- intended source verified in Top-K
+- actual model/runtime/download/resource constraints recorded
+- no hash fallback
 
 ---
 
@@ -545,42 +574,112 @@ Phase 0 baseline freeze.
 ### Changed
 - `GUIDED_AGENT_OS_MASTER.md`만 갱신.
 - baseline HEAD, implemented/missing matrix, documentation drift, evidence, risks, Phase 1 next slice를 authoritative하게 기록.
-- application code, README, PROJECT_STATUS, ROADMAP, GitHub Issue는 변경하지 않음.
 
 ### Executed
-실제 repository inspection 수행:
-- `main` HEAD 확인
-- `README.md` 확인
-- `app/agents/workflow.py` active path 확인
-- `app/services/rag_embeddings.py` 확인
-- `app/services/tool_plan_generator.py` 확인
-- `app/api/routes.py` approve/reject/persistence 확인
-- `.github/workflows/pr-validation.yml` 확인
-- `.github/workflows/firebat-container.yml` 확인
-- `docs/PROJECT_STATUS.md` 확인
-- `docs/ROADMAP.md` 확인
-- GitHub Issue #4 확인
-- PR #6 validation record 확인
+Repository inspection 수행:
+- `main` HEAD
+- README
+- active LangGraph workflow
+- RAG embedding/index/retrieval implementation
+- tool planning / approve/reject
+- CI workflows
+- PROJECT_STATUS / ROADMAP
+- Issue #4
+- PR #6 validation record
 
 ### Not Verified
-- 이번 iteration에서 pytest/unittest를 실제 재실행하지 않음.
-- Docker image/build/container를 실제 재실행하지 않음.
-- Firebat 실제 host deployment 상태를 확인하지 않음.
-- 실제 local LLM inference를 실행하지 않음.
-- semantic embedding model은 아직 도입/실행하지 않음.
+- fresh pytest/container
+- actual Firebat host
+- local LLM inference
+- semantic model execution
 
 ### Remaining Risks
-- hash embedding이 semantic Proof 요건을 충족하지 않음.
-- approval 이후 실제 tool execution 없음.
-- operator UI/audit/evaluation 없음.
-- stale project docs/issues가 남아 있음.
-- CI/container evidence는 historical이며 fresh final evidence가 아님.
-
-### Decision
-Phase 0 목적은 현재 상태를 정확히 freeze하는 것이므로, 코드 변경/재검증 없이 baseline을 닫는다. Fresh executable verification은 각 구현 Phase와 final proof closure에서 다시 요구한다.
+- hash-only semantic gap
+- no real tool execution
+- no UI/audit/eval
+- stale docs
 
 ### Next Action
-**Phase 1 / P1-A — semantic embedding provider boundary 구현 및 narrow validation.**
+Phase 1 / P1-A.
+
+---
+
+## 2026-08-18 — Phase 1 P1-A Embedding Provider Boundary
+
+### Status
+**CLOSED**
+
+### Changed
+Application/runtime changes merged through PR #7:
+- `app/services/rag_embeddings.py`
+  - explicit provider protocol
+  - SentenceTransformers semantic provider
+  - default `BAAI/bge-m3`
+  - explicit `hash_test`
+  - no silent fallback
+- `app/services/rag_indexer.py`
+  - one provider per rebuild
+  - provider/model/dimension collection metadata
+- `app/services/rag_retriever.py`
+  - same configured provider for query
+  - stale/incompatible index detection
+- `requirements.txt`
+  - `sentence-transformers` runtime dependency
+- `tests/conftest.py`
+  - explicit `hash_test` selection
+- `tests/test_rag_embeddings.py`
+  - provider/config/no-fallback tests
+- `.env.firebat.example`
+  - semantic provider/model config
+- `compose.firebat.yml`
+  - provider/model runtime propagation
+- `.github/workflows/firebat-container.yml`
+  - explicit CI `hash_test` selection
+
+Master updated after merge; no separate Markdown artifact created.
+
+### Executed
+Actual GitHub validation on PR #7:
+
+**PR Validation — PASS**
+- dependency install
+- pytest suite
+- unittest discovery
+- compileall
+- whitespace/diff check
+
+**Firebat Container — PASS**
+- image build
+- container startup
+- health/docs/version
+- RAG retrieval smoke
+- local-LLM unavailable fallback
+- run creation
+- container recreation
+- persisted run retrieval
+
+PR #7 squash-merged to `main` as `44d9f2965aea0836081e043a1c7e6888f389feb9`.
+
+### Not Verified
+- BGE-M3 actual model download/load not executed.
+- BGE-M3 actual embedding inference not executed.
+- semantic Chroma index rebuild not executed.
+- Korean semantic query not executed.
+- English semantic query not executed.
+- semantic model memory/latency/container fit not measured.
+- local LLM positive inference path not re-verified.
+
+### Remaining Risks
+- configured default model may have runtime/download/resource constraints not yet measured.
+- semantic retrieval quality remains unproven.
+- CI/container PASS used explicit `hash_test`; it is regression evidence, not semantic quality evidence.
+- later Proof phases remain open: controlled execution, UI, audit, evaluation, packaging.
+
+### Decision
+P1-A's purpose was to create a safe, explicit semantic provider boundary without silently preserving the test hash path. That contract is implemented and regression-validated. Real semantic execution remains P1-B and is not claimed complete.
+
+### Next Action
+**Phase 1 / P1-B — load the semantic provider, rebuild the index, execute Korean + English retrieval smoke cases, and record runtime constraints.**
 
 ---
 

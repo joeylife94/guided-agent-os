@@ -56,7 +56,32 @@ def _final_state() -> dict:
         "action_drafts": [],
         "rag_answer": {
             "answer": "Use the controlled legacy lookup path.",
-            "citations": [{"source": "tools/legacy-db-access-guideline.md"}],
+            "citations": [
+                {
+                    "source_path": "tools/legacy-db-access-guideline.md",
+                    "collection": "tool_catalog",
+                }
+            ],
+            "retrieved_context": {
+                "domain_knowledge": [],
+                "agent_policy": [],
+                "tool_catalog": [
+                    {
+                        "content": "Use approved read-only access only.",
+                        "metadata": {
+                            "source_path": "tools/legacy-db-access-guideline.md",
+                        },
+                        "score": 0.91,
+                    },
+                    {
+                        "content": "Human approval is required.",
+                        "metadata": {
+                            "source_path": "tools/approved-tools.md",
+                        },
+                        "score": 0.88,
+                    },
+                ],
+            },
         },
         "tool_plan": {
             "requires_tool_or_api": True,
@@ -99,15 +124,27 @@ def test_full_controlled_run_events_persist_and_reload_in_sequence(monkeypatch) 
 
     before_approval = client.get(f"/api/agents/runs/{run_id}/events")
     assert before_approval.status_code == 200
-    before_types = [event["event_type"] for event in before_approval.json()]
+    before_events = before_approval.json()
+    before_types = [event["event_type"] for event in before_events]
     assert before_types == [
         "REQUEST_RECEIVED",
         "VALIDATION_PASSED",
         "NORMALIZED",
+        "RAG_RETRIEVED",
         "ANSWER_GENERATED",
         "TOOL_PLANNED",
         "APPROVAL_REQUESTED",
     ]
+    retrieval_event = before_events[3]
+    assert retrieval_event["payload"] == {
+        "collection_counts": {
+            "domain_knowledge": 0,
+            "agent_policy": 0,
+            "tool_catalog": 2,
+        },
+        "retrieved_chunks": 2,
+        "citation_count": 1,
+    }
 
     approve_response = client.post(
         f"/api/agents/runs/{run_id}/approve",
@@ -124,6 +161,7 @@ def test_full_controlled_run_events_persist_and_reload_in_sequence(monkeypatch) 
         "REQUEST_RECEIVED",
         "VALIDATION_PASSED",
         "NORMALIZED",
+        "RAG_RETRIEVED",
         "ANSWER_GENERATED",
         "TOOL_PLANNED",
         "APPROVAL_REQUESTED",
@@ -132,9 +170,9 @@ def test_full_controlled_run_events_persist_and_reload_in_sequence(monkeypatch) 
         "COMPLETED",
     ]
     assert events[0]["actor"] == "user"
-    assert events[6]["actor"] == "human"
-    assert events[7]["payload"]["tool_name"] == "legacy_db_lookup"
-    assert events[7]["payload"]["read_only"] is True
+    assert events[7]["actor"] == "human"
+    assert events[8]["payload"]["tool_name"] == "legacy_db_lookup"
+    assert events[8]["payload"]["read_only"] is True
     assert events[-1]["payload"]["status"] == "archived"
     assert all(event["created_at"] for event in events)
 

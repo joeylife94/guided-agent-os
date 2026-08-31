@@ -65,6 +65,9 @@ def test_workspace_surfaces_interrupted_decision_quarantine_without_new_executio
     response = client.get("/")
     html = response.text
 
+    assert 'id="load-run-id"' in html
+    assert 'id="load-run-button"' in html
+    assert "/api/agents/runs/${runId}`" in html
     assert 'id="recovery-panel"' in html
     assert 'id="recover-decision-button"' in html
     assert "approval_executing" in html

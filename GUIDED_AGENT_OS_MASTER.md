@@ -31,7 +31,9 @@
 | Scope Status | **FROZEN** |
 | Overall Status | **GUIDED AGENT OS PROOF v1.0 CLOSED** |
 | Progression Mode | **ENABLED — bounded post-v1.0 milestones only** |
-| Latest bounded milestone | **v1.1 / Issue #17 replay-safe approval — CLOSED** |
+| Latest accepted milestone | **P-001 / Issue #17 replay-safe approval — CLOSED** |
+| Active milestone | **P-002 / Issue #19 concurrent approval guard — OPEN** |
+| Active branch | `proof-v1.1/19-concurrent-approval-guard` |
 | Latest progression merge | `fc5f237f78a41ae4c099599445df99ea6d56f1b3` |
 | Latest verified app/eval merge | `8498183f584332887a38ae5e925e6b810177e99b` |
 | P6-A documentation baseline | `cb0cf3b4109531a8f01c612511b11434464621f9` |
@@ -694,9 +696,63 @@ Executable tests verify:
 - decision state is still represented through the current run/raw-output persistence design rather than a dedicated immutable approval-decision table.
 - concurrent racing requests across a future horizontally scaled deployment may require transactional locking or a unique finalization constraint; that is not implied by this milestone.
 
+## Milestone P-002 — Concurrent approval finalization guard
+
+**Status: OPEN — SELECTED / NOT IMPLEMENTED**
+
+### Gate / Value
+
+Current `approve_run` checks `pending_approval`, executes the tool, and only afterward persists final status. Concurrent requests can therefore observe the same pending state before either transaction commits. P-002 is bounded to preventing double execution and contradictory terminal evidence at this persistence boundary.
+
+### Lifecycle
+
+- Issue: `#19 — v1.1: Prevent concurrent approval double-execution` — **OPEN**
+- Branch: `proof-v1.1/19-concurrent-approval-guard`
+- Branch base: `8908644acf1a5a8017e0cf426e2a8fdcac928afc`
+- PR: **NOT CREATED YET**
+
+### Acceptance Contract
+
+- two concurrent approvals produce at most one tool execution.
+- terminal audit cardinality remains at most one `APPROVED`, at most one `TOOL_EXECUTED`, and one final `COMPLETED` path.
+- losing concurrent requests cannot execute the tool.
+- concurrent approve/reject cannot persist both terminal decisions or execute after rejection wins.
+- P-001 sequential replay semantics remain green.
+- existing controlled-tool/audit/browser/container/evaluation regression remains green.
+
+### Changed This Review
+
+- created Issue #19 with the bounded executable acceptance contract.
+- created linked branch `proof-v1.1/19-concurrent-approval-guard` from current reconciled `main`.
+- updated this Master only on `main` to register P-002; no P-002 application implementation has been claimed.
+
+### Actually Executed This Review
+
+- re-read current Master on `main`.
+- confirmed no active PR/Issue existed after P-001 closure.
+- inspected current `approve_run` / `reject_run` implementation and identified tool execution occurring before final persistence commit.
+- created Issue #19 and linked branch.
+
+### Verified
+
+- P-002 has concrete use/delivery value and remains inside priority #1: human-approved execution correctness.
+- scope requires no new tool, broad write permission, autonomous execution, or speculative agent capability.
+
+### Not Verified
+
+- no concurrent race test has been executed yet.
+- no P-002 application code has been changed yet.
+- no P-002 PR/CI evidence exists yet.
+- the suspected race is code-path reasoning until a deterministic concurrent test reproduces or falsifies it.
+
+### Limitations / Remaining Risks
+
+- the smallest correct persistence strategy still needs to be selected from repository-compatible mechanisms; in-process locking alone is not preferred because it would not protect multiple workers.
+- external arbitrary side-effecting tool exactly-once semantics remain outside this milestone.
+
 ### Exact Next Action
 
-Perform the next **Progression Review** on current `main`. If no active relevant PR/Issue exists, select exactly one bounded milestone only if it has concrete use/show/delivery value and executable acceptance criteria. Prefer the next gap in human-approved execution correctness or audit/replay evidence. If no such milestone is justified without a product/security decision, remain enabled in HOLD/no-mutation mode.
+On branch `proof-v1.1/19-concurrent-approval-guard`, add the smallest deterministic concurrent approval/approve-vs-reject tests first. Treat the result as evidence: if RED reproduces the race, implement the minimum persistence-backed atomic claim/finalization guard; if the race is not reproducible, document the actual database behavior instead of inventing a fix. Keep all same-gap fixes inside Issue #19 / one PR.
 
 ## Progression Evidence Registry
 
@@ -709,3 +765,6 @@ Perform the next **Progression Review** on current `main`. If no active relevant
 | PE-005 | P-001 | Proof Evaluation run `33387062520` #3 | PASS |
 | PE-006 | P-001 | squash merge `fc5f237f78a41ae4c099599445df99ea6d56f1b3` | PRESENT |
 | PE-007 | P-001 | Issue #17 closed / completed after merge | PASS |
+| PE-101 | P-002 | code inspection: approval executes tool before final `_commit_and_refresh` | PRESENT — RISK IDENTIFIED |
+| PE-102 | P-002 | Issue #19 bounded acceptance contract | PRESENT |
+| PE-103 | P-002 | linked branch `proof-v1.1/19-concurrent-approval-guard` from `8908644...` | PRESENT |

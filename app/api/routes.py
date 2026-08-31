@@ -166,6 +166,36 @@ def _planned_tool_for_execution(run: AgentRun) -> str | None:
     return tool_name.strip()
 
 
+def _claim_pending_decision(
+    db: Session,
+    run_id: str,
+    claimed_status: str,
+) -> tuple[AgentRun, bool]:
+    """Atomically claim a pending human decision before crossing execution boundaries."""
+    claimed = (
+        db.query(AgentRun)
+        .filter(AgentRun.id == run_id, AgentRun.status == "pending_approval")
+        .update({AgentRun.status: claimed_status}, synchronize_session=False)
+    )
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    db.expire_all()
+    run = db.get(AgentRun, run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found.")
+    return run, claimed == 1
+
+
+def _decision_in_progress(run_id: str) -> HTTPException:
+    return HTTPException(
+        status_code=409,
+        detail=f"Run '{run_id}' already has a human decision in progress.",
+    )
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
@@ -313,6 +343,8 @@ def approve_run(
                 status_code=409,
                 detail=f"Run '{run_id}' was already rejected and cannot be approved.",
             )
+        if run.status in {"approval_executing", "rejection_processing"}:
+            raise _decision_in_progress(run_id)
         raise HTTPException(
             status_code=422,
             detail=(
@@ -320,6 +352,19 @@ def approve_run(
                 f"'{run.status}'. Only 'pending_approval' runs can be approved."
             ),
         )
+
+    run, claimed = _claim_pending_decision(db, run_id, "approval_executing")
+    if not claimed:
+        raw_output = dict(run.raw_llm_output or {})
+        review_status = raw_output.get("review_status")
+        if review_status == "approved":
+            return _run_to_response(run)
+        if review_status == "rejected":
+            raise HTTPException(
+                status_code=409,
+                detail=f"Run '{run_id}' was already rejected and cannot be approved.",
+            )
+        raise _decision_in_progress(run_id)
 
     try:
         tool_name = _planned_tool_for_execution(run)
@@ -332,8 +377,15 @@ def approve_run(
                 allowed_tools=(run.intake_data or {}).get("allowed_tools", []),
             )
     except ToolExecutionError as exc:
+        run.status = "pending_approval"
+        _commit_and_refresh(db, run)
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception:
+        run.status = "pending_approval"
+        _commit_and_refresh(db, run)
+        raise
 
+    raw_output = dict(run.raw_llm_output or {})
     if body.note:
         run.reviewer_note = body.note
     for draft in run.action_drafts:
@@ -381,6 +433,8 @@ def reject_run(
                 status_code=409,
                 detail=f"Run '{run_id}' was already approved and cannot be rejected.",
             )
+        if run.status in {"approval_executing", "rejection_processing"}:
+            raise _decision_in_progress(run_id)
         raise HTTPException(
             status_code=422,
             detail=(
@@ -389,6 +443,20 @@ def reject_run(
             ),
         )
 
+    run, claimed = _claim_pending_decision(db, run_id, "rejection_processing")
+    if not claimed:
+        raw_output = dict(run.raw_llm_output or {})
+        review_status = raw_output.get("review_status")
+        if review_status == "rejected":
+            return _run_to_response(run)
+        if review_status == "approved":
+            raise HTTPException(
+                status_code=409,
+                detail=f"Run '{run_id}' was already approved and cannot be rejected.",
+            )
+        raise _decision_in_progress(run_id)
+
+    raw_output = dict(run.raw_llm_output or {})
     run.status = "rejected"
     run.reviewer_note = body.reason
     for draft in run.action_drafts:

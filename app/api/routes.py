@@ -25,11 +25,6 @@ from app.templates import controlled_rag_agent, freelance, public_enterprise_ai
 
 router = APIRouter(prefix="/api/agents", tags=["agents"])
 
-# ---------------------------------------------------------------------------
-# Agent template registry
-# ---------------------------------------------------------------------------
-# Add new agent types here by importing their template module.
-
 _TEMPLATE_REGISTRY = {
     freelance.AGENT_TYPE: freelance,
     public_enterprise_ai.AGENT_TYPE: public_enterprise_ai,
@@ -38,31 +33,21 @@ _TEMPLATE_REGISTRY = {
 
 
 def _get_template_config(agent_type: str) -> dict[str, Any]:
-    """Return the config dict for a given agent_type, or raise 404."""
     template = _TEMPLATE_REGISTRY.get(agent_type)
     if template:
         return {
             "required_fields": template.REQUIRED_FIELDS,
             "optional_fields": template.OPTIONAL_FIELDS,
             "clarification_map": template.CLARIFICATION_MAP,
-            "analysis_prompt_template": getattr(
-                template,
-                "ANALYSIS_PROMPT_TEMPLATE",
-                "",
-            ),
+            "analysis_prompt_template": getattr(template, "ANALYSIS_PROMPT_TEMPLATE", ""),
             "draft_action_templates": getattr(template, "DRAFT_ACTION_TEMPLATES", []),
         }
     supported_types = ", ".join(sorted(_TEMPLATE_REGISTRY))
     raise HTTPException(
         status_code=404,
-        detail=f"Agent type '{agent_type}' is not registered. "
-        f"Supported types: {supported_types}",
+        detail=f"Agent type '{agent_type}' is not registered. Supported types: {supported_types}",
     )
 
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 def _run_to_response(run: AgentRun) -> AgentRunResponse:
     raw_output = run.raw_llm_output or {}
@@ -70,11 +55,7 @@ def _run_to_response(run: AgentRun) -> AgentRunResponse:
         ClarificationQuestion(**q) for q in (run.clarification_questions or [])
     ]
     action_drafts = [
-        ActionDraft(
-            action_type=d.action_type,
-            title=d.title,
-            content=d.content,
-        )
+        ActionDraft(action_type=d.action_type, title=d.title, content=d.content)
         for d in run.action_drafts
     ]
     return AgentRunResponse(
@@ -140,7 +121,6 @@ def _audit_event_to_response(event: RunAuditEvent) -> dict[str, Any]:
 
 
 def _run_evidence_bundle(run: AgentRun) -> dict[str, Any]:
-    """Compose deterministic read-only evidence from persisted run state and events."""
     evidence = jsonable_encoder(
         {
             "run": _run_to_response(run),
@@ -156,14 +136,10 @@ def _run_evidence_bundle(run: AgentRun) -> dict[str, Any]:
         sort_keys=True,
         separators=(",", ":"),
     ).encode("utf-8")
-    return {
-        **evidence,
-        "evidence_digest": hashlib.sha256(canonical).hexdigest(),
-    }
+    return {**evidence, "evidence_digest": hashlib.sha256(canonical).hexdigest()}
 
 
 def _retrieval_audit_payload(rag_answer: dict[str, Any]) -> dict[str, Any]:
-    """Summarize persisted RAG retrieval output without executing retrieval again."""
     retrieved_context = rag_answer.get("retrieved_context") or {}
     collection_counts = {
         str(collection): len(results) if isinstance(results, list) else 0
@@ -197,7 +173,6 @@ def _claim_pending_decision(
     run_id: str,
     claimed_status: str,
 ) -> tuple[AgentRun, bool]:
-    """Atomically claim a pending human decision before crossing execution boundaries."""
     claimed = (
         db.query(AgentRun)
         .filter(AgentRun.id == run_id, AgentRun.status == "pending_approval")
@@ -222,19 +197,13 @@ def _decision_in_progress(run_id: str) -> HTTPException:
     )
 
 
-# ---------------------------------------------------------------------------
-# Endpoints
-# ---------------------------------------------------------------------------
-
 @router.post("/{agent_type}/runs", response_model=AgentRunResponse, status_code=201)
 def create_run(
     agent_type: str,
     body: dict[str, Any],
     db: Session = Depends(get_db),
 ) -> AgentRunResponse:
-    """Start a new agent run for the specified agent type."""
     template_config = _get_template_config(agent_type)
-
     run = AgentRun(
         id=str(uuid.uuid4()),
         agent_type=agent_type,
@@ -242,13 +211,7 @@ def create_run(
         intake_data=body,
     )
     db.add(run)
-    _append_audit_event(
-        run,
-        "REQUEST_RECEIVED",
-        actor="user",
-        payload={"agent_type": agent_type},
-    )
-
+    _append_audit_event(run, "REQUEST_RECEIVED", actor="user", payload={"agent_type": agent_type})
     initial_state: dict[str, Any] = {
         "run_id": run.id,
         "agent_type": agent_type,
@@ -259,7 +222,6 @@ def create_run(
         "action_drafts": [],
         "status": "pending",
     }
-
     try:
         final_state: dict[str, Any] = workflow.invoke(initial_state)
     except Exception as exc:
@@ -277,11 +239,7 @@ def create_run(
     run.score = final_state.get("score")
 
     if run.status == "needs_clarification":
-        _append_audit_event(
-            run,
-            "CLARIFICATION_REQUIRED",
-            payload={"missing_fields": run.missing_fields},
-        )
+        _append_audit_event(run, "CLARIFICATION_REQUIRED", payload={"missing_fields": run.missing_fields})
     else:
         _append_audit_event(run, "VALIDATION_PASSED")
         if run.normalized_data is not None:
@@ -292,19 +250,12 @@ def create_run(
         run.raw_llm_output = {
             "rag_answer": rag_answer,
             "tool_plan": final_state.get("tool_plan"),
-            "human_review_required": final_state.get(
-                "human_review_required",
-                False,
-            ),
+            "human_review_required": final_state.get("human_review_required", False),
             "review_status": final_state.get("review_status"),
             "final_status": final_state.get("final_status"),
         }
         if rag_answer is not None:
-            _append_audit_event(
-                run,
-                "RAG_RETRIEVED",
-                payload=_retrieval_audit_payload(rag_answer),
-            )
+            _append_audit_event(run, "RAG_RETRIEVED", payload=_retrieval_audit_payload(rag_answer))
             _append_audit_event(run, "ANSWER_GENERATED")
         if final_state.get("tool_plan") is not None:
             _append_audit_event(run, "TOOL_PLANNED")
@@ -333,7 +284,6 @@ def create_run(
 
 @router.get("/runs/{run_id}", response_model=AgentRunResponse)
 def get_run(run_id: str, db: Session = Depends(get_db)) -> AgentRunResponse:
-    """Retrieve the current state of an agent run by its ID."""
     run = db.get(AgentRun, run_id)
     if not run:
         raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found.")
@@ -342,7 +292,6 @@ def get_run(run_id: str, db: Session = Depends(get_db)) -> AgentRunResponse:
 
 @router.get("/runs/{run_id}/events")
 def get_run_events(run_id: str, db: Session = Depends(get_db)) -> list[dict[str, Any]]:
-    """Return persisted lifecycle events in deterministic run sequence order."""
     run = db.get(AgentRun, run_id)
     if not run:
         raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found.")
@@ -351,11 +300,40 @@ def get_run_events(run_id: str, db: Session = Depends(get_db)) -> list[dict[str,
 
 @router.get("/runs/{run_id}/evidence")
 def get_run_evidence(run_id: str, db: Session = Depends(get_db)) -> dict[str, Any]:
-    """Return a deterministic, read-only evidence bundle for one persisted run."""
     run = db.get(AgentRun, run_id)
     if not run:
         raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found.")
     return _run_evidence_bundle(run)
+
+
+@router.post("/runs/{run_id}/recover-decision", response_model=AgentRunResponse)
+def recover_interrupted_decision(
+    run_id: str,
+    db: Session = Depends(get_db),
+) -> AgentRunResponse:
+    run = db.get(AgentRun, run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found.")
+    if run.status == "decision_recovery_required":
+        return _run_to_response(run)
+    if run.status not in {"approval_executing", "rejection_processing"}:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Run '{run_id}' cannot be quarantined because its status is "
+                f"'{run.status}'."
+            ),
+        )
+    prior_status = run.status
+    run.status = "decision_recovery_required"
+    _append_audit_event(
+        run,
+        "DECISION_RECOVERY_REQUIRED",
+        actor="operator",
+        payload={"prior_status": prior_status},
+    )
+    _commit_and_refresh(db, run)
+    return _run_to_response(run)
 
 
 @router.post("/runs/{run_id}/approve", response_model=AgentRunResponse)
@@ -364,7 +342,6 @@ def approve_run(
     body: ApproveRequest,
     db: Session = Depends(get_db),
 ) -> AgentRunResponse:
-    """Approve a pending run and execute its single controlled read-only tool."""
     run = db.get(AgentRun, run_id)
     if not run:
         raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found.")
@@ -374,18 +351,12 @@ def approve_run(
         if review_status == "approved":
             return _run_to_response(run)
         if review_status == "rejected":
-            raise HTTPException(
-                status_code=409,
-                detail=f"Run '{run_id}' was already rejected and cannot be approved.",
-            )
+            raise HTTPException(status_code=409, detail=f"Run '{run_id}' was already rejected and cannot be approved.")
         if run.status in {"approval_executing", "rejection_processing"}:
             raise _decision_in_progress(run_id)
         raise HTTPException(
             status_code=422,
-            detail=(
-                f"Run '{run_id}' cannot be approved because its status is "
-                f"'{run.status}'. Only 'pending_approval' runs can be approved."
-            ),
+            detail=f"Run '{run_id}' cannot be approved because its status is '{run.status}'. Only 'pending_approval' runs can be approved.",
         )
 
     run, claimed = _claim_pending_decision(db, run_id, "approval_executing")
@@ -395,10 +366,7 @@ def approve_run(
         if review_status == "approved":
             return _run_to_response(run)
         if review_status == "rejected":
-            raise HTTPException(
-                status_code=409,
-                detail=f"Run '{run_id}' was already rejected and cannot be approved.",
-            )
+            raise HTTPException(status_code=409, detail=f"Run '{run_id}' was already rejected and cannot be approved.")
         raise _decision_in_progress(run_id)
 
     try:
@@ -425,7 +393,6 @@ def approve_run(
         run.reviewer_note = body.note
     for draft in run.action_drafts:
         draft.is_approved = True
-
     _append_audit_event(run, "APPROVED", actor="human", payload={"note": body.note or ""})
     raw_output["review_status"] = "approved"
     raw_output["final_status"] = "archived"
@@ -443,7 +410,6 @@ def approve_run(
     run.raw_llm_output = raw_output
     run.status = "archived"
     _append_audit_event(run, "COMPLETED", payload={"status": run.status})
-
     _commit_and_refresh(db, run)
     return _run_to_response(run)
 
@@ -454,7 +420,6 @@ def reject_run(
     body: RejectRequest,
     db: Session = Depends(get_db),
 ) -> AgentRunResponse:
-    """Reject a pending run without executing any tool."""
     run = db.get(AgentRun, run_id)
     if not run:
         raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found.")
@@ -464,18 +429,12 @@ def reject_run(
         if review_status == "rejected":
             return _run_to_response(run)
         if review_status == "approved":
-            raise HTTPException(
-                status_code=409,
-                detail=f"Run '{run_id}' was already approved and cannot be rejected.",
-            )
+            raise HTTPException(status_code=409, detail=f"Run '{run_id}' was already approved and cannot be rejected.")
         if run.status in {"approval_executing", "rejection_processing"}:
             raise _decision_in_progress(run_id)
         raise HTTPException(
             status_code=422,
-            detail=(
-                f"Run '{run_id}' cannot be rejected because its status is "
-                f"'{run.status}'. Only 'pending_approval' runs can be rejected."
-            ),
+            detail=f"Run '{run_id}' cannot be rejected because its status is '{run.status}'. Only 'pending_approval' runs can be rejected.",
         )
 
     run, claimed = _claim_pending_decision(db, run_id, "rejection_processing")
@@ -485,10 +444,7 @@ def reject_run(
         if review_status == "rejected":
             return _run_to_response(run)
         if review_status == "approved":
-            raise HTTPException(
-                status_code=409,
-                detail=f"Run '{run_id}' was already approved and cannot be rejected.",
-            )
+            raise HTTPException(status_code=409, detail=f"Run '{run_id}' was already approved and cannot be rejected.")
         raise _decision_in_progress(run_id)
 
     raw_output = dict(run.raw_llm_output or {})
@@ -496,13 +452,11 @@ def reject_run(
     run.reviewer_note = body.reason
     for draft in run.action_drafts:
         draft.is_approved = False
-
     raw_output["review_status"] = "rejected"
     raw_output["final_status"] = "rejected"
     raw_output.pop("execution_result", None)
     run.raw_llm_output = raw_output
     _append_audit_event(run, "REJECTED", actor="human", payload={"reason": body.reason})
     _append_audit_event(run, "COMPLETED", payload={"status": run.status})
-
     _commit_and_refresh(db, run)
     return _run_to_response(run)

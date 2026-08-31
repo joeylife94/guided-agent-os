@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import uuid
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
 from app.agents.workflow import workflow
@@ -133,6 +136,29 @@ def _audit_event_to_response(event: RunAuditEvent) -> dict[str, Any]:
         "actor": event.actor,
         "payload": event.payload or {},
         "created_at": event.created_at,
+    }
+
+
+def _run_evidence_bundle(run: AgentRun) -> dict[str, Any]:
+    """Compose deterministic read-only evidence from persisted run state and events."""
+    evidence = jsonable_encoder(
+        {
+            "run": _run_to_response(run),
+            "events": [
+                _audit_event_to_response(event)
+                for event in sorted(run.audit_events, key=lambda item: item.sequence)
+            ],
+        }
+    )
+    canonical = json.dumps(
+        evidence,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return {
+        **evidence,
+        "evidence_digest": hashlib.sha256(canonical).hexdigest(),
     }
 
 
@@ -321,6 +347,15 @@ def get_run_events(run_id: str, db: Session = Depends(get_db)) -> list[dict[str,
     if not run:
         raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found.")
     return [_audit_event_to_response(event) for event in run.audit_events]
+
+
+@router.get("/runs/{run_id}/evidence")
+def get_run_evidence(run_id: str, db: Session = Depends(get_db)) -> dict[str, Any]:
+    """Return a deterministic, read-only evidence bundle for one persisted run."""
+    run = db.get(AgentRun, run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found.")
+    return _run_evidence_bundle(run)
 
 
 @router.post("/runs/{run_id}/approve", response_model=AgentRunResponse)

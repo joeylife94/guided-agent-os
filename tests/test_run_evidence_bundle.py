@@ -161,6 +161,6 @@ def test_evidence_digest_changes_after_approved_lifecycle_mutation() -> None:
 
     assert after_body["evidence_digest"] != before_body["evidence_digest"]
     assert after_body["run"]["status"] == "archived"
-    assert after_body["run"]["raw_output"]["execution_result"]["status"] == "ok"
+    assert after_body["run"]["raw_output"]["execution_result"]["status"] == "executed"
     event_types = [event["event_type"] for event in after_body["events"]]
     assert event_types[-3:] == ["APPROVED", "TOOL_EXECUTED", "COMPLETED"]

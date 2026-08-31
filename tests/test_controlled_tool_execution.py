@@ -98,6 +98,12 @@ def _seed_pending_run(
         db.close()
 
 
+def _event_types(run_id: str) -> list[str]:
+    response = client.get(f"/api/agents/runs/{run_id}/events")
+    assert response.status_code == 200
+    return [event["event_type"] for event in response.json()]
+
+
 def setup_function() -> None:
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
@@ -166,6 +172,98 @@ def test_reject_blocks_execution_and_persists_rejection() -> None:
     persisted = client.get(f"/api/agents/runs/{run_id}").json()
     assert persisted["status"] == "rejected"
     assert "execution_result" not in persisted["raw_output"]
+
+
+def test_duplicate_approval_is_idempotent_and_does_not_repeat_terminal_events() -> None:
+    run_id = _seed_pending_run()
+    first = client.post(
+        f"/api/agents/runs/{run_id}/approve",
+        json={"note": "Approved once"},
+    )
+    assert first.status_code == 200
+    first_execution = first.json()["raw_output"]["execution_result"]
+
+    replay = client.post(
+        f"/api/agents/runs/{run_id}/approve",
+        json={"note": "Retry of the same decision"},
+    )
+    assert replay.status_code == 200
+    assert replay.json()["status"] == "archived"
+    assert replay.json()["review_status"] == "approved"
+    assert replay.json()["raw_output"]["execution_result"] == first_execution
+
+    events = _event_types(run_id)
+    assert events.count("APPROVED") == 1
+    assert events.count("TOOL_EXECUTED") == 1
+    assert events.count("COMPLETED") == 1
+
+
+def test_duplicate_rejection_is_idempotent_and_does_not_repeat_terminal_events() -> None:
+    run_id = _seed_pending_run()
+    first = client.post(
+        f"/api/agents/runs/{run_id}/reject",
+        json={"reason": "Reject once"},
+    )
+    assert first.status_code == 200
+
+    replay = client.post(
+        f"/api/agents/runs/{run_id}/reject",
+        json={"reason": "Retry of the same decision"},
+    )
+    assert replay.status_code == 200
+    assert replay.json()["status"] == "rejected"
+    assert replay.json()["review_status"] == "rejected"
+    assert "execution_result" not in replay.json()["raw_output"]
+
+    events = _event_types(run_id)
+    assert events.count("REJECTED") == 1
+    assert events.count("TOOL_EXECUTED") == 0
+    assert events.count("COMPLETED") == 1
+
+
+def test_reject_after_approval_is_conflict_and_preserves_approved_result() -> None:
+    run_id = _seed_pending_run()
+    approved = client.post(f"/api/agents/runs/{run_id}/approve", json={})
+    assert approved.status_code == 200
+    execution = approved.json()["raw_output"]["execution_result"]
+
+    conflict = client.post(
+        f"/api/agents/runs/{run_id}/reject",
+        json={"reason": "Conflicting later decision"},
+    )
+    assert conflict.status_code == 409
+
+    persisted = client.get(f"/api/agents/runs/{run_id}").json()
+    assert persisted["status"] == "archived"
+    assert persisted["review_status"] == "approved"
+    assert persisted["raw_output"]["execution_result"] == execution
+    events = _event_types(run_id)
+    assert events.count("APPROVED") == 1
+    assert events.count("REJECTED") == 0
+    assert events.count("TOOL_EXECUTED") == 1
+    assert events.count("COMPLETED") == 1
+
+
+def test_approve_after_rejection_is_conflict_and_never_executes_tool() -> None:
+    run_id = _seed_pending_run()
+    rejected = client.post(
+        f"/api/agents/runs/{run_id}/reject",
+        json={"reason": "Reject first"},
+    )
+    assert rejected.status_code == 200
+
+    conflict = client.post(f"/api/agents/runs/{run_id}/approve", json={})
+    assert conflict.status_code == 409
+
+    persisted = client.get(f"/api/agents/runs/{run_id}").json()
+    assert persisted["status"] == "rejected"
+    assert persisted["review_status"] == "rejected"
+    assert "execution_result" not in persisted["raw_output"]
+    events = _event_types(run_id)
+    assert events.count("APPROVED") == 0
+    assert events.count("REJECTED") == 1
+    assert events.count("TOOL_EXECUTED") == 0
+    assert events.count("COMPLETED") == 1
 
 
 def test_unregistered_planned_tool_is_blocked() -> None:

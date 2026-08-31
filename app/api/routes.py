@@ -303,7 +303,16 @@ def approve_run(
     run = db.get(AgentRun, run_id)
     if not run:
         raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found.")
+    raw_output = dict(run.raw_llm_output or {})
+    review_status = raw_output.get("review_status")
     if run.status != "pending_approval":
+        if review_status == "approved":
+            return _run_to_response(run)
+        if review_status == "rejected":
+            raise HTTPException(
+                status_code=409,
+                detail=f"Run '{run_id}' was already rejected and cannot be approved.",
+            )
         raise HTTPException(
             status_code=422,
             detail=(
@@ -312,7 +321,6 @@ def approve_run(
             ),
         )
 
-    raw_output = dict(run.raw_llm_output or {})
     try:
         tool_name = _planned_tool_for_execution(run)
         execution_result = None
@@ -363,7 +371,16 @@ def reject_run(
     run = db.get(AgentRun, run_id)
     if not run:
         raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found.")
+    raw_output = dict(run.raw_llm_output or {})
+    review_status = raw_output.get("review_status")
     if run.status != "pending_approval":
+        if review_status == "rejected":
+            return _run_to_response(run)
+        if review_status == "approved":
+            raise HTTPException(
+                status_code=409,
+                detail=f"Run '{run_id}' was already approved and cannot be rejected.",
+            )
         raise HTTPException(
             status_code=422,
             detail=(
@@ -377,7 +394,6 @@ def reject_run(
     for draft in run.action_drafts:
         draft.is_approved = False
 
-    raw_output = dict(run.raw_llm_output or {})
     raw_output["review_status"] = "rejected"
     raw_output["final_status"] = "rejected"
     raw_output.pop("execution_result", None)

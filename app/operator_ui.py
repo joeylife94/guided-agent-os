@@ -77,6 +77,16 @@ _OPERATOR_HTML = r'''<!doctype html>
       </div>
       <div class="actions"><button id="run-button" class="primary" type="submit">Run controlled agent</button></div>
     </form>
+
+    <h3>Load persisted run</h3>
+    <div class="muted">Use an existing run ID after a browser/server interruption to inspect persisted state before taking any recovery action.</div>
+    <div class="grid">
+      <div>
+        <label for="load-run-id">Run ID</label>
+        <input id="load-run-id" placeholder="Existing run ID" />
+      </div>
+    </div>
+    <div class="actions"><button id="load-run-button" class="primary" type="button">Load persisted run</button></div>
     <p id="request-error" class="error hidden" role="alert"></p>
   </section>
 
@@ -131,6 +141,8 @@ _OPERATOR_HTML = r'''<!doctype html>
   const requestError = document.getElementById('request-error');
   const approveButton = document.getElementById('approve-button');
   const rejectButton = document.getElementById('reject-button');
+  const loadRunIdInput = document.getElementById('load-run-id');
+  const loadRunButton = document.getElementById('load-run-button');
   const recoveryPanel = document.getElementById('recovery-panel');
   const recoveryMessage = document.getElementById('recovery-message');
   const recoverDecisionButton = document.getElementById('recover-decision-button');
@@ -237,6 +249,7 @@ _OPERATOR_HTML = r'''<!doctype html>
 
   function renderRun(run) {
     currentRunId = run.run_id;
+    loadRunIdInput.value = run.run_id || '';
     panel.classList.remove('hidden');
     document.getElementById('run-status').textContent = run.status || 'unknown';
     document.getElementById('run-id').textContent = run.run_id || 'no run id';
@@ -278,6 +291,22 @@ _OPERATOR_HTML = r'''<!doctype html>
     refreshAuditTimeline(run.run_id);
   }
 
+  async function loadPersistedRun() {
+    const runId = loadRunIdInput.value.trim();
+    if (!runId) return;
+    loadRunButton.disabled = true;
+    requestError.classList.add('hidden');
+    try {
+      const run = await api(`/api/agents/runs/${runId}`);
+      renderRun(run);
+    } catch (error) {
+      requestError.textContent = error.message;
+      requestError.classList.remove('hidden');
+    } finally {
+      loadRunButton.disabled = false;
+    }
+  }
+
   async function recoverInterruptedDecision() {
     if (!currentRunId) return;
     recoverDecisionButton.disabled = true;
@@ -306,6 +335,12 @@ _OPERATOR_HTML = r'''<!doctype html>
     } catch (error) {
       requestError.textContent = error.message;
       requestError.classList.remove('hidden');
+      try {
+        const persisted = await api(`/api/agents/runs/${currentRunId}`);
+        renderRun(persisted);
+      } catch (_) {
+        // Keep the original decision error visible; persisted run can be loaded explicitly after restart.
+      }
     } finally {
       if (!panel.classList.contains('hidden') && document.getElementById('run-status').textContent === 'pending_approval') {
         approveButton.disabled = false;
@@ -341,6 +376,7 @@ _OPERATOR_HTML = r'''<!doctype html>
 
   approveButton.addEventListener('click', () => submitDecision('approve'));
   rejectButton.addEventListener('click', () => submitDecision('reject'));
+  loadRunButton.addEventListener('click', loadPersistedRun);
   recoverDecisionButton.addEventListener('click', recoverInterruptedDecision);
 })();
 </script>

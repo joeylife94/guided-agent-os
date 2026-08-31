@@ -5,6 +5,8 @@
 >
 > 이 문서만 Guided Agent OS Proof v1.0의 현재 상태, 범위, 검증 증거, 리스크, closure 판단의 authoritative source로 사용한다.
 > 구현 Agent/LLM의 self-check는 self-report일 뿐이며, 실제 실행/검증 Evidence가 확인된 경우에만 완료 처리한다.
+>
+> Proof v1.0의 CLOSED/FROZEN baseline은 그대로 보존한다. 이후 Scheduled Progression은 별도의 bounded milestone로만 진행하며, 각 milestone은 이 문서의 **Progression Registry**에 실제 executable evidence와 함께 기록한다.
 
 ---
 
@@ -28,6 +30,9 @@
 | Final Product Goal | **Deployable Controlled AI Agent Proof** |
 | Scope Status | **FROZEN** |
 | Overall Status | **GUIDED AGENT OS PROOF v1.0 CLOSED** |
+| Progression Mode | **ENABLED — bounded post-v1.0 milestones only** |
+| Latest bounded milestone | **v1.1 / Issue #17 replay-safe approval — CLOSED** |
+| Latest progression merge | `fc5f237f78a41ae4c099599445df99ea6d56f1b3` |
 | Latest verified app/eval merge | `8498183f584332887a38ae5e925e6b810177e99b` |
 | P6-A documentation baseline | `cb0cf3b4109531a8f01c612511b11434464621f9` |
 | P6-B closure decision baseline | `b2b274600206c2a3fcf9cdf936d0eeb7afd92fef` |
@@ -435,17 +440,21 @@ No additional work remains inside the frozen v1.0 scope.
 
 # 10. Current Priority
 
-## NOW
+## v1.0
 
 **STOP v1.0 DEVELOPMENT.**
 
-Proof v1.0 is closed. Do not continue adding features under this contract.
+Proof v1.0 is closed. Do not add features under the frozen v1.0 scope.
 
-Any next work must be explicitly opened as one of:
-- Proof v1.1
-- customer-specific integration
-- productionization track
-- technical-debt / dependency optimization track
+## Continuous Progression
+
+**ENABLED.**
+
+Post-v1.0 work proceeds only through one bounded milestone at a time using:
+
+`MASTER → Issue → branch → implementation/proof → PR → exact-head verification → merge → Issue close → MASTER reconciliation → next Progression Review`
+
+No unrestricted autonomous execution, broad write permissions, or speculative features are implied by progression mode.
 
 ---
 
@@ -619,3 +628,84 @@ No further development should occur under this v1.0 contract unless the scope is
 # **GUIDED AGENT OS PROOF v1.0 CLOSED**
 
 그 이후 기능은 Proof v1.1, productionization, 또는 실제 고객 요구사항으로 분리한다.
+
+---
+
+# 13. Progression Registry
+
+This section governs bounded progression **after** the accepted v1.0 baseline. It does not rewrite or weaken any v1.0 closure claim above.
+
+## Milestone P-001 — Replay-safe human approval finalization
+
+**Status: CLOSED — ACCEPTED**
+
+### Gate / Value
+
+Operator/browser/proxy retries must not execute an approved tool twice, duplicate terminal audit evidence, or mutate a finalized decision through a conflicting later request. This directly strengthens the existing human-approved execution boundary without adding permissions or autonomous capability.
+
+### Lifecycle
+
+- Issue: `#17 — v1.1: Make approval decisions replay-safe and idempotent` — **CLOSED / completed**
+- Branch: `proof-v1.1/17-replay-safe-approval`
+- PR: `#18 — v1.1: make approval decisions replay-safe` — **MERGED**
+- Exact verified PR head: `c927cc83d97f92cd58f8a78c19b28fb67707f204`
+- Squash merge: `fc5f237f78a41ae4c099599445df99ea6d56f1b3`
+
+### Changed
+
+- `app/api/routes.py`
+  - duplicate approve after an already approved run returns the persisted finalized response without re-executing the tool.
+  - duplicate reject after an already rejected run returns the persisted finalized response without appending another terminal sequence.
+  - reject-after-approve and approve-after-reject return `409 Conflict` and preserve the existing final decision.
+  - unrelated non-`pending_approval` states retain the existing `422` behavior.
+- `tests/test_controlled_tool_execution.py`
+  - added deterministic duplicate approve/reject and conflicting-decision tests.
+  - added event cardinality assertions for `APPROVED`, `REJECTED`, `TOOL_EXECUTED`, and `COMPLETED`.
+
+### Actually Executed
+
+On exact PR head `c927cc83d97f92cd58f8a78c19b28fb67707f204`:
+
+- PR Validation — run `33387062529`, run #54 — **success**
+- Firebat Container — run `33387062535`, run #52 — **success**
+- Proof Evaluation — run `33387062520`, run #3 — **success**
+- exact PR patch inspected before merge; only `app/api/routes.py` and `tests/test_controlled_tool_execution.py` changed.
+- PR merged with expected-head protection.
+- Issue #17 observed closed with state reason `completed`.
+
+### Verified
+
+Executable tests verify:
+
+- first approval still executes the existing allowlisted read-only tool through the established gate.
+- duplicate approval does not append a second `APPROVED`, `TOOL_EXECUTED`, or `COMPLETED` event.
+- duplicate rejection does not append a second `REJECTED` or `COMPLETED` event and executes no tool.
+- approve→reject and reject→approve conflicts return `409` and preserve the persisted final decision.
+- existing PR/container/evaluation regressions remain green on the exact implementation head.
+
+### Not Verified
+
+- this does **not** prove distributed exactly-once execution under multiple concurrent workers/processes; the milestone covers deterministic API-level replay/retry behavior in the current architecture.
+- no new customer integration, destructive/write tool, auth/RBAC, or unrestricted autonomous execution was tested or added.
+- positive local-LLM inference remains the existing v1.0 non-claim.
+
+### Limitations / Remaining Risks
+
+- decision state is still represented through the current run/raw-output persistence design rather than a dedicated immutable approval-decision table.
+- concurrent racing requests across a future horizontally scaled deployment may require transactional locking or a unique finalization constraint; that is not implied by this milestone.
+
+### Exact Next Action
+
+Perform the next **Progression Review** on current `main`. If no active relevant PR/Issue exists, select exactly one bounded milestone only if it has concrete use/show/delivery value and executable acceptance criteria. Prefer the next gap in human-approved execution correctness or audit/replay evidence. If no such milestone is justified without a product/security decision, remain enabled in HOLD/no-mutation mode.
+
+## Progression Evidence Registry
+
+| ID | Milestone | Evidence | Status |
+|---|---|---|---|
+| PE-001 | P-001 | Issue #17 bounded acceptance contract | PRESENT |
+| PE-002 | P-001 | PR #18 exact head `c927cc83...` patch limited to route semantics + controlled-tool tests | PASS |
+| PE-003 | P-001 | PR Validation run `33387062529` #54 | PASS |
+| PE-004 | P-001 | Firebat Container run `33387062535` #52 | PASS |
+| PE-005 | P-001 | Proof Evaluation run `33387062520` #3 | PASS |
+| PE-006 | P-001 | squash merge `fc5f237f78a41ae4c099599445df99ea6d56f1b3` | PRESENT |
+| PE-007 | P-001 | Issue #17 closed / completed after merge | PASS |

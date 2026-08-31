@@ -31,10 +31,10 @@
 | Scope Status | **FROZEN** |
 | Overall Status | **GUIDED AGENT OS PROOF v1.0 CLOSED** |
 | Progression Mode | **ENABLED — bounded post-v1.0 milestones only** |
-| Latest accepted milestone | **P-001 / Issue #17 replay-safe approval — CLOSED** |
-| Active milestone | **P-002 / Issue #19 concurrent approval guard — OPEN** |
-| Active branch | `proof-v1.1/19-concurrent-approval-guard` |
-| Latest progression merge | `fc5f237f78a41ae4c099599445df99ea6d56f1b3` |
+| Latest accepted milestone | **P-002 / Issue #19 concurrent approval finalization guard — CLOSED** |
+| Active milestone | **P-003 / Issue #22 deterministic run evidence bundle — OPEN** |
+| Active branch | `proof-v1.1/22-run-evidence-bundle` |
+| Latest progression merge | `ad5f9b1a865d1be97ce427cc18760d7de5ca5a2e` |
 | Latest verified app/eval merge | `8498183f584332887a38ae5e925e6b810177e99b` |
 | P6-A documentation baseline | `cb0cf3b4109531a8f01c612511b11434464621f9` |
 | P6-B closure decision baseline | `b2b274600206c2a3fcf9cdf936d0eeb7afd92fef` |
@@ -293,6 +293,8 @@ These do **not** block Proof v1.0 closure.
 | L-14 | Execution result shares `raw_llm_output` instead of dedicated execution table | MEDIUM | ACCEPTED FOR PROOF |
 | L-17 | Browser CI depends on GitHub runner Chrome + Selenium | LOW | ACCEPTABLE FOR PROOF |
 | L-19 | Audit append helper is API-boundary helper rather than standalone service | LOW | ACCEPTABLE FOR PROOF |
+| L-20 | Approval finalization atomic claim is proven only inside current SQLite/SQLAlchemy runtime, not arbitrary distributed side-effecting execution | MEDIUM | ACCEPTED — P-002 BOUNDARY |
+| L-21 | Crash after an approval claim but before finalization can leave transient decision status requiring future recovery design | MEDIUM | OPEN — DO NOT AUTO-RECOVER WITHOUT A SEPARATE SAFE MILESTONE |
 
 ---
 
@@ -415,12 +417,7 @@ Fresh evaluation rerun:
 - `0` failed
 - evidence artifact downloaded and inspected
 
-Current-main equivalence basis:
-- latest verified app/eval merge `8498183f584332887a38ae5e925e6b810177e99b` to P6-C trigger `35df8902ab22ce5daa13f3120fbdab386c7b21b3` changes only `GUIDED_AGENT_OS_MASTER.md`, `README.md`, `docs/PROJECT_STATUS.md`, `docs/ROADMAP.md`.
-- no `app/**`, Dockerfile, compose, requirements, Firebat workflow, or runtime configuration changes occurred after the verified app/eval merge.
-- the runtime knowledge file `app/knowledge/tools/approved-tools.md` has identical blob SHA `536bbbd7ee5dacc1d875cf0580f5e0fb7f1ca565` on the evaluated PR head and current `main`.
-
-Therefore the fresh Firebat and evaluation reruns are accepted as final Proof v1.0 runtime evidence without expanding scope.
+Current-main equivalence basis for Proof v1.0 closure remains historical and frozen; post-v1.0 progression does not rewrite that acceptance.
 
 ---
 
@@ -513,94 +510,56 @@ Remaining Risks: fallback-only grounding environment remains explicitly separate
 ## 2026-08-19 — Phase 6 / P6-A External Proof Synchronization
 **Status:** CLOSED
 
-### Changed
-- synchronized README to verified P1–P5 Proof state.
-- deprecated stale PROJECT_STATUS / ROADMAP authority to this Master.
-- closed Issue #4 for frozen Proof scope.
-
-### Executed
-- Master-first repository inspection.
-- README / stale docs / Issue / compose / env re-read and synchronization verification.
-
-### Not Verified
-- no new runtime regression in this documentation-only iteration.
-
-### Remaining Risks
-- P6-B and P6-C remained at that time.
+Changed: synchronized README, deprecated stale status/roadmap authority to Master, closed Issue #4.
+Executed: Master-first repository/document/Issue inspection.
+Not Verified: no new runtime regression in documentation-only iteration.
+Remaining Risks: P6-B/P6-C remained at that time.
 
 ## 2026-08-19 — Phase 6 / P6-B Local LLM Closure Decision
 **Status:** CLOSED — EXPLICIT DECISION
 
-### Changed
-- updated this Master only.
-- converted local-LLM positive inference from blocker to documented non-claim limitation.
-
-### Executed
-- inspected local LLM client, env, compose, and Firebat CI contract.
-- confirmed no reachable local endpoint is provisioned in CI.
-
-### Not Verified
-- positive local-LLM final-stack inference.
-
-### Remaining Risks
-- L-12 documented non-claim.
-
-### Decision
-Provisioning Ollama/Qwen or a cloud provider only to manufacture final evidence would expand frozen scope. Positive inference is not claimed.
-
-## 2026-08-19 — Phase 6 / P6-C Final Regression Trigger
-**Status:** COMPLETED
-
-### Changed
-- updated only this Master to trigger `push: main` without changing runtime scope.
-
-### Executed
-- verified pre-trigger `main` head `b2b274600206c2a3fcf9cdf936d0eeb7afd92fef`.
-- re-read Firebat workflow trigger and gates.
-- trigger commit: `35df8902ab22ce5daa13f3120fbdab386c7b21b3`.
-
-### Not Verified at trigger time
-- workflow result was intentionally not pre-claimed.
-
-### Remaining Risks at trigger time
-- P6-C depended on actual fresh runtime evidence.
+Changed: updated this Master only; converted positive inference from blocker to documented non-claim.
+Executed: inspected local LLM client, env, compose, Firebat CI; confirmed no reachable local endpoint provisioned in CI.
+Not Verified: positive local-LLM final-stack inference.
+Remaining Risks: L-12 documented non-claim.
 
 ## 2026-08-19 — Phase 6 / P6-C Final Closure
 **Status:** CLOSED — PASS
 
+Changed: updated only Master and closed Proof v1.0.
+Executed: fresh Firebat regression and fixed evaluation rerun; artifact inspection confirmed 22/22 PASS.
+Not Verified: positive local-LLM final-stack inference; real customer production systems.
+Remaining Risks: L-09/L-11/L-12/L-13/L-14/L-17/L-19 retained as documented limitations.
+Decision: **GUIDED AGENT OS PROOF v1.0 CLOSED.**
+
+## 2026-09-01 — Progression P-002 Concurrent Approval Finalization
+**Status:** CLOSED — ACCEPTED
+
 ### Changed
-- updated **only** `GUIDED_AGENT_OS_MASTER.md`.
-- restored the authoritative Final Closure Definition after detecting that an intermediate Master rewrite had accidentally omitted that section.
-- closed P6-C, Phase 6, and Proof v1.0.
-- no application code, dependency, compose, runtime configuration, README, or other source document changed in this closure iteration.
+- `app/api/routes.py`: added persistence-backed conditional claim from `pending_approval` to transient `approval_executing` / `rejection_processing` before crossing the execution/finalization boundary; losers return deterministic conflict/already-finalized behavior; tool execution failure restores `pending_approval`.
+- `tests/test_concurrent_approval.py`: added concurrent approve/approve cardinality proof and, after acceptance review found a gap, a simultaneous approve/reject terminal-decision proof.
 
 ### Executed
-- read this Master first and re-checked repository state.
-- verified latest app/eval merge → P6-C trigger diff contains only Master/README/status-document changes; runtime code is unchanged.
-- verified `approved-tools.md` runtime corpus blob identity between evaluated PR head and current `main`.
-- reran Firebat Container job from run `32177070146` as fresh job `95891432817`.
-- observed final Firebat conclusion `success`.
-- verified every required Firebat gate PASS: image build, service start, health/version, semantic MiniLM metadata, Korean/English retrieval, fallback, Chrome Golden Path, persistent run, restart/volume persistence, diagnostics.
-- verified fresh Firebat artifact `9344986123` with digest `sha256:6906af85198eb0ace2839ea80ae0aab9ce3ce13cce7ac2878539d0cf98d294ab`.
-- reran fixed Proof Evaluation as fresh job `95892349115`.
-- observed evaluation job conclusion `success`.
-- downloaded artifact `9345075427` and inspected `proof-eval-results.json`.
-- confirmed `22/22 PASS`, `0 failed`, `all_passed=true`.
+- exact implementation head `228c6ce30084f22f6b45939643dd24f809c535bf`: PR Validation run `33403332438` #59 PASS; Firebat Container run `33403332433` #56 PASS; Proof Evaluation run `33403332414` #4 PASS.
+- PR #20 squash-merged as `2597109c845ca612d999928b6337e6c5e86c8811` with expected-head protection.
+- post-merge acceptance review re-read Issue #19 and PR patch and detected that criterion #4 (concurrent approve-vs-reject) lacked executable coverage; Issue #19 was reopened instead of inventing PASS.
+- corrective test-only PR #21 exact head `cd21a46db87a824a6c65643cc26d9aa71a813415`: PR Validation run `33409084725` #61 PASS.
+- PR #21 squash-merged as `ad5f9b1a865d1be97ce427cc18760d7de5ca5a2e`; Issue #19 then closed completed.
+
+### Verified
+- concurrent approvals cross the controlled execution boundary at most once.
+- persisted terminal audit cardinality is one `APPROVED`, one `TOOL_EXECUTED`, one `COMPLETED` on approval winner.
+- simultaneous approve/reject produces exactly one successful terminal decision and one conflict loser; `APPROVED` and `REJECTED` remain mutually exclusive; tool execution is absent when rejection wins.
+- P-001 sequential replay semantics and repository regression remain green on the exact implementation head.
 
 ### Not Verified
-- positive local-LLM final-stack inference remains **NOT VERIFIED / NOT CLAIMED**, per P6-B.
-- real customer Oracle/production systems are not integrated, by frozen scope.
+- arbitrary distributed exactly-once semantics across multiple independent databases/workers or external side-effecting tools.
+- crash recovery after a process dies between transient claim persistence and terminal finalization.
+- Firebat/Proof Evaluation did not trigger for PR #21 because it changed only the test file; their green evidence is from exact application implementation head PR #20, whose app code was unchanged by PR #21.
 
 ### Remaining Risks
-- L-09 CPU dependency footprint remains deferred.
-- L-11 legacy semantic provider label remains documented.
-- L-12 positive local-LLM inference remains an explicit non-claim.
-- L-13/L-14/L-17/L-19 remain accepted Proof-level limitations.
-
-### Decision
-**GUIDED AGENT OS PROOF v1.0 CLOSED.**
-
-No further development should occur under this v1.0 contract unless the scope is explicitly reopened.
+- transient claim crash recovery requires a separate safety design; automatic retry could be unsafe for future side-effecting tools and is not inferred from P-002.
+- P-002 required a documented procedural recovery from the preferred one-Issue/one-PR lifecycle because PR #20 was merged before every Issue #19 acceptance criterion had executable proof. The gap was not hidden; Issue #19 was reopened and closed only after test-only PR #21 passed.
 
 ---
 
@@ -623,7 +582,7 @@ No further development should occur under this v1.0 contract unless the scope is
 - 외부 사람이 README/Evidence만 보고 현재 Proof를 이해할 수 있는가? **YES**
 - positive local-LLM final-stack inference 또는 명시적 closure decision이 있는가? **YES — P6-B explicit decision; positive inference NOT CLAIMED**
 - fresh final deployment/regression evidence가 있는가? **YES — P6-C PASS**
-- 현재 runtime source가 최종 검증된 app/eval merge 이후 변경되지 않았는가? **YES — documentation-only diff verified**
+- 당시 runtime source가 최종 v1.0 검증된 app/eval merge 이후 변경되지 않았는가? **YES — v1.0 closure 시점 documentation-only diff verified**
 
 ## Final Status
 
@@ -642,117 +601,118 @@ This section governs bounded progression **after** the accepted v1.0 baseline. I
 **Status: CLOSED — ACCEPTED**
 
 ### Gate / Value
-
-Operator/browser/proxy retries must not execute an approved tool twice, duplicate terminal audit evidence, or mutate a finalized decision through a conflicting later request. This directly strengthens the existing human-approved execution boundary without adding permissions or autonomous capability.
+Operator/browser/proxy retries must not execute an approved tool twice, duplicate terminal audit evidence, or mutate a finalized decision through a conflicting later request.
 
 ### Lifecycle
+- Issue #17 — CLOSED / completed
+- Branch `proof-v1.1/17-replay-safe-approval`
+- PR #18 — MERGED
+- Exact verified head `c927cc83d97f92cd58f8a78c19b28fb67707f204`
+- Squash merge `fc5f237f78a41ae4c099599445df99ea6d56f1b3`
 
-- Issue: `#17 — v1.1: Make approval decisions replay-safe and idempotent` — **CLOSED / completed**
-- Branch: `proof-v1.1/17-replay-safe-approval`
-- PR: `#18 — v1.1: make approval decisions replay-safe` — **MERGED**
-- Exact verified PR head: `c927cc83d97f92cd58f8a78c19b28fb67707f204`
-- Squash merge: `fc5f237f78a41ae4c099599445df99ea6d56f1b3`
+### Executed / Verified
+- PR Validation `33387062529` #54 PASS
+- Firebat Container `33387062535` #52 PASS
+- Proof Evaluation `33387062520` #3 PASS
+- duplicate approve/reject are idempotent; conflicting later decisions return 409; terminal events are not duplicated.
 
-### Changed
-
-- `app/api/routes.py`
-  - duplicate approve after an already approved run returns the persisted finalized response without re-executing the tool.
-  - duplicate reject after an already rejected run returns the persisted finalized response without appending another terminal sequence.
-  - reject-after-approve and approve-after-reject return `409 Conflict` and preserve the existing final decision.
-  - unrelated non-`pending_approval` states retain the existing `422` behavior.
-- `tests/test_controlled_tool_execution.py`
-  - added deterministic duplicate approve/reject and conflicting-decision tests.
-  - added event cardinality assertions for `APPROVED`, `REJECTED`, `TOOL_EXECUTED`, and `COMPLETED`.
-
-### Actually Executed
-
-On exact PR head `c927cc83d97f92cd58f8a78c19b28fb67707f204`:
-
-- PR Validation — run `33387062529`, run #54 — **success**
-- Firebat Container — run `33387062535`, run #52 — **success**
-- Proof Evaluation — run `33387062520`, run #3 — **success**
-- exact PR patch inspected before merge; only `app/api/routes.py` and `tests/test_controlled_tool_execution.py` changed.
-- PR merged with expected-head protection.
-- Issue #17 observed closed with state reason `completed`.
-
-### Verified
-
-Executable tests verify:
-
-- first approval still executes the existing allowlisted read-only tool through the established gate.
-- duplicate approval does not append a second `APPROVED`, `TOOL_EXECUTED`, or `COMPLETED` event.
-- duplicate rejection does not append a second `REJECTED` or `COMPLETED` event and executes no tool.
-- approve→reject and reject→approve conflicts return `409` and preserve the persisted final decision.
-- existing PR/container/evaluation regressions remain green on the exact implementation head.
-
-### Not Verified
-
-- this does **not** prove distributed exactly-once execution under multiple concurrent workers/processes; the milestone covers deterministic API-level replay/retry behavior in the current architecture.
-- no new customer integration, destructive/write tool, auth/RBAC, or unrestricted autonomous execution was tested or added.
-- positive local-LLM inference remains the existing v1.0 non-claim.
-
-### Limitations / Remaining Risks
-
-- decision state is still represented through the current run/raw-output persistence design rather than a dedicated immutable approval-decision table.
-- concurrent racing requests across a future horizontally scaled deployment may require transactional locking or a unique finalization constraint; that is not implied by this milestone.
+### Not Verified / Limitations
+- no distributed exactly-once claim.
+- no new customer integration, destructive/write tool, auth/RBAC, or unrestricted autonomous execution.
 
 ## Milestone P-002 — Concurrent approval finalization guard
+
+**Status: CLOSED — ACCEPTED**
+
+### Gate / Value
+Prevent two racing human decisions from both crossing the controlled finalization boundary in the current persistence/runtime architecture.
+
+### Lifecycle
+- Issue #19 — CLOSED / completed
+- Implementation branch `proof-v1.1/19-concurrent-approval-guard`
+- PR #20 — MERGED
+- Exact implementation head `228c6ce30084f22f6b45939643dd24f809c535bf`
+- Implementation squash merge `2597109c845ca612d999928b6337e6c5e86c8811`
+- Corrective evidence branch `proof-v1.1/19-approve-reject-race-proof`
+- PR #21 — MERGED (test-only acceptance-gap correction)
+- Exact corrective head `cd21a46db87a824a6c65643cc26d9aa71a813415`
+- Latest P-002 squash merge `ad5f9b1a865d1be97ce427cc18760d7de5ca5a2e`
+
+### Changed
+- persistence-backed atomic conditional claim before approval/rejection execution/finalization.
+- transient states `approval_executing` / `rejection_processing` reject racing losers.
+- failed approval execution restores `pending_approval`.
+- deterministic concurrent approval and approve/reject tests.
+
+### Actually Executed
+- PR #20 PR Validation `33403332438` #59 PASS.
+- PR #20 Firebat Container `33403332433` #56 PASS.
+- PR #20 Proof Evaluation `33403332414` #4 PASS.
+- PR #21 PR Validation `33409084725` #61 PASS.
+
+### Verified
+- concurrent approve/approve executes the tool at most once.
+- terminal audit cardinality remains singular.
+- concurrent approve/reject produces one terminal decision; tool executes only if approval wins.
+- existing bounded workflow regression remains green on exact application implementation head.
+
+### Not Verified
+- distributed/multi-database exactly-once execution.
+- crash recovery after claim but before finalization.
+- PR #21 did not trigger Firebat/Eval due test-only path; no fresh claim is made for those workflows on PR #21.
+
+### Limitations / Remaining Risks
+- current guarantee is persistence/runtime scoped, not a general external side-effect exactly-once guarantee.
+- automatic stale-claim recovery is intentionally not inferred because future side effects could make blind retry unsafe.
+
+## Milestone P-003 — Deterministic run evidence bundle
 
 **Status: OPEN — SELECTED / NOT IMPLEMENTED**
 
 ### Gate / Value
-
-Current `approve_run` checks `pending_approval`, executes the tool, and only afterward persists final status. Concurrent requests can therefore observe the same pending state before either transaction commits. P-002 is bounded to preventing double execution and contradictory terminal evidence at this persistence boundary.
+A reviewer currently correlates the run endpoint and persisted event endpoint separately. One deterministic read-only evidence bundle has direct audit/show/delivery value without increasing execution capability.
 
 ### Lifecycle
-
-- Issue: `#19 — v1.1: Prevent concurrent approval double-execution` — **OPEN**
-- Branch: `proof-v1.1/19-concurrent-approval-guard`
-- Branch base: `8908644acf1a5a8017e0cf426e2a8fdcac928afc`
-- PR: **NOT CREATED YET**
+- Issue #22 — OPEN
+- Branch `proof-v1.1/22-run-evidence-bundle`
+- Branch base `ad5f9b1a865d1be97ce427cc18760d7de5ca5a2e`
+- PR — NOT CREATED YET
 
 ### Acceptance Contract
-
-- two concurrent approvals produce at most one tool execution.
-- terminal audit cardinality remains at most one `APPROVED`, at most one `TOOL_EXECUTED`, and one final `COMPLETED` path.
-- losing concurrent requests cannot execute the tool.
-- concurrent approve/reject cannot persist both terminal decisions or execute after rejection wins.
-- P-001 sequential replay semantics remain green.
-- existing controlled-tool/audit/browser/container/evaluation regression remains green.
+- `GET /api/agents/runs/{run_id}/evidence` returns only data already exposed by existing run/events APIs.
+- persisted event ordering is preserved exactly.
+- unchanged persisted state yields the same canonical SHA-256 evidence digest on repeated reads.
+- an existing allowed lifecycle mutation changes the digest and bundle content.
+- evidence reads execute no tool, append no event, and mutate no state.
+- missing run returns 404.
+- existing P-001/P-002 tests and applicable CI regressions remain green.
 
 ### Changed This Review
-
-- created Issue #19 with the bounded executable acceptance contract.
-- created linked branch `proof-v1.1/19-concurrent-approval-guard` from current reconciled `main`.
-- updated this Master only on `main` to register P-002; no P-002 application implementation has been claimed.
+- created Issue #22 with bounded read-only acceptance criteria.
+- created linked branch `proof-v1.1/22-run-evidence-bundle` from accepted P-002 main.
+- updated this Master on `main`; no P-003 application implementation is claimed.
 
 ### Actually Executed This Review
-
-- re-read current Master on `main`.
-- confirmed no active PR/Issue existed after P-001 closure.
-- inspected current `approve_run` / `reject_run` implementation and identified tool execution occurring before final persistence commit.
-- created Issue #19 and linked branch.
+- re-read current Master first.
+- completed exact-head evidence review for P-002, including discovery and repair of the missing approve/reject executable criterion.
+- merged PR #20 and corrective test-only PR #21 with expected-head protection.
+- closed Issue #19 only after executable coverage existed.
+- performed one bounded Progression Review and selected P-003.
 
 ### Verified
-
-- P-002 has concrete use/delivery value and remains inside priority #1: human-approved execution correctness.
-- scope requires no new tool, broad write permission, autonomous execution, or speculative agent capability.
+- P-003 has concrete audit/evidence usability value.
+- it requires no new tool, write permission, autonomous execution, auth/RBAC, or customer integration.
 
 ### Not Verified
-
-- no concurrent race test has been executed yet.
-- no P-002 application code has been changed yet.
-- no P-002 PR/CI evidence exists yet.
-- the suspected race is code-path reasoning until a deterministic concurrent test reproduces or falsifies it.
+- no P-003 endpoint/model/test exists yet.
+- no P-003 PR or CI evidence exists yet.
+- digest schema/canonicalization implementation has not been executed.
 
 ### Limitations / Remaining Risks
-
-- the smallest correct persistence strategy still needs to be selected from repository-compatible mechanisms; in-process locking alone is not preferred because it would not protect multiple workers.
-- external arbitrary side-effecting tool exactly-once semantics remain outside this milestone.
+- the planned digest is an integrity comparison inside the current application/database trust boundary, not cryptographic non-repudiation, external notarization, or tamper-proof storage.
 
 ### Exact Next Action
-
-On branch `proof-v1.1/19-concurrent-approval-guard`, add the smallest deterministic concurrent approval/approve-vs-reject tests first. Treat the result as evidence: if RED reproduces the race, implement the minimum persistence-backed atomic claim/finalization guard; if the race is not reproducible, document the actual database behavior instead of inventing a fix. Keep all same-gap fixes inside Issue #19 / one PR.
+On `proof-v1.1/22-run-evidence-bundle`, inspect the existing run/event response models and implement the smallest response composition + canonical digest helper with deterministic tests first. Keep the endpoint read-only and ensure the evidence read itself produces zero audit events and zero tool executions.
 
 ## Progression Evidence Registry
 
@@ -765,6 +725,18 @@ On branch `proof-v1.1/19-concurrent-approval-guard`, add the smallest determinis
 | PE-005 | P-001 | Proof Evaluation run `33387062520` #3 | PASS |
 | PE-006 | P-001 | squash merge `fc5f237f78a41ae4c099599445df99ea6d56f1b3` | PRESENT |
 | PE-007 | P-001 | Issue #17 closed / completed after merge | PASS |
-| PE-101 | P-002 | code inspection: approval executes tool before final `_commit_and_refresh` | PRESENT — RISK IDENTIFIED |
+| PE-101 | P-002 | pre-fix code inspection: execution occurred before final persistence | PRESENT — RISK IDENTIFIED |
 | PE-102 | P-002 | Issue #19 bounded acceptance contract | PRESENT |
-| PE-103 | P-002 | linked branch `proof-v1.1/19-concurrent-approval-guard` from `8908644...` | PRESENT |
+| PE-103 | P-002 | concurrent approve executable RED reproduced on pre-fix head | PRESENT — FAILURE DISCOVERED |
+| PE-104 | P-002 | exact implementation head `228c6ce30084f22f6b45939643dd24f809c535bf` | PRESENT |
+| PE-105 | P-002 | PR Validation `33403332438` #59 | PASS |
+| PE-106 | P-002 | Firebat Container `33403332433` #56 | PASS |
+| PE-107 | P-002 | Proof Evaluation `33403332414` #4 | PASS |
+| PE-108 | P-002 | PR #20 squash merge `2597109c845ca612d999928b6337e6c5e86c8811` | PRESENT |
+| PE-109 | P-002 | acceptance review found missing executable approve/reject criterion; Issue #19 reopened | PASS — GAP NOT HIDDEN |
+| PE-110 | P-002 | corrective PR #21 exact head `cd21a46db87a824a6c65643cc26d9aa71a813415` approve/reject race test | PRESENT |
+| PE-111 | P-002 | PR #21 PR Validation `33409084725` #61 | PASS |
+| PE-112 | P-002 | PR #21 squash merge `ad5f9b1a865d1be97ce427cc18760d7de5ca5a2e` | PRESENT |
+| PE-113 | P-002 | Issue #19 closed / completed after corrective executable proof | PASS |
+| PE-201 | P-003 | Issue #22 bounded deterministic evidence-bundle contract | PRESENT |
+| PE-202 | P-003 | branch `proof-v1.1/22-run-evidence-bundle` from accepted P-002 main | PRESENT |

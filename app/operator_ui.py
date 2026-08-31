@@ -25,12 +25,14 @@ _OPERATOR_HTML = r'''<!doctype html>
     .primary { background: #7c9cff; color: #071023; }
     .approve { background: #43d19e; color: #07150f; }
     .reject { background: #ff7b88; color: #20080b; }
+    .recover { background: #ffd166; color: #241900; }
     button:disabled { opacity: .5; cursor: not-allowed; }
     pre { white-space: pre-wrap; word-break: break-word; background: #0c1325; padding: 12px; border-radius: 9px; border: 1px solid #263452; }
     .pill { display: inline-block; padding: 4px 9px; border-radius: 999px; background: #263452; margin-right: 6px; font-size: 12px; }
     .hidden { display: none; }
     .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
     .error { color: #ff9aa5; }
+    .warning { border-left: 3px solid #ffd166; padding: 10px 12px; background: #2a2110; border-radius: 6px; }
     .source { border-top: 1px solid #293553; padding-top: 10px; margin-top: 10px; }
     .clarification { border-left: 3px solid #7c9cff; padding: 8px 12px; margin: 8px 0; background: #10192e; border-radius: 6px; }
     .audit-event { display: grid; grid-template-columns: 56px minmax(180px, .8fr) minmax(160px, .7fr) minmax(260px, 1.5fr); gap: 10px; align-items: start; padding: 10px 0; border-top: 1px solid #293553; font-size: 13px; }
@@ -106,6 +108,15 @@ _OPERATOR_HTML = r'''<!doctype html>
       </div>
     </div>
 
+    <div id="recovery-panel" class="hidden">
+      <h3>Interrupted decision requires quarantine</h3>
+      <div id="recovery-message" class="warning">An approval/rejection claim was interrupted. Do not replay execution. Quarantine the decision for explicit follow-up.</div>
+      <div class="actions">
+        <button id="recover-decision-button" class="recover" type="button">Quarantine interrupted decision</button>
+      </div>
+      <div class="muted">Successful quarantine persists DECISION_RECOVERY_REQUIRED and transitions the run to decision_recovery_required.</div>
+    </div>
+
     <h3>Execution result</h3>
     <pre id="execution-result">Not executed.</pre>
 
@@ -120,6 +131,9 @@ _OPERATOR_HTML = r'''<!doctype html>
   const requestError = document.getElementById('request-error');
   const approveButton = document.getElementById('approve-button');
   const rejectButton = document.getElementById('reject-button');
+  const recoveryPanel = document.getElementById('recovery-panel');
+  const recoveryMessage = document.getElementById('recovery-message');
+  const recoverDecisionButton = document.getElementById('recover-decision-button');
   let currentRunId = null;
 
   function csv(value) {
@@ -237,9 +251,47 @@ _OPERATOR_HTML = r'''<!doctype html>
     if (run.status === 'pending_approval') reviewPanel.classList.remove('hidden');
     else reviewPanel.classList.add('hidden');
 
+    const interruptedDecision = run.status === 'approval_executing' || run.status === 'rejection_processing';
+    if (interruptedDecision) {
+      recoveryPanel.classList.remove('hidden');
+      recoveryMessage.textContent = `Interrupted ${run.status} claim detected. Quarantine without replay before any further decision action.`;
+      recoverDecisionButton.disabled = false;
+    } else if (run.status === 'decision_recovery_required') {
+      recoveryPanel.classList.remove('hidden');
+      recoveryMessage.textContent = 'Decision is quarantined as decision_recovery_required. Automatic replay/resume is intentionally unavailable.';
+      recoverDecisionButton.disabled = true;
+    } else {
+      recoveryPanel.classList.add('hidden');
+      recoverDecisionButton.disabled = true;
+    }
+
+    if (run.status === 'decision_recovery_required') {
+      approveButton.disabled = true;
+      rejectButton.disabled = true;
+    } else if (run.status === 'pending_approval') {
+      approveButton.disabled = false;
+      rejectButton.disabled = false;
+    }
+
     const execution = run.raw_output && run.raw_output.execution_result;
     document.getElementById('execution-result').textContent = execution ? JSON.stringify(execution, null, 2) : 'Not executed.';
     refreshAuditTimeline(run.run_id);
+  }
+
+  async function recoverInterruptedDecision() {
+    if (!currentRunId) return;
+    recoverDecisionButton.disabled = true;
+    approveButton.disabled = true;
+    rejectButton.disabled = true;
+    requestError.classList.add('hidden');
+    try {
+      const run = await api(`/api/agents/runs/${currentRunId}/recover-decision`, { method: 'POST' });
+      renderRun(run);
+    } catch (error) {
+      requestError.textContent = error.message;
+      requestError.classList.remove('hidden');
+      recoverDecisionButton.disabled = false;
+    }
   }
 
   async function submitDecision(decision) {
@@ -255,8 +307,10 @@ _OPERATOR_HTML = r'''<!doctype html>
       requestError.textContent = error.message;
       requestError.classList.remove('hidden');
     } finally {
-      approveButton.disabled = false;
-      rejectButton.disabled = false;
+      if (!panel.classList.contains('hidden') && document.getElementById('run-status').textContent === 'pending_approval') {
+        approveButton.disabled = false;
+        rejectButton.disabled = false;
+      }
     }
   }
 
@@ -287,6 +341,7 @@ _OPERATOR_HTML = r'''<!doctype html>
 
   approveButton.addEventListener('click', () => submitDecision('approve'));
   rejectButton.addEventListener('click', () => submitDecision('reject'));
+  recoverDecisionButton.addEventListener('click', recoverInterruptedDecision);
 })();
 </script>
 </body>

@@ -61,6 +61,22 @@ def test_workspace_allows_backend_validation_to_drive_clarification() -> None:
     assert "clarificationPanel.classList.remove('hidden')" in html
 
 
+def test_workspace_surfaces_interrupted_decision_quarantine_without_new_execution_path() -> None:
+    response = client.get("/")
+    html = response.text
+
+    assert 'id="recovery-panel"' in html
+    assert 'id="recover-decision-button"' in html
+    assert "approval_executing" in html
+    assert "rejection_processing" in html
+    assert "decision_recovery_required" in html
+    assert "/api/agents/runs/${currentRunId}/recover-decision" in html
+    assert "DECISION_RECOVERY_REQUIRED" in html
+    assert "run.status === 'decision_recovery_required'" in html
+    assert "approveButton.disabled = true" in html
+    assert "rejectButton.disabled = true" in html
+
+
 def test_swagger_remains_available_for_developer_inspection() -> None:
     response = client.get("/docs")
 

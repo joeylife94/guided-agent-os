@@ -80,6 +80,21 @@ def test_workspace_surfaces_interrupted_decision_quarantine_without_new_executio
     assert "rejectButton.disabled = true" in html
 
 
+def test_workspace_discovers_recovery_queue_via_read_only_loader() -> None:
+    response = client.get("/")
+    html = response.text
+
+    assert 'id="recovery-queue"' in html
+    assert 'id="refresh-recovery-queue-button"' in html
+    assert "function renderRecoveryQueue(runs)" in html
+    assert "function refreshRecoveryQueue()" in html
+    assert "await api('/api/agents/runs/recovery-queue')" in html
+    assert "loadRunIdInput.value = run.run_id" in html
+    assert "loadPersistedRun();" in html
+    assert "Open persisted run" in html
+    assert "automatic retry" not in html.lower()
+
+
 def test_swagger_remains_available_for_developer_inspection() -> None:
     response = client.get("/docs")
 

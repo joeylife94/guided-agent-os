@@ -14,8 +14,8 @@
 | Progression Mode | **ENABLED — bounded milestones only** |
 | Latest accepted milestone | **P-011 / Issue #38 auditable approval execution-input snapshot — CLOSED** |
 | Active milestone | **P-012 / Issue #40 bind human approval to reviewed execution-input digest — OPEN** |
-| Active branch | **not yet created** |
-| Active PR | **none yet** |
+| Active branch | `proof-v1.1/40-reviewed-digest-approval-binding` |
+| Active PR | **#41 OPEN** |
 | Latest accepted progression merge | `3c2a5c58d7735064e9f4132751e003dee8a58da6` |
 
 The v1.0 acceptance baseline is not reopened by later milestones.
@@ -145,12 +145,13 @@ Rules:
 - accepted exact head `cd3f3d6609772d8c4b74a0955570c9cfbc8808f3`; squash merge `3c2a5c58d7735064e9f4132751e003dee8a58da6`.
 - exact-head checks: validate run `33531771136`, Proof Evaluation run `33531771205`, Firebat Container run `33531771324` — all SUCCESS.
 - successful approval audits the canonical planned-tool + persisted `tool_parameters` + per-run `allowed_tools` snapshot and SHA-256 digest; `TOOL_EXECUTED` correlates the same digest.
-- rejection/no-tool paths do not gain false execution evidence under the bounded contract.
 - limitation: correlation in the same evidence store only; no signature, tamper-proof storage, notarization, non-repudiation, production RBAC, or unrestricted tool-safety claim.
 
 ## P-012 — Bind human approval to reviewed execution-input digest
 **OPEN**
-- Issue #40.
+- Issue #40; PR #41.
+- branch `proof-v1.1/40-reviewed-digest-approval-binding`.
+- first contract head `bb48fb44c6c62c5a96d75af1f0986e0ba18a5255` is test-only and expects executable RED.
 - bounded acceptance: Operator approve must carry the digest of the exact execution inputs reviewed in the pending-approval surface; server must recompute the current persisted digest after decision claim and before tool execution, fail closed on missing/mismatch, and preserve the successful matching path plus P-011 audit correlation.
 - mismatch/missing precondition must return/revert to `pending_approval` and emit no false `TOOL_EXECUTED` evidence.
 - no new endpoint, tool capability, write authority, autonomous execution, permission expansion, signing, or external trust claim.
@@ -159,7 +160,7 @@ Rules:
 - accepted and merged P-011 after exact-head PR Validation, Proof Evaluation, and Firebat Container all completed SUCCESS.
 - closed Issue #38 completed and reconciled P-011 as accepted.
 - bounded Progression Review identified a direct human-approval correctness gap: the browser approval action sends only a reviewer note and is not explicitly bound to the exact execution-input digest the operator reviewed.
-- opened P-012 Issue #40 with fail-closed digest-precondition acceptance.
+- opened P-012 Issue #40, linked branch, test-first contract, and PR #41.
 
 ### Actually Executed
 - root MASTER read first.
@@ -167,18 +168,21 @@ Rules:
 - prior P1 review was confirmed addressed by the implementation head.
 - PR #39 squash merged with expected-head protection; Issue #38 closed completed.
 - current approval endpoint and Operator submit path inspected directly: approval execution recomputes/persists P-011 evidence, while browser approve currently submits only a note.
+- P-012 test-only head `bb48fb44c6c62c5a96d75af1f0986e0ba18a5255` pushed and PR #41 opened.
+- first-head validate run `33537981892` observed queued; no RED/PASS inferred yet.
 
 ### Verified
 - P-011 acceptance is backed by exact-head executable evidence.
-- P-012 has concrete use/security value, bounded executable acceptance, one-Issue scope, and does not require product-direction or permission expansion.
+- P-012 has concrete use/security value, bounded executable acceptance, one-Issue/one-PR scope, and does not require product-direction or permission expansion.
 - frozen human approval, allowlist, read-only execution, recovery, and non-autonomy boundaries remain explicit.
 
 ### Not Verified
-- P-012 implementation does not yet exist; no P-012 RED/PASS is claimed.
+- P-012 first-head executable RED has not yet completed.
+- P-012 implementation does not yet exist and no P-012 PASS is claimed.
 - no cryptographic signature, authenticated reviewer identity, tamper-proof storage, external notarization, production authorization/RBAC, non-repudiation, or unrestricted tool safety is established.
 
 ### Limitations
 P-012 is an optimistic approval precondition inside the existing bounded workflow. A digest equality check is not an identity/authentication or external integrity guarantee.
 
 ### Exact Next Action
-Create the linked P-012 branch from this reconciled main, add one test-first contract establishing executable RED for missing/mismatched reviewed digest and matching-digest success, open one linked PR, then implement only after executable RED is observed.
+Observe PR #41 first-head validate for executable RED. Once RED is confirmed, implement the minimal reviewed-digest precondition inside Issue #40, including fail-closed missing/mismatch behavior before tool execution and browser submission of the exact reviewed digest, then run exact-head PR Validation, Proof Evaluation, and Firebat Container before any merge.

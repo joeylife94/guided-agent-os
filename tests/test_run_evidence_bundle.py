@@ -11,6 +11,7 @@ from sqlalchemy.pool import StaticPool
 from app.api.routes import router
 from app.models.database import Base, get_db
 from app.models.models import AgentRun, RunAuditEvent
+from tests.approval_digest_helper import approval_body
 
 
 engine = create_engine(
@@ -151,7 +152,7 @@ def test_evidence_digest_changes_after_approved_lifecycle_mutation() -> None:
 
     approved = client.post(
         f"/api/agents/runs/{run_id}/approve",
-        json={"note": "Approved for deterministic evidence test"},
+        json=approval_body("Approved for deterministic evidence test"),
     )
     assert approved.status_code == 200
 

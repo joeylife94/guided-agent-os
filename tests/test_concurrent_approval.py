@@ -14,6 +14,7 @@ import app.api.routes as routes_module
 from app.api.routes import router
 from app.models.database import Base, get_db
 from app.models.models import AgentRun
+from tests.approval_digest_helper import approval_body
 
 
 def _plan() -> dict:
@@ -89,8 +90,6 @@ def test_concurrent_approvals_execute_tool_at_most_once(tmp_path: Path, monkeypa
         nonlocal execution_count
         with execution_lock:
             execution_count += 1
-        # Keep the first request inside the execution window long enough for the
-        # second request to observe the same persisted pending_approval state.
         time.sleep(0.2)
         return {
             "status": "executed",
@@ -106,7 +105,10 @@ def test_concurrent_approvals_execute_tool_at_most_once(tmp_path: Path, monkeypa
 
     def approve_once():
         start.wait(timeout=5)
-        return client.post(f"/api/agents/runs/{run_id}/approve", json={})
+        return client.post(
+            f"/api/agents/runs/{run_id}/approve",
+            json=approval_body(),
+        )
 
     with ThreadPoolExecutor(max_workers=2) as pool:
         responses = list(pool.map(lambda _: approve_once(), range(2)))
@@ -202,7 +204,10 @@ def test_concurrent_approve_reject_has_one_terminal_decision(tmp_path: Path, mon
 
     def approve_once():
         start.wait(timeout=5)
-        return client.post(f"/api/agents/runs/{run_id}/approve", json={})
+        return client.post(
+            f"/api/agents/runs/{run_id}/approve",
+            json=approval_body(),
+        )
 
     def reject_once():
         start.wait(timeout=5)

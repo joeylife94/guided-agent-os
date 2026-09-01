@@ -100,9 +100,16 @@ class AgentRunResponse(BaseModel):
 
 
 class ApproveRequest(BaseModel):
-    """Optional note attached to an approval."""
+    """Human approval plus the exact execution-input digest reviewed by the operator."""
 
     note: Optional[str] = Field(default=None, description="Reviewer note for the approval.")
+    expected_execution_inputs_digest: Optional[str] = Field(
+        default=None,
+        description=(
+            "SHA-256 digest of the exact persisted execution-input snapshot reviewed "
+            "before approval. The server recomputes and compares it before execution."
+        ),
+    )
 
 
 class RejectRequest(BaseModel):

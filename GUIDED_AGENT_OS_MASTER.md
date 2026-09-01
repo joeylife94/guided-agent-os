@@ -13,9 +13,9 @@
 | Current Level | **L3 — Usable / Demonstrable Proof** |
 | Progression Mode | **ENABLED — bounded milestones only** |
 | Latest accepted milestone | **P-010 / Issue #36 Operator approval execution-input review — CLOSED** |
-| Active milestone | **None — Progression Review pending** |
-| Active branch | None |
-| Active PR | None |
+| Active milestone | **P-011 / Issue #38 auditable approval execution-input snapshot — OPEN** |
+| Active branch | `proof-v1.1/38-approval-execution-input-audit` |
+| Active PR | **#39 OPEN** |
 | Latest accepted progression merge | `3e8a653820f48c30bb60743184d2c90416523b26` |
 
 The v1.0 acceptance baseline is not reopened by later milestones.
@@ -101,6 +101,7 @@ Rules:
 | L-24 | Operator could not independently check displayed bundle/digest consistency | CLOSED by P-008 local verification |
 | L-25 | reviewed deterministic evidence could not be persisted directly from Operator Workspace | CLOSED by P-009 client-side export |
 | L-26 | exact persisted execution inputs were not surfaced together at the human approval boundary | CLOSED by P-010 |
+| L-27 | approval/tool audit events do not correlate the exact execution-input snapshot consumed by the approved execution | OPEN — P-011 |
 
 ---
 
@@ -153,32 +154,44 @@ Rules:
 - implementation head `e1cdfd98dae0614c5de96852ac30b784ad543779` was green but received a valid P2 review gap because the contract only checked HTML/JS strings.
 - accepted exact head `33dcb87a1da90dc0b8cc86a136a37ac9bf807afd`; squash merge `3e8a653820f48c30bb60743184d2c90416523b26`.
 - exact-head checks: validate run `33519469769`, Firebat Container run `33519469786`, Proof Evaluation run `33519469795` — all SUCCESS.
-- browser Golden Path now verifies that pending-approval UI values for planned tool, persisted `tool_parameters`, and per-run `allowed_tools` equal backend persisted values before approval.
+- browser Golden Path verifies that pending-approval UI values for planned tool, persisted `tool_parameters`, and per-run `allowed_tools` equal backend persisted values before approval.
 - no execution/write endpoint, tool capability, autonomous execution, or permission expansion was introduced.
-- limitation: visibility only; this does not establish tamper-proof approval binding, signatures, production authorization/RBAC, or unrestricted tool safety.
+- limitation: visibility only; no tamper-proof approval binding, signatures, production authorization/RBAC, or unrestricted tool safety claim.
+
+## P-011 — Auditable approval execution-input snapshot
+**OPEN**
+- Issue #38; PR #39.
+- branch `proof-v1.1/38-approval-execution-input-audit`.
+- first contract head `ac16e09a6c22ab644007f394e6b7d49229fda1b0` is test-only and expects executable RED.
+- bounded acceptance: successful approval must audit exact planned tool + persisted `tool_parameters` + per-run `allowed_tools` as a deterministic canonical snapshot and SHA-256 digest; `TOOL_EXECUTED` must correlate the same digest.
+- rejection/no-tool paths must not falsely emit tool-execution evidence.
+- no new endpoint, execution authority, replay behavior, permission expansion, signing, or tamper-proof storage claim.
 
 ### Changed This Run
-- accepted exact head `33dcb87a1da90dc0b8cc86a136a37ac9bf807afd` after the same-gap browser verification improvement.
-- merged PR #37 with expected-head protection and closed Issue #36 completed.
+- accepted and merged P-010 after exact-head browser verification closed the valid P2 gap.
 - reconciled MASTER to P-010 CLOSED/ACCEPTED.
+- bounded Progression Review identified a concrete auditability gap: approval and execution events do not persist/correlate the exact execution-input snapshot.
+- opened P-011 Issue #38, branch, test-first contract, and PR #39.
 
 ### Actually Executed
 - root MASTER read first.
-- exact-head check-runs inspected directly: validate, proof-eval, firebat-container all completed SUCCESS.
-- PR #37 squash merged using expected head `33dcb87a1da90dc0b8cc86a136a37ac9bf807afd`.
-- Issue #36 closed with completed reason.
+- P-010 exact-head check-runs inspected directly: validate, proof-eval, firebat-container all completed SUCCESS.
+- PR #37 squash merged using expected head `33dcb87a1da90dc0b8cc86a136a37ac9bf807afd`; Issue #36 closed completed.
+- P-011 test-only head `ac16e09a6c22ab644007f394e6b7d49229fda1b0` pushed and PR #39 opened.
+- first-head validate was observed queued then in-progress; no RED/PASS result inferred yet.
 
 ### Verified
-- P-010 acceptance contract is backed by exact-head executable workflow evidence.
-- pending-approval Operator UI displays the same persisted execution inputs that the existing approval path consumes.
-- frozen human approval, allowlist, read-only tool, recovery, and non-autonomy boundaries remain explicit.
+- P-010 acceptance is backed by exact-head executable workflow evidence.
+- P-011 has concrete evidence/review value, bounded executable acceptance, one-Issue/one-PR scope, and requires no product-direction or security-policy expansion.
+- frozen human approval, allowlist, read-only execution, recovery, and non-autonomy boundaries remain explicit.
 
 ### Not Verified
-- no tamper-proof approval binding, signature, production authorization/RBAC, or unrestricted tool safety is established.
-- no next progression milestone has yet been accepted by a bounded Progression Review.
+- P-011 first-head executable RED has not yet completed.
+- P-011 implementation does not yet exist and no P-011 PASS is claimed.
+- no cryptographic signature, tamper-proof storage, external notarization, production authorization/RBAC, non-repudiation, or unrestricted tool safety is established.
 
 ### Limitations
-P-010 improves human review visibility only. A successful exact-head run does not establish unrestricted safety, reliability, or autonomy.
+P-011 is intended to add audit correlation over the existing bounded execution path only. SHA-256 correlation inside the same persisted evidence store is not a signature or tamper-proof guarantee.
 
 ### Exact Next Action
-Perform one bounded Progression Review from reconciled main. Select exactly one next milestone only if it has concrete use/show/delivery value, executable acceptance, one-Issue/one-PR scope, and no unresolved product/security decision; otherwise remain ENABLED in HOLD/no-mutation mode.
+Observe PR #39 first-head validate for executable RED. Once RED is confirmed, implement the minimal canonical execution-input snapshot/digest audit correlation inside Issue #38, then run exact-head PR Validation, Proof Evaluation, and Firebat Container before any merge.

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from unittest.mock import patch
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -12,6 +13,7 @@ from sqlalchemy.pool import StaticPool
 from app.api.routes import router
 from app.models.database import Base, get_db
 from app.models.models import AgentRun
+from app.operator_evidence_ui import operator_workspace_with_evidence
 
 
 engine = create_engine(
@@ -99,32 +101,36 @@ def _events(run_id: str) -> list[dict]:
     return response.json()
 
 
-def test_approve_requires_reviewed_execution_input_digest() -> None:
+def test_approve_requires_reviewed_execution_input_digest_before_executor() -> None:
     run_id = _seed_pending_run("run-missing-reviewed-digest")
 
-    response = client.post(
-        f"/api/agents/runs/{run_id}/approve",
-        json={"note": "Approve without reviewed digest must fail closed"},
-    )
+    with patch("app.api.routes.execute_approved_tool") as executor:
+        response = client.post(
+            f"/api/agents/runs/{run_id}/approve",
+            json={"note": "Approve without reviewed digest must fail closed"},
+        )
 
     assert response.status_code == 409
+    executor.assert_not_called()
     persisted = client.get(f"/api/agents/runs/{run_id}").json()
     assert persisted["status"] == "pending_approval"
     assert all(event["event_type"] != "TOOL_EXECUTED" for event in _events(run_id))
 
 
-def test_approve_rejects_mismatched_reviewed_digest_before_execution() -> None:
+def test_approve_rejects_mismatched_reviewed_digest_before_executor() -> None:
     run_id = _seed_pending_run("run-mismatched-reviewed-digest")
 
-    response = client.post(
-        f"/api/agents/runs/{run_id}/approve",
-        json={
-            "note": "Approve with stale reviewed digest",
-            "expected_execution_inputs_digest": "0" * 64,
-        },
-    )
+    with patch("app.api.routes.execute_approved_tool") as executor:
+        response = client.post(
+            f"/api/agents/runs/{run_id}/approve",
+            json={
+                "note": "Approve with stale reviewed digest",
+                "expected_execution_inputs_digest": "0" * 64,
+            },
+        )
 
     assert response.status_code == 409
+    executor.assert_not_called()
     persisted = client.get(f"/api/agents/runs/{run_id}").json()
     assert persisted["status"] == "pending_approval"
     assert all(event["event_type"] != "TOOL_EXECUTED" for event in _events(run_id))
@@ -148,3 +154,12 @@ def test_approve_accepts_matching_reviewed_digest_and_preserves_audit_correlatio
     executed = next(event for event in events if event["event_type"] == "TOOL_EXECUTED")
     assert approved["payload"]["execution_inputs_digest"] == expected_digest
     assert executed["payload"]["execution_inputs_digest"] == expected_digest
+
+
+def test_operator_approval_payload_is_bound_to_displayed_reviewed_digest() -> None:
+    html = operator_workspace_with_evidence().body.decode("utf-8")
+
+    assert 'id="execution-inputs-digest"' in html
+    assert "currentReviewedExecutionInputsDigest = digest" in html
+    assert "expected_execution_inputs_digest: currentReviewedExecutionInputsDigest" in html
+    assert "approveButton.disabled = true" in html

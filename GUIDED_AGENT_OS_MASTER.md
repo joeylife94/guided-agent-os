@@ -12,12 +12,11 @@
 | Proof v1.0 | **CLOSED / FROZEN** |
 | Current Level | **L3 — Usable / Demonstrable Proof** |
 | Progression Mode | **ENABLED — bounded milestones only** |
-| Latest accepted milestone | **P-008 / Issue #32 Operator evidence digest local verification — CLOSED** |
-| Active milestone | **P-009 / Issue #34 portable deterministic evidence download — OPEN** |
-| Active branch | `proof-v1.1/34-evidence-download` |
-| Active PR | **#35 — OPEN / first head RED expected** |
-| Latest accepted progression merge | `a238a9a89e3edb7afa5a00d0290c53483726625e` |
-| P-009 first contract head | `441581079c328d363a5c10c5acfbc2b872c7576e` |
+| Latest accepted milestone | **P-009 / Issue #34 portable deterministic evidence download — CLOSED** |
+| Active milestone | **None — Progression Review pending** |
+| Active branch | None |
+| Active PR | None |
+| Latest accepted progression merge | `019f93ebffc9f9b0089e5f16378df8f160f6bcdc` |
 
 The v1.0 acceptance baseline is not reopened by later milestones.
 
@@ -100,7 +99,7 @@ Rules:
 | L-22 | interrupted/recovery-required run discovery requires known run id | CLOSED by P-006 |
 | L-23 | deterministic evidence bundle was API-only | CLOSED by P-007 |
 | L-24 | Operator could not independently check displayed bundle/digest consistency | CLOSED by P-008 local verification |
-| L-25 | reviewed deterministic evidence cannot be persisted directly from Operator Workspace | **ACTIVE — P-009 client-side export only** |
+| L-25 | reviewed deterministic evidence could not be persisted directly from Operator Workspace | CLOSED by P-009 client-side export |
 
 ---
 
@@ -137,47 +136,36 @@ Rules:
 - limitation: local consistency only; no external trust/signature/notarization/non-repudiation claim.
 
 ## P-009 — Portable deterministic evidence download
-**OPEN — CONTRACT HEAD / RED EXPECTED**
-
-### Gate / Value
-P-007/P-008 make deterministic evidence visible and locally checkable, but reviewers cannot persist the reviewed artifact directly from the Operator browser. A client-side export has direct handoff/demo/archive value without changing server authority.
-
-### Lifecycle
-- Issue #34 — OPEN.
-- Branch `proof-v1.1/34-evidence-download` from reconciled main `2cbe06b966a4aabd58bc59a56de8b6953bc65fff`.
-- PR #35 — OPEN.
-- first exact head `441581079c328d363a5c10c5acfbc2b872c7576e`.
-
-### Acceptance Contract
-1. Operator evidence panel exposes a Download evidence action only when evidence is loaded.
-2. Downloaded JSON contains the current `run`, ordered `events`, and `evidence_digest` from the current evidence response.
-3. Filename is deterministic from current run id plus digest prefix and ends in `.json`.
-4. Download performs no additional network or approve/reject/recover/tool-execution request.
-5. missing/newly switched evidence cannot download stale prior-run content.
-6. existing evidence/control/recovery semantics and required workflow suites remain green.
-7. no signature/notarization/archive-retention/non-repudiation claim.
+**CLOSED — ACCEPTED**
+- Issue #34; PR #35.
+- first contract head `441581079c328d363a5c10c5acfbc2b872c7576e` established executable RED; an implementation-head test route mismatch was corrected within the same gap.
+- accepted exact head `f21e2545a8a7417bda71f1b988aed15d7c77ee26`; squash merge `019f93ebffc9f9b0089e5f16378df8f160f6bcdc`.
+- exact-head checks: validate run `33497555117`, Firebat Container run `33497555088`, Proof Evaluation run `33497555180` — all SUCCESS.
+- Operator can download only the currently loaded deterministic evidence as browser-generated JSON with deterministic run-id/digest filename; stale prior-run evidence is blocked on run switch.
+- no additional network/mutation/execution authority is introduced by the download action.
+- limitation: portable client-side copy only; no trusted archival retention, signing, notarization, access control, or non-repudiation claim.
 
 ### Changed This Run
-- accepted and reconciled P-008 after exact-head workflow success and expected-head merge.
-- confirmed no open Issue/PR before Progression Review.
-- selected exactly one next milestone, created Issue #34, linked branch, test-first contract, and PR #35.
+- observed accepted exact head `f21e2545a8a7417bda71f1b988aed15d7c77ee26` after the same-gap route-contract correction.
+- merged PR #35 with expected-head protection and closed Issue #34 completed.
+- reconciled MASTER to P-009 CLOSED/ACCEPTED.
 
 ### Actually Executed
 - root MASTER read first.
-- P-008 exact head check-runs inspected directly: validate, proof-eval, firebat-container all success.
-- PR #33 merged with expected-head protection; Issue #32 closed completed.
-- P-009 branch created from reconciled main and contract test committed.
+- exact-head check-runs inspected directly: validate, proof-eval, firebat-container all completed SUCCESS.
+- PR #35 squash merged using expected head `f21e2545a8a7417bda71f1b988aed15d7c77ee26`.
+- Issue #34 closed with completed reason.
 
 ### Verified
-- P-008 is repository/executable-evidence accepted.
-- P-009 passes the milestone gate: concrete delivery value, browser-only bounded scope, executable acceptance, no unresolved security/product decision.
+- P-009 acceptance contract is backed by exact-head executable workflow evidence.
+- frozen approval, allowlist, recovery, and non-autonomy boundaries remain explicit.
 
 ### Not Verified
-- P-009 download behavior is not implemented on the first head.
-- no P-009 PASS or merge claim exists yet.
+- no trusted archival retention, signature, notarization, external access control, or non-repudiation property is established.
+- no next progression milestone has yet been accepted by a bounded Progression Review.
 
 ### Limitations
-P-009 is only a portable client-side copy of existing read-only evidence. It does not provide trusted archival retention, signing, notarization, or access control.
+P-009 exports a portable browser-side copy of existing read-only evidence only. A successful exact-head run does not establish unrestricted safety, reliability, or autonomy.
 
 ### Exact Next Action
-Observe PR #35 first-head CI to establish executable RED. Then implement the smallest browser-only current-evidence download surface in the same Issue/PR and rerun exact-head regression before any merge.
+Perform one bounded Progression Review from reconciled main. Select exactly one next milestone only if it has concrete use/show/delivery value, executable acceptance, one-Issue/one-PR scope, and no unresolved product/security decision; otherwise remain ENABLED in HOLD/no-mutation mode.

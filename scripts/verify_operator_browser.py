@@ -106,7 +106,10 @@ def main() -> None:
         pending_run = pending_persisted.get("run") or {}
         pending_intake = pending_run.get("intake_data") or {}
         pending_tool_plan = pending_run.get("tool_plan") or {}
-        expected_tool = pending_tool_plan.get("tool_name") or pending_tool_plan.get("tool") or "Not available."
+        recommended = pending_tool_plan.get("recommended_tools") or []
+        expected_tool = (
+            (recommended[0] or {}).get("name") if recommended else None
+        ) or pending_tool_plan.get("tool_name") or pending_tool_plan.get("tool") or "Not available."
         expected_parameters = pending_intake.get("tool_parameters")
         expected_allowed_tools = pending_intake.get("allowed_tools")
 
@@ -132,6 +135,14 @@ def main() -> None:
             "allowed_tools": json.loads(rendered_allowed_tools),
         }
 
+        wait.until(
+            lambda d: len(d.find_element(By.ID, "execution-inputs-digest").text.strip()) == 64
+        )
+        wait.until(lambda d: d.find_element(By.ID, "approve-button").is_enabled())
+        reviewed_digest = driver.find_element(By.ID, "execution-inputs-digest").text.strip()
+        evidence["checks"].append("reviewed_execution_inputs_digest_ready")
+        evidence["reviewed_execution_inputs_digest"] = reviewed_digest
+
         driver.find_element(By.ID, "approve-button").click()
         wait_text(wait, "run-status", "archived")
         wait.until(lambda d: '\"status\": \"executed\"' in d.find_element(By.ID, "execution-result").text)
@@ -150,8 +161,6 @@ def main() -> None:
         evidence["final_run_id"] = driver.find_element(By.ID, "run-id").text
         evidence["final_audit_types"] = final_audit
 
-        # Fresh API reads prove both UI surfaces correspond to backend-persisted state,
-        # not transient DOM-only state.
         run_id = str(evidence["final_run_id"])
         persisted = driver.execute_async_script(
             """
@@ -183,8 +192,19 @@ def main() -> None:
         if required_positions != sorted(required_positions):
             raise AssertionError(f"Required audit events out of order: {persisted_types!r}")
 
+        approved_event = next(event for event in persisted_events if event.get("event_type") == "APPROVED")
+        executed_event = next(event for event in persisted_events if event.get("event_type") == "TOOL_EXECUTED")
+        approved_digest = (approved_event.get("payload") or {}).get("execution_inputs_digest")
+        executed_digest = (executed_event.get("payload") or {}).get("execution_inputs_digest")
+        if approved_digest != reviewed_digest or executed_digest != reviewed_digest:
+            raise AssertionError(
+                "Reviewed browser digest must match persisted APPROVED and TOOL_EXECUTED correlation: "
+                f"reviewed={reviewed_digest!r} approved={approved_digest!r} executed={executed_digest!r}"
+            )
+
         evidence["checks"].append("persisted_execution_reloaded")
         evidence["checks"].append("persisted_audit_reloaded_and_matches_ui")
+        evidence["checks"].append("reviewed_digest_matches_persisted_approval_execution_correlation")
         evidence["persisted_status"] = persisted_run.get("status")
         evidence["persisted_audit_types"] = persisted_types
 

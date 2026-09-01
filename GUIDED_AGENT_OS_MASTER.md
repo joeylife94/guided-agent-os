@@ -12,12 +12,11 @@
 | Proof v1.0 | **CLOSED / FROZEN** |
 | Current Level | **L3 — Usable / Demonstrable Proof** |
 | Progression Mode | **ENABLED — bounded milestones only** |
-| Latest accepted milestone | **P-006 / Issue #28 read-only interrupted-decision recovery queue — CLOSED** |
-| Active milestone | **P-007 / Issue #30 Operator deterministic evidence artifact — OPEN** |
-| Active branch | `proof-v1.1/30-operator-evidence-artifact` |
-| Active PR | **#31 — OPEN / first head RED expected** |
-| Latest accepted progression merge | `c405b66d0a91f2924660d049f05390daab20ddaa` |
-| P-007 first contract head | `873733a5c61611f5f475348005c39a1328545594` |
+| Latest accepted milestone | **P-007 / Issue #30 Operator deterministic evidence artifact — CLOSED** |
+| Active milestone | **NONE — next bounded Progression Review pending** |
+| Active branch | none |
+| Active PR | none |
+| Latest accepted progression merge | `9d5a89b982eef8b3e492aa52a380e7806cd207d5` |
 
 The v1.0 acceptance baseline is not reopened by later milestones.
 
@@ -99,7 +98,7 @@ Rules:
 | L-20 | concurrency guarantee is current SQLite/SQLAlchemy-runtime scoped | ACCEPTED P-002 boundary |
 | L-21 | crash after decision claim can leave ambiguous transient state | CONTAINED by P-004 quarantine; no replay/reconstruction claim |
 | L-22 | interrupted/recovery-required run discovery requires a known run id | CLOSED by P-006 read-only recovery queue |
-| L-23 | deterministic evidence bundle is API-accessible but not yet surfaced as a compact Operator delivery/review artifact | **ACTIVE — P-007 addresses Operator evidence usability only** |
+| L-23 | deterministic evidence bundle was API-only | CLOSED by P-007 Operator evidence surface |
 
 ---
 
@@ -154,49 +153,35 @@ Rules:
 - limitation: discovery/read UX only; no automatic quarantine, retry, resume, notification, execution, or distributed recovery semantics.
 
 ## P-007 — Operator deterministic evidence artifact
-**OPEN — CONTRACT HEAD / RED EXPECTED**
-
-### Gate / Value
-P-003 already provides a deterministic read-only run+events evidence bundle and SHA-256 digest, but the Operator Workspace does not expose it. Surfacing the existing artifact gives a human reviewer/demo operator a compact inspectable delivery artifact without increasing execution authority.
-
-### Lifecycle
-- Issue #30 — OPEN.
-- Branch `proof-v1.1/30-operator-evidence-artifact` from reconciled main `d338af13437f3276cfefd7d4c4e37039106b8be0`.
-- PR #31 — OPEN.
-- first exact head `873733a5c61611f5f475348005c39a1328545594`.
-
-### Acceptance Contract
-1. Operator Workspace contains an explicit run-evidence panel/action tied to the currently loaded run.
-2. UI reuses only `GET /api/agents/runs/{run_id}/evidence` for the evidence artifact.
-3. Rendered artifact includes returned `evidence_digest` and deterministic bundle JSON.
-4. Evidence loading adds no approve/reject/recover/tool-execution path.
-5. Existing P-003 repeated-read/non-mutation semantics remain green.
-6. Existing Golden Path, replay/concurrency/quarantine/recovery-queue semantics and required workflow suites remain green.
-7. no signature/notarization/non-repudiation claim is introduced.
+**CLOSED — ACCEPTED**
+- Issue #30; PR #31.
+- first contract head `873733a5c61611f5f475348005c39a1328545594` established executable RED.
+- accepted exact head `bc40adc59cfdc64c4d0a86b188bf9522b7873fc1`; merge `9d5a89b982eef8b3e492aa52a380e7806cd207d5`.
+- exact-head checks: PR Validation run `33473699413`, Firebat Container run `33473699508`, Proof Evaluation run `33473699743` — all SUCCESS.
+- Operator Workspace exposes the existing read-only P-003 evidence endpoint, including `evidence_digest` and deterministic bundle JSON, without adding approve/reject/recover/tool-execution authority.
+- limitation: evidence digest remains an integrity checksum, not a signature, timestamp authority, notarization, or non-repudiation mechanism.
 
 ### Changed This Run
-- accepted and reconciled P-006 after exact-head workflow success and expected-head merge.
-- created Issue #30 and linked branch.
-- added test-first Operator evidence UI contract.
-- opened PR #31 on exact test-only head `873733a5c61611f5f475348005c39a1328545594`.
+- verified P-007 exact head `bc40adc59cfdc64c4d0a86b188bf9522b7873fc1` against all three required checks.
+- merged PR #31 with expected-head protection and closed Issue #30 completed.
+- reconciled MASTER to repository/executable evidence.
 
 ### Actually Executed
-- re-read root Master first.
-- verified P-006 exact head `e8718b6ae823539be7cee3ffbc36500432a6bbb5`: PR Validation #81, Firebat #74, Proof Evaluation #13 all success.
-- resolved the first-head Codex review thread after implementation evidence.
-- merged PR #29 with expected-head protection and closed Issue #28.
-- confirmed no open PR/Issue before selecting P-007.
+- root MASTER read first.
+- exact-head GitHub check-runs inspected directly.
+- PR #31 squash merge executed with expected head `bc40adc59cfdc64c4d0a86b188bf9522b7873fc1`.
+- Issue #30 closed as completed.
 
 ### Verified
-- P-006 is repository/executable-evidence accepted.
-- P-007 passes the milestone gate: concrete human review/delivery value, read-only scope, executable acceptance, no unresolved security/product decision.
+- P-007 acceptance contract is satisfied on the accepted exact head.
+- frozen v1.0 baseline remains unchanged.
 
 ### Not Verified
-- P-007 evidence panel/action is not implemented on the first head.
-- no P-007 PASS or merge claim exists yet.
+- no external trust/notarization properties are claimed for the digest.
+- no broader production auth, autonomy, or distributed recovery claim is introduced.
 
 ### Limitations
-P-007 is evidence usability only. The digest remains an integrity checksum, not an external signature, timestamp authority, notarization, or non-repudiation mechanism.
+P-007 improves evidence review usability only; it does not create an external chain of trust.
 
 ### Exact Next Action
-Observe PR #31 first-head CI to establish executable RED. Then, inside the same Issue/PR, add the smallest Operator-only evidence panel that reads the existing P-003 endpoint and re-run exact-head regression before any merge.
+Perform one bounded Progression Review from this reconciled state. If no candidate has direct use/show/delivery value with executable acceptance and no unresolved product/security decision, remain ENABLED in HOLD/no-mutation mode.

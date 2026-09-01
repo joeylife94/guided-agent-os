@@ -12,11 +12,11 @@
 | Proof v1.0 | **CLOSED / FROZEN** |
 | Current Level | **L3 — Usable / Demonstrable Proof** |
 | Progression Mode | **ENABLED — bounded milestones only** |
-| Latest accepted milestone | **P-009 / Issue #34 portable deterministic evidence download — CLOSED** |
+| Latest accepted milestone | **P-010 / Issue #36 Operator approval execution-input review — CLOSED** |
 | Active milestone | **None — Progression Review pending** |
 | Active branch | None |
 | Active PR | None |
-| Latest accepted progression merge | `019f93ebffc9f9b0089e5f16378df8f160f6bcdc` |
+| Latest accepted progression merge | `3e8a653820f48c30bb60743184d2c90416523b26` |
 
 The v1.0 acceptance baseline is not reopened by later milestones.
 
@@ -100,6 +100,7 @@ Rules:
 | L-23 | deterministic evidence bundle was API-only | CLOSED by P-007 |
 | L-24 | Operator could not independently check displayed bundle/digest consistency | CLOSED by P-008 local verification |
 | L-25 | reviewed deterministic evidence could not be persisted directly from Operator Workspace | CLOSED by P-009 client-side export |
+| L-26 | exact persisted execution inputs were not surfaced together at the human approval boundary | CLOSED by P-010 |
 
 ---
 
@@ -145,27 +146,39 @@ Rules:
 - no additional network/mutation/execution authority is introduced by the download action.
 - limitation: portable client-side copy only; no trusted archival retention, signing, notarization, access control, or non-repudiation claim.
 
+## P-010 — Operator approval execution-input review
+**CLOSED — ACCEPTED**
+- Issue #36; PR #37.
+- first contract head `153fe586e3d753bb2566f8951c29a42b98cad485` established executable RED.
+- implementation head `e1cdfd98dae0614c5de96852ac30b784ad543779` was green but received a valid P2 review gap because the contract only checked HTML/JS strings.
+- accepted exact head `33dcb87a1da90dc0b8cc86a136a37ac9bf807afd`; squash merge `3e8a653820f48c30bb60743184d2c90416523b26`.
+- exact-head checks: validate run `33519469769`, Firebat Container run `33519469786`, Proof Evaluation run `33519469795` — all SUCCESS.
+- browser Golden Path now verifies that pending-approval UI values for planned tool, persisted `tool_parameters`, and per-run `allowed_tools` equal backend persisted values before approval.
+- no execution/write endpoint, tool capability, autonomous execution, or permission expansion was introduced.
+- limitation: visibility only; this does not establish tamper-proof approval binding, signatures, production authorization/RBAC, or unrestricted tool safety.
+
 ### Changed This Run
-- observed accepted exact head `f21e2545a8a7417bda71f1b988aed15d7c77ee26` after the same-gap route-contract correction.
-- merged PR #35 with expected-head protection and closed Issue #34 completed.
-- reconciled MASTER to P-009 CLOSED/ACCEPTED.
+- accepted exact head `33dcb87a1da90dc0b8cc86a136a37ac9bf807afd` after the same-gap browser verification improvement.
+- merged PR #37 with expected-head protection and closed Issue #36 completed.
+- reconciled MASTER to P-010 CLOSED/ACCEPTED.
 
 ### Actually Executed
 - root MASTER read first.
 - exact-head check-runs inspected directly: validate, proof-eval, firebat-container all completed SUCCESS.
-- PR #35 squash merged using expected head `f21e2545a8a7417bda71f1b988aed15d7c77ee26`.
-- Issue #34 closed with completed reason.
+- PR #37 squash merged using expected head `33dcb87a1da90dc0b8cc86a136a37ac9bf807afd`.
+- Issue #36 closed with completed reason.
 
 ### Verified
-- P-009 acceptance contract is backed by exact-head executable workflow evidence.
-- frozen approval, allowlist, recovery, and non-autonomy boundaries remain explicit.
+- P-010 acceptance contract is backed by exact-head executable workflow evidence.
+- pending-approval Operator UI displays the same persisted execution inputs that the existing approval path consumes.
+- frozen human approval, allowlist, read-only tool, recovery, and non-autonomy boundaries remain explicit.
 
 ### Not Verified
-- no trusted archival retention, signature, notarization, external access control, or non-repudiation property is established.
+- no tamper-proof approval binding, signature, production authorization/RBAC, or unrestricted tool safety is established.
 - no next progression milestone has yet been accepted by a bounded Progression Review.
 
 ### Limitations
-P-009 exports a portable browser-side copy of existing read-only evidence only. A successful exact-head run does not establish unrestricted safety, reliability, or autonomy.
+P-010 improves human review visibility only. A successful exact-head run does not establish unrestricted safety, reliability, or autonomy.
 
 ### Exact Next Action
 Perform one bounded Progression Review from reconciled main. Select exactly one next milestone only if it has concrete use/show/delivery value, executable acceptance, one-Issue/one-PR scope, and no unresolved product/security decision; otherwise remain ENABLED in HOLD/no-mutation mode.

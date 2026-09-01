@@ -13,10 +13,11 @@
 | Current Level | **L3 — Usable / Demonstrable Proof** |
 | Progression Mode | **ENABLED — bounded milestones only** |
 | Latest accepted milestone | **P-007 / Issue #30 Operator deterministic evidence artifact — CLOSED** |
-| Active milestone | **NONE — next bounded Progression Review pending** |
-| Active branch | none |
-| Active PR | none |
+| Active milestone | **P-008 / Issue #32 Operator evidence digest local verification — OPEN** |
+| Active branch | `proof-v1.1/32-operator-evidence-digest-verification` |
+| Active PR | **#33 — OPEN / first head RED expected** |
 | Latest accepted progression merge | `9d5a89b982eef8b3e492aa52a380e7806cd207d5` |
+| P-008 first contract head | `a5ba9cd763c1eeff5ff75462aa9fc1279949e6f7` |
 
 The v1.0 acceptance baseline is not reopened by later milestones.
 
@@ -99,6 +100,7 @@ Rules:
 | L-21 | crash after decision claim can leave ambiguous transient state | CONTAINED by P-004 quarantine; no replay/reconstruction claim |
 | L-22 | interrupted/recovery-required run discovery requires a known run id | CLOSED by P-006 read-only recovery queue |
 | L-23 | deterministic evidence bundle was API-only | CLOSED by P-007 Operator evidence surface |
+| L-24 | Operator can display server digest but cannot independently check displayed bundle/digest consistency | **ACTIVE — P-008 local integrity verification only** |
 
 ---
 
@@ -161,27 +163,48 @@ Rules:
 - Operator Workspace exposes the existing read-only P-003 evidence endpoint, including `evidence_digest` and deterministic bundle JSON, without adding approve/reject/recover/tool-execution authority.
 - limitation: evidence digest remains an integrity checksum, not a signature, timestamp authority, notarization, or non-repudiation mechanism.
 
+## P-008 — Operator evidence digest local verification
+**OPEN — CONTRACT HEAD / RED EXPECTED**
+
+### Gate / Value
+P-007 exposes the deterministic evidence bundle and server digest in the Operator Workspace. A reviewer still cannot independently check whether the visible bundle canonicalizes to that digest. Local browser verification gives concrete review/demo value while remaining read-only and bounded.
+
+### Lifecycle
+- Issue #32 — OPEN.
+- Branch `proof-v1.1/32-operator-evidence-digest-verification` from reconciled main `39cc053d216d5bea338d08429805999ffe69a3cd`.
+- PR #33 — OPEN.
+- first exact head `a5ba9cd763c1eeff5ff75462aa9fc1279949e6f7`.
+
+### Acceptance Contract
+1. Operator evidence panel exposes an explicit verification status for the currently rendered artifact.
+2. Browser recomputes SHA-256 from deterministic canonical evidence content, excluding `evidence_digest`, and valid unchanged evidence renders MATCH.
+3. deterministic tampered fixture renders MISMATCH.
+4. unavailable browser crypto or digest renders UNAVAILABLE rather than PASS.
+5. verification creates no additional approve/reject/recover/tool-execution request and performs no server mutation.
+6. existing P-003/P-007 evidence behavior plus Golden Path, replay/concurrency/quarantine/recovery-queue semantics and required workflow suites remain green.
+7. no signature/notarization/non-repudiation or hostile-client security claim is introduced.
+
 ### Changed This Run
-- verified P-007 exact head `bc40adc59cfdc64c4d0a86b188bf9522b7873fc1` against all three required checks.
-- merged PR #31 with expected-head protection and closed Issue #30 completed.
-- reconciled MASTER to repository/executable evidence.
+- accepted and reconciled P-007 after exact-head workflow success and expected-head merge.
+- confirmed no open Issue/PR before Progression Review.
+- created Issue #32, linked branch, test-first contract, and PR #33.
 
 ### Actually Executed
 - root MASTER read first.
-- exact-head GitHub check-runs inspected directly.
-- PR #31 squash merge executed with expected head `bc40adc59cfdc64c4d0a86b188bf9522b7873fc1`.
-- Issue #30 closed as completed.
+- exact P-007 head check-runs inspected directly: validate, proof-eval, firebat-container all success.
+- PR #31 merged with expected-head protection; Issue #30 closed completed.
+- P-008 branch created from reconciled main and first contract commit pushed.
 
 ### Verified
-- P-007 acceptance contract is satisfied on the accepted exact head.
-- frozen v1.0 baseline remains unchanged.
+- P-007 is repository/executable-evidence accepted.
+- P-008 passes the milestone gate: concrete human review value, read-only scope, executable acceptance, no unresolved product/security decision.
 
 ### Not Verified
-- no external trust/notarization properties are claimed for the digest.
-- no broader production auth, autonomy, or distributed recovery claim is introduced.
+- P-008 local digest verification is not implemented on the first head.
+- no P-008 PASS or merge claim exists yet.
 
 ### Limitations
-P-007 improves evidence review usability only; it does not create an external chain of trust.
+P-008 checks local consistency only. It does not authenticate the server/operator or establish any external chain of trust.
 
 ### Exact Next Action
-Perform one bounded Progression Review from this reconciled state. If no candidate has direct use/show/delivery value with executable acceptance and no unresolved product/security decision, remain ENABLED in HOLD/no-mutation mode.
+Observe PR #33 first-head CI to establish executable RED. Then, inside the same Issue/PR, implement the smallest client-side canonicalization + SHA-256 verification surface and rerun exact-head regression before any merge.

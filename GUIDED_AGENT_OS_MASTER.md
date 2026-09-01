@@ -12,12 +12,11 @@
 | Proof v1.0 | **CLOSED / FROZEN** |
 | Current Level | **L3 — Usable / Demonstrable Proof** |
 | Progression Mode | **ENABLED — bounded milestones only** |
-| Latest accepted milestone | **P-005 / Issue #26 Operator interrupted-decision quarantine UX — CLOSED** |
-| Active milestone | **P-006 / Issue #28 read-only interrupted-decision recovery queue — OPEN** |
-| Active branch | `proof-v1.1/28-recovery-queue` |
-| Active PR | **#29 — OPEN / first head RED expected** |
-| Latest accepted progression merge | `8cf4a2847b527ae3f322dd744f0abec8b30844c8` |
-| P-006 first contract head | `2cef6b981a3af7c2fc3a786185a3e8137891a970` |
+| Latest accepted milestone | **P-006 / Issue #28 read-only interrupted-decision recovery queue — CLOSED** |
+| Active milestone | **NONE — Progression Review required** |
+| Active branch | none |
+| Active PR | none |
+| Latest accepted progression merge | `c405b66d0a91f2924660d049f05390daab20ddaa` |
 
 The v1.0 acceptance baseline is not reopened by later milestones.
 
@@ -98,7 +97,8 @@ Rules:
 | L-17 | browser CI depends on GitHub runner Chrome + Selenium | ACCEPTED for Proof |
 | L-20 | concurrency guarantee is current SQLite/SQLAlchemy-runtime scoped | ACCEPTED P-002 boundary |
 | L-21 | crash after decision claim can leave ambiguous transient state | CONTAINED by P-004 quarantine; no replay/reconstruction claim |
-| L-22 | interrupted/recovery-required run discovery requires a known run id | **ACTIVE — P-006 addresses only discovery/read UX** |
+| L-22 | interrupted/recovery-required run discovery requires a known run id | CLOSED by P-006 read-only recovery queue |
+| L-23 | deterministic evidence bundle is API-accessible but not yet surfaced as a compact Operator delivery/review artifact | OPEN — candidate for bounded progression |
 
 ---
 
@@ -141,52 +141,38 @@ Rules:
 - exact head `db42ce1d86cd578e97743814ce6ac1615ce4b751`; merge `8cf4a2847b527ae3f322dd744f0abec8b30844c8`.
 - PR Validation `33450813525` #74, Firebat `33450813435` #68, Proof Evaluation `33450813445` #10 PASS.
 - Operator UI surfaces interrupted/quarantined state, calls existing P-004 action, disables approve/reject when recovery is required, and can reopen a persisted run by id.
-- limitation: operator still needs the run id; no recovery queue exists.
 
 ## P-006 — Read-only interrupted-decision recovery queue
-**OPEN — CONTRACT HEAD / RED EXPECTED**
+**CLOSED — ACCEPTED**
+- Issue #28; PR #29.
+- first contract head `2cef6b981a3af7c2fc3a786185a3e8137891a970` established executable RED.
+- accepted exact head `e8718b6ae823539be7cee3ffbc36500432a6bbb5`; merge `c405b66d0a91f2924660d049f05390daab20ddaa`.
+- PR Validation `33466248162` #81, Firebat `33466248210` #74, Proof Evaluation `33466248142` #13 PASS.
+- read-only queue returns only `approval_executing`, `rejection_processing`, `decision_recovery_required`, deterministically oldest-first with run-id tie-breaker.
+- repeated reads are non-mutating and execute no tools; Operator queue selection reuses the persisted-run loader.
+- prior Codex P1 review on the first RED head was addressed on the accepted head and the review thread was resolved before merge.
+- limitation: discovery/read UX only; no automatic quarantine, retry, resume, notification, execution, or distributed recovery semantics.
 
-### Gate / Value
-P-004/P-005 made interrupted-decision quarantine safe and usable, but after restart an operator must already know the affected run id. A deterministic read-only recovery queue lets the operator discover affected runs without increasing execution authority.
+### P-006 acceptance record
+**Changed**
+- added read-only recovery queue endpoint and Operator queue UI within one Issue/PR.
 
-### Lifecycle
-- Issue #28 — OPEN.
-- Branch `proof-v1.1/28-recovery-queue` from reconciled main `c8ee49d6af740117984531e886062caf80620da4`.
-- PR #29 — OPEN.
-- first exact head `2cef6b981a3af7c2fc3a786185a3e8137891a970`.
+**Actually Executed**
+- first-head RED verification.
+- exact-head PR Validation / Firebat Container / Proof Evaluation.
+- PR review/thread reconciliation.
+- expected-head-protected squash merge and Issue close.
 
-### Acceptance Contract
-1. `GET /api/agents/runs/recovery-queue` returns only `approval_executing`, `rejection_processing`, `decision_recovery_required` runs.
-2. empty queue is 200/`[]` and read-only.
-3. deterministic ordering: created time ascending, then run id.
-4. unchanged repeated reads are identical, append no audit events, execute no tools.
-5. pending/archived/rejected runs never appear.
-6. Operator UI renders/refreshes queue and selecting an item uses the existing persisted-run loader only.
-7. existing replay/concurrency/quarantine/evidence/Golden Path plus applicable PR Validation, Firebat Container, Proof Evaluation remain green.
+**Verified**
+- exact head `e8718b6ae823539be7cee3ffbc36500432a6bbb5` passed all three required workflows.
+- PR #29 merged as `c405b66d0a91f2924660d049f05390daab20ddaa`.
+- Issue #28 closed completed.
 
-### Changed This Run
-- reconciled stale Master through P-005.
-- created Issue #28 and branch.
-- added `tests/test_recovery_queue.py` as executable backend contract.
-- opened PR #29 on exact test-only head `2cef6b981a3af7c2fc3a786185a3e8137891a970`.
+**Not Verified**
+- no claim of automatic recovery, side-effect reconstruction, notification/SLA, or distributed exactly-once recovery.
 
-### Actually Executed
-- re-read root Master first.
-- confirmed no pre-existing open PR/Issue before selecting P-006.
-- re-read Issues #22/#24/#26, PRs #23/#25/#27, and exact-head workflow evidence.
-- inspected current quarantine route/UI/test implementation.
+**Limitations**
+- operator must still make the recovery decision; queue is a read-only discovery surface.
 
-### Verified
-- P-003/P-004/P-005 repository/executable evidence is reconciled.
-- P-006 passes the bounded milestone gate: direct operator failure-handling value; read-only scope; concrete executable acceptance; no unresolved security/product decision.
-
-### Not Verified
-- recovery-queue endpoint is **not implemented** on the first PR head.
-- Operator queue UI is not implemented.
-- no PASS/merge claim exists for P-006 yet.
-
-### Limitations
-P-006 is discovery/read UX only: no notification/SLA worker, automatic quarantine, retry, resume, execution, or distributed recovery semantics.
-
-### Exact Next Action
-Observe PR #29 first-head CI to establish executable RED. Then, inside the same Issue/PR, add the smallest read-only endpoint before wiring the queue to the existing persisted-run loader. Re-run exact-head regression before any merge.
+**Exact Next Action**
+Perform one bounded Progression Review. Prefer a milestone that improves human review/evidence usability without expanding execution authority.

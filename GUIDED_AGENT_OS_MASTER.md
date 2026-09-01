@@ -13,10 +13,11 @@
 | Current Level | **L3 — Usable / Demonstrable Proof** |
 | Progression Mode | **ENABLED — bounded milestones only** |
 | Latest accepted milestone | **P-008 / Issue #32 Operator evidence digest local verification — CLOSED** |
-| Active milestone | **NONE — progression review required** |
-| Active branch | none |
-| Active PR | none |
+| Active milestone | **P-009 / Issue #34 portable deterministic evidence download — OPEN** |
+| Active branch | `proof-v1.1/34-evidence-download` |
+| Active PR | **#35 — OPEN / first head RED expected** |
 | Latest accepted progression merge | `a238a9a89e3edb7afa5a00d0290c53483726625e` |
+| P-009 first contract head | `441581079c328d363a5c10c5acfbc2b872c7576e` |
 
 The v1.0 acceptance baseline is not reopened by later milestones.
 
@@ -99,6 +100,7 @@ Rules:
 | L-22 | interrupted/recovery-required run discovery requires known run id | CLOSED by P-006 |
 | L-23 | deterministic evidence bundle was API-only | CLOSED by P-007 |
 | L-24 | Operator could not independently check displayed bundle/digest consistency | CLOSED by P-008 local verification |
+| L-25 | reviewed deterministic evidence cannot be persisted directly from Operator Workspace | **ACTIVE — P-009 client-side export only** |
 
 ---
 
@@ -131,28 +133,51 @@ Rules:
 - first contract head `a5ba9cd763c1eeff5ff75462aa9fc1279949e6f7` established executable RED.
 - accepted exact head `90652198add41eaaf6f95c182898d3ef530057d6`; merge `a238a9a89e3edb7afa5a00d0290c53483726625e`.
 - exact-head checks: PR Validation run `33481981742`, Firebat Container run `33481981750`, Proof Evaluation run `33481981737` — all SUCCESS.
-- Operator browser recomputes SHA-256 from canonical evidence content excluding `evidence_digest` and renders MATCH / MISMATCH / UNAVAILABLE.
-- verification is client-side/read-only; no approve/reject/recover/tool execution or server mutation added.
-- limitation: local consistency only; no signature, notarization, timestamp authority, external chain of trust, hostile-client security, or non-repudiation claim.
+- browser-side canonical SHA-256 recomputation renders MATCH / MISMATCH / UNAVAILABLE.
+- limitation: local consistency only; no external trust/signature/notarization/non-repudiation claim.
 
-### Changed
-- implemented local digest verification in P-008 and accepted exact-head regression evidence.
-- merged PR #33 with expected-head protection and closed Issue #32 completed.
-- reconciled MASTER to accepted repository state.
+## P-009 — Portable deterministic evidence download
+**OPEN — CONTRACT HEAD / RED EXPECTED**
+
+### Gate / Value
+P-007/P-008 make deterministic evidence visible and locally checkable, but reviewers cannot persist the reviewed artifact directly from the Operator browser. A client-side export has direct handoff/demo/archive value without changing server authority.
+
+### Lifecycle
+- Issue #34 — OPEN.
+- Branch `proof-v1.1/34-evidence-download` from reconciled main `2cbe06b966a4aabd58bc59a56de8b6953bc65fff`.
+- PR #35 — OPEN.
+- first exact head `441581079c328d363a5c10c5acfbc2b872c7576e`.
+
+### Acceptance Contract
+1. Operator evidence panel exposes a Download evidence action only when evidence is loaded.
+2. Downloaded JSON contains the current `run`, ordered `events`, and `evidence_digest` from the current evidence response.
+3. Filename is deterministic from current run id plus digest prefix and ends in `.json`.
+4. Download performs no additional network or approve/reject/recover/tool-execution request.
+5. missing/newly switched evidence cannot download stale prior-run content.
+6. existing evidence/control/recovery semantics and required workflow suites remain green.
+7. no signature/notarization/archive-retention/non-repudiation claim.
+
+### Changed This Run
+- accepted and reconciled P-008 after exact-head workflow success and expected-head merge.
+- confirmed no open Issue/PR before Progression Review.
+- selected exactly one next milestone, created Issue #34, linked branch, test-first contract, and PR #35.
 
 ### Actually Executed
 - root MASTER read first.
-- exact head `90652198add41eaaf6f95c182898d3ef530057d6` check-runs inspected directly.
-- validate, proof-eval, and firebat-container all completed SUCCESS.
+- P-008 exact head check-runs inspected directly: validate, proof-eval, firebat-container all success.
+- PR #33 merged with expected-head protection; Issue #32 closed completed.
+- P-009 branch created from reconciled main and contract test committed.
 
 ### Verified
-- P-008 executable acceptance and frozen baseline compatibility.
+- P-008 is repository/executable-evidence accepted.
+- P-009 passes the milestone gate: concrete delivery value, browser-only bounded scope, executable acceptance, no unresolved security/product decision.
 
 ### Not Verified
-- no external trust/authenticity or hostile-client guarantee.
+- P-009 download behavior is not implemented on the first head.
+- no P-009 PASS or merge claim exists yet.
 
 ### Limitations
-P-008 proves only browser-side consistency between the rendered deterministic evidence content and the server-provided checksum.
+P-009 is only a portable client-side copy of existing read-only evidence. It does not provide trusted archival retention, signing, notarization, or access control.
 
 ### Exact Next Action
-Perform one bounded Progression Review. If a milestone passes the gate, create exactly one Issue/branch/PR; otherwise remain ENABLED in HOLD/no-mutation mode.
+Observe PR #35 first-head CI to establish executable RED. Then implement the smallest browser-only current-evidence download surface in the same Issue/PR and rerun exact-head regression before any merge.

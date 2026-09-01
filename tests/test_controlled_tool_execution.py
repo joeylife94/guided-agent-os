@@ -14,6 +14,7 @@ from app.services.tool_executor import (
     execute_approved_tool,
     registered_tool_names,
 )
+from tests.approval_digest_helper import approval_body
 
 
 engine = create_engine(
@@ -136,7 +137,7 @@ def test_approve_executes_allowlisted_read_only_tool_and_persists_result() -> No
 
     response = client.post(
         f"/api/agents/runs/{run_id}/approve",
-        json={"note": "Approved for controlled proof lookup"},
+        json=approval_body("Approved for controlled proof lookup"),
     )
     assert response.status_code == 200
     payload = response.json()
@@ -178,7 +179,7 @@ def test_duplicate_approval_is_idempotent_and_does_not_repeat_terminal_events() 
     run_id = _seed_pending_run()
     first = client.post(
         f"/api/agents/runs/{run_id}/approve",
-        json={"note": "Approved once"},
+        json=approval_body("Approved once"),
     )
     assert first.status_code == 200
     first_execution = first.json()["raw_output"]["execution_result"]
@@ -223,7 +224,10 @@ def test_duplicate_rejection_is_idempotent_and_does_not_repeat_terminal_events()
 
 def test_reject_after_approval_is_conflict_and_preserves_approved_result() -> None:
     run_id = _seed_pending_run()
-    approved = client.post(f"/api/agents/runs/{run_id}/approve", json={})
+    approved = client.post(
+        f"/api/agents/runs/{run_id}/approve",
+        json=approval_body(),
+    )
     assert approved.status_code == 200
     execution = approved.json()["raw_output"]["execution_result"]
 

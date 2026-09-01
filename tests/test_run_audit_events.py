@@ -9,6 +9,7 @@ from sqlalchemy.pool import StaticPool
 import app.api.routes as routes_module
 from app.api.routes import router
 from app.models.database import Base, get_db
+from tests.approval_digest_helper import approval_body
 
 
 engine = create_engine(
@@ -148,7 +149,7 @@ def test_full_controlled_run_events_persist_and_reload_in_sequence(monkeypatch) 
 
     approve_response = client.post(
         f"/api/agents/runs/{run_id}/approve",
-        json={"note": "Approved for audit proof"},
+        json=approval_body("Approved for audit proof"),
     )
     assert approve_response.status_code == 200
     assert approve_response.json()["status"] == "archived"

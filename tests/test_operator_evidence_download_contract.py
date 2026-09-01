@@ -7,7 +7,7 @@ client = TestClient(app)
 
 
 def test_operator_evidence_surface_exposes_bounded_download_contract() -> None:
-    response = client.get("/operator")
+    response = client.get("/")
     assert response.status_code == 200
     html = response.text
 

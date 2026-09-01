@@ -95,6 +95,22 @@ def test_workspace_discovers_recovery_queue_via_read_only_loader() -> None:
     assert "automatic retry" not in html.lower()
 
 
+def test_workspace_surfaces_existing_deterministic_evidence_bundle_read_only() -> None:
+    response = client.get("/")
+    html = response.text
+
+    assert 'id="run-evidence-panel"' in html
+    assert 'id="refresh-run-evidence-button"' in html
+    assert 'id="evidence-digest"' in html
+    assert 'id="run-evidence-json"' in html
+    assert "function renderRunEvidence(evidence)" in html
+    assert "function refreshRunEvidence(runId)" in html
+    assert "await api(`/api/agents/runs/${runId}/evidence`)" in html
+    assert "evidence.evidence_digest" in html
+    assert "JSON.stringify(evidence, null, 2)" in html
+    assert "refreshRunEvidence(run.run_id)" in html
+
+
 def test_swagger_remains_available_for_developer_inspection() -> None:
     response = client.get("/docs")
 

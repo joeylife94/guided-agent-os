@@ -12,6 +12,7 @@ _EVIDENCE_PANEL = r'''
       <div class="muted">Read-only delivery artifact for the currently loaded run. The digest is an integrity checksum, not a signature or notarization.</div>
       <div class="actions">
         <button id="refresh-run-evidence-button" class="primary" type="button">Refresh run evidence</button>
+        <button id="download-run-evidence-button" type="button" disabled>Download evidence</button>
       </div>
       <div><span class="pill">SHA-256</span> <code id="evidence-digest">Not loaded.</code></div>
       <div><span class="pill">Local verification</span> <strong id="evidence-verification-status">UNAVAILABLE</strong></div>
@@ -22,7 +23,9 @@ _EVIDENCE_PANEL = r'''
 _EVIDENCE_SCRIPT = r'''
 
   const refreshRunEvidenceButton = document.getElementById('refresh-run-evidence-button');
+  const downloadRunEvidenceButton = document.getElementById('download-run-evidence-button');
   const evidenceVerificationStatus = document.getElementById('evidence-verification-status');
+  let currentEvidence = null;
 
   function canonicalizeEvidence(value) {
     if (Array.isArray(value)) return value.map(canonicalizeEvidence);
@@ -54,14 +57,52 @@ _EVIDENCE_SCRIPT = r'''
   }
 
   async function renderRunEvidence(evidence) {
+    currentEvidence = evidence;
+    downloadRunEvidenceButton.disabled = false;
     document.getElementById('evidence-digest').textContent = evidence.evidence_digest || 'Digest unavailable.';
     document.getElementById('run-evidence-json').textContent = JSON.stringify(evidence, null, 2);
     evidenceVerificationStatus.textContent = 'UNAVAILABLE';
     evidenceVerificationStatus.textContent = await verifyEvidenceDigest(evidence);
   }
 
+  function clearCurrentEvidence(message = 'Evidence not loaded.') {
+    currentEvidence = null;
+    downloadRunEvidenceButton.disabled = true;
+    document.getElementById('evidence-digest').textContent = 'Not loaded.';
+    evidenceVerificationStatus.textContent = 'UNAVAILABLE';
+    document.getElementById('run-evidence-json').textContent = message;
+  }
+
+  function downloadRunEvidence() {
+    if (!currentEvidence || !currentRunId || !currentEvidence.evidence_digest) return;
+
+    const evidenceRunId = currentEvidence.run && currentEvidence.run.run_id;
+    if (evidenceRunId && evidenceRunId !== currentRunId) {
+      clearCurrentEvidence('Evidence changed with the active run. Refresh before downloading.');
+      return;
+    }
+
+    const digestPrefix = String(currentEvidence.evidence_digest).slice(0, 12).toLowerCase();
+    const filename = `guided-agent-os-${currentRunId}-${digestPrefix}.json`;
+    const payload = JSON.stringify(currentEvidence, null, 2);
+    const blob = new Blob([payload], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  }
+
   async function refreshRunEvidence(runId) {
-    if (!runId) return;
+    if (!runId) {
+      clearCurrentEvidence();
+      return;
+    }
+    currentEvidence = null;
+    downloadRunEvidenceButton.disabled = true;
     refreshRunEvidenceButton.disabled = true;
     evidenceVerificationStatus.textContent = 'UNAVAILABLE';
     try {
@@ -69,9 +110,8 @@ _EVIDENCE_SCRIPT = r'''
       if (runId === currentRunId) await renderRunEvidence(evidence);
     } catch (error) {
       if (runId === currentRunId) {
+        clearCurrentEvidence(`Run evidence unavailable: ${error.message}`);
         document.getElementById('evidence-digest').textContent = 'Unavailable';
-        evidenceVerificationStatus.textContent = 'UNAVAILABLE';
-        document.getElementById('run-evidence-json').textContent = `Run evidence unavailable: ${error.message}`;
       }
     } finally {
       refreshRunEvidenceButton.disabled = false;
@@ -80,11 +120,13 @@ _EVIDENCE_SCRIPT = r'''
 
   const originalRenderRun = renderRun;
   renderRun = function(run) {
+    clearCurrentEvidence('Loading evidence for the current run...');
     originalRenderRun(run);
     refreshRunEvidence(run.run_id);
   };
 
   refreshRunEvidenceButton.addEventListener('click', () => refreshRunEvidence(currentRunId));
+  downloadRunEvidenceButton.addEventListener('click', downloadRunEvidence);
 '''
 
 

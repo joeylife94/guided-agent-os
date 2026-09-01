@@ -276,7 +276,13 @@ def test_unregistered_planned_tool_is_blocked() -> None:
         allowed_tools=["policy_lookup"],
     )
 
-    response = client.post(f"/api/agents/runs/{run_id}/approve", json={})
+    response = client.post(
+        f"/api/agents/runs/{run_id}/approve",
+        json=approval_body(
+            tool_name="policy_lookup",
+            allowed_tools=["policy_lookup"],
+        ),
+    )
     assert response.status_code == 422
     assert "not registered" in response.json()["detail"]
 
@@ -288,7 +294,10 @@ def test_unregistered_planned_tool_is_blocked() -> None:
 def test_registered_tool_not_explicitly_allowed_for_run_is_blocked() -> None:
     run_id = _seed_pending_run(allowed_tools=[])
 
-    response = client.post(f"/api/agents/runs/{run_id}/approve", json={})
+    response = client.post(
+        f"/api/agents/runs/{run_id}/approve",
+        json=approval_body(allowed_tools=[]),
+    )
     assert response.status_code == 422
     assert "not explicitly allowed" in response.json()["detail"]
 
@@ -300,7 +309,10 @@ def test_registered_tool_not_explicitly_allowed_for_run_is_blocked() -> None:
 def test_invalid_parameters_are_blocked() -> None:
     run_id = _seed_pending_run(tool_parameters={"unexpected": "value"})
 
-    response = client.post(f"/api/agents/runs/{run_id}/approve", json={})
+    response = client.post(
+        f"/api/agents/runs/{run_id}/approve",
+        json=approval_body(tool_parameters={"unexpected": "value"}),
+    )
     assert response.status_code == 422
     detail = response.json()["detail"]
     assert "required tool parameters" in detail.lower() or "unexpected" in detail.lower()

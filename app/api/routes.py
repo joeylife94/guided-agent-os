@@ -168,6 +168,22 @@ def _planned_tool_for_execution(run: AgentRun) -> str | None:
     return tool_name.strip()
 
 
+def _execution_input_snapshot(run: AgentRun, tool_name: str) -> tuple[dict[str, Any], str]:
+    intake_data = run.intake_data or {}
+    snapshot = {
+        "tool_name": tool_name,
+        "tool_parameters": intake_data.get("tool_parameters", {}),
+        "allowed_tools": intake_data.get("allowed_tools", []),
+    }
+    canonical = json.dumps(
+        snapshot,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return snapshot, hashlib.sha256(canonical).hexdigest()
+
+
 def _claim_pending_decision(
     db: Session,
     run_id: str,
@@ -384,10 +400,13 @@ def approve_run(
             raise HTTPException(status_code=409, detail=f"Run '{run_id}' was already rejected and cannot be approved.")
         raise _decision_in_progress(run_id)
 
+    execution_inputs = None
+    execution_inputs_digest = None
     try:
         tool_name = _planned_tool_for_execution(run)
         execution_result = None
         if tool_name is not None:
+            execution_inputs, execution_inputs_digest = _execution_input_snapshot(run, tool_name)
             execution_result = execute_approved_tool(
                 tool_name=tool_name,
                 parameters=(run.intake_data or {}).get("tool_parameters", {}),
@@ -408,7 +427,11 @@ def approve_run(
         run.reviewer_note = body.note
     for draft in run.action_drafts:
         draft.is_approved = True
-    _append_audit_event(run, "APPROVED", actor="human", payload={"note": body.note or ""})
+    approved_payload: dict[str, Any] = {"note": body.note or ""}
+    if execution_inputs is not None and execution_inputs_digest is not None:
+        approved_payload["execution_inputs"] = execution_inputs
+        approved_payload["execution_inputs_digest"] = execution_inputs_digest
+    _append_audit_event(run, "APPROVED", actor="human", payload=approved_payload)
     raw_output["review_status"] = "approved"
     raw_output["final_status"] = "archived"
     if execution_result is not None:
@@ -420,6 +443,7 @@ def approve_run(
                 "tool_name": tool_name,
                 "status": execution_result.get("status"),
                 "read_only": execution_result.get("read_only", True),
+                "execution_inputs_digest": execution_inputs_digest,
             },
         )
     run.raw_llm_output = raw_output

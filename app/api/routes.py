@@ -407,12 +407,25 @@ def approve_run(
         execution_result = None
         if tool_name is not None:
             execution_inputs, execution_inputs_digest = _execution_input_snapshot(run, tool_name)
+            reviewed_digest = (body.expected_execution_inputs_digest or "").strip().lower()
+            if not reviewed_digest or reviewed_digest != execution_inputs_digest:
+                run.status = "pending_approval"
+                _commit_and_refresh(db, run)
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        "Approval execution inputs changed or were not bound to the reviewed "
+                        "snapshot. Reload the pending run and review the current inputs before approving."
+                    ),
+                )
             execution_result = execute_approved_tool(
                 tool_name=tool_name,
                 parameters=(run.intake_data or {}).get("tool_parameters", {}),
                 approved=True,
                 allowed_tools=(run.intake_data or {}).get("allowed_tools", []),
             )
+    except HTTPException:
+        raise
     except ToolExecutionError as exc:
         run.status = "pending_approval"
         _commit_and_refresh(db, run)

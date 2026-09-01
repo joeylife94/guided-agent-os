@@ -12,6 +12,7 @@ from sqlalchemy.pool import StaticPool
 from app.api.routes import router
 from app.models.database import Base, get_db
 from app.models.models import AgentRun
+from tests.approval_digest_helper import approval_body
 
 
 engine = create_engine(
@@ -89,7 +90,7 @@ def test_approval_and_tool_execution_share_deterministic_execution_input_digest(
 
     response = client.post(
         f"/api/agents/runs/{run_id}/approve",
-        json={"note": "Approved after reviewing exact execution inputs"},
+        json=approval_body("Approved after reviewing exact execution inputs"),
     )
     assert response.status_code == 200
 

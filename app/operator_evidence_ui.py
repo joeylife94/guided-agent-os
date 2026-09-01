@@ -14,6 +14,7 @@ _EVIDENCE_PANEL = r'''
         <button id="refresh-run-evidence-button" class="primary" type="button">Refresh run evidence</button>
       </div>
       <div><span class="pill">SHA-256</span> <code id="evidence-digest">Not loaded.</code></div>
+      <div><span class="pill">Local verification</span> <strong id="evidence-verification-status">UNAVAILABLE</strong></div>
       <pre id="run-evidence-json">Evidence not loaded.</pre>
     </section>
 '''
@@ -21,21 +22,55 @@ _EVIDENCE_PANEL = r'''
 _EVIDENCE_SCRIPT = r'''
 
   const refreshRunEvidenceButton = document.getElementById('refresh-run-evidence-button');
+  const evidenceVerificationStatus = document.getElementById('evidence-verification-status');
 
-  function renderRunEvidence(evidence) {
+  function canonicalizeEvidence(value) {
+    if (Array.isArray(value)) return value.map(canonicalizeEvidence);
+    if (value !== null && typeof value === 'object') {
+      const canonical = {};
+      Object.keys(value).sort().forEach((key) => {
+        if (key !== 'evidence_digest') canonical[key] = canonicalizeEvidence(value[key]);
+      });
+      return canonical;
+    }
+    return value;
+  }
+
+  async function verifyEvidenceDigest(evidence) {
+    if (!evidence || !evidence.evidence_digest || !globalThis.crypto || !globalThis.crypto.subtle) {
+      return 'UNAVAILABLE';
+    }
+    try {
+      const canonical = JSON.stringify(canonicalizeEvidence(evidence));
+      const bytes = new TextEncoder().encode(canonical);
+      const digestBuffer = await globalThis.crypto.subtle.digest('SHA-256', bytes);
+      const localDigest = Array.from(new Uint8Array(digestBuffer))
+        .map((byte) => byte.toString(16).padStart(2, '0'))
+        .join('');
+      return localDigest === String(evidence.evidence_digest).toLowerCase() ? 'MATCH' : 'MISMATCH';
+    } catch (error) {
+      return 'UNAVAILABLE';
+    }
+  }
+
+  async function renderRunEvidence(evidence) {
     document.getElementById('evidence-digest').textContent = evidence.evidence_digest || 'Digest unavailable.';
     document.getElementById('run-evidence-json').textContent = JSON.stringify(evidence, null, 2);
+    evidenceVerificationStatus.textContent = 'UNAVAILABLE';
+    evidenceVerificationStatus.textContent = await verifyEvidenceDigest(evidence);
   }
 
   async function refreshRunEvidence(runId) {
     if (!runId) return;
     refreshRunEvidenceButton.disabled = true;
+    evidenceVerificationStatus.textContent = 'UNAVAILABLE';
     try {
       const evidence = await api(`/api/agents/runs/${runId}/evidence`);
-      if (runId === currentRunId) renderRunEvidence(evidence);
+      if (runId === currentRunId) await renderRunEvidence(evidence);
     } catch (error) {
       if (runId === currentRunId) {
         document.getElementById('evidence-digest').textContent = 'Unavailable';
+        evidenceVerificationStatus.textContent = 'UNAVAILABLE';
         document.getElementById('run-evidence-json').textContent = `Run evidence unavailable: ${error.message}`;
       }
     } finally {

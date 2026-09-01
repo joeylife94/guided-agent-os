@@ -111,6 +111,20 @@ def test_workspace_surfaces_existing_deterministic_evidence_bundle_read_only() -
     assert "refreshRunEvidence(run.run_id)" in html
 
 
+def test_workspace_surfaces_exact_execution_inputs_before_human_approval() -> None:
+    response = client.get("/")
+    html = response.text
+
+    assert 'id="execution-input-review"' in html
+    assert 'id="execution-tool-parameters"' in html
+    assert 'id="execution-allowed-tools"' in html
+    assert "run.intake_data && run.intake_data.tool_parameters" in html
+    assert "run.intake_data && run.intake_data.allowed_tools" in html
+    assert "JSON.stringify(toolParameters, null, 2)" in html
+    assert "JSON.stringify(allowedTools, null, 2)" in html
+    assert "run.status === 'pending_approval'" in html
+
+
 def test_swagger_remains_available_for_developer_inspection() -> None:
     response = client.get("/docs")
 

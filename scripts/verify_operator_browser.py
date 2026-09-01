@@ -72,6 +72,7 @@ def main() -> None:
 
         wait_text(wait, "run-status", "pending_approval")
         wait.until(EC.visibility_of_element_located((By.ID, "review-panel")))
+        wait.until(EC.visibility_of_element_located((By.ID, "execution-input-review")))
         pending_audit = wait_audit_sequence(
             wait,
             [
@@ -89,14 +90,56 @@ def main() -> None:
         evidence["pending_run_id"] = driver.find_element(By.ID, "run-id").text
         evidence["pending_audit_types"] = pending_audit
 
+        pending_run_id = str(evidence["pending_run_id"])
+        pending_persisted = driver.execute_async_script(
+            """
+            const done = arguments[arguments.length - 1];
+            fetch(`/api/agents/runs/${arguments[0]}`)
+              .then(response => response.json())
+              .then(run => done({run}))
+              .catch(error => done({__error: String(error)}));
+            """,
+            pending_run_id,
+        )
+        if pending_persisted.get("__error"):
+            raise AssertionError(pending_persisted["__error"])
+        pending_run = pending_persisted.get("run") or {}
+        pending_intake = pending_run.get("intake_data") or {}
+        pending_tool_plan = pending_run.get("tool_plan") or {}
+        expected_tool = pending_tool_plan.get("tool_name") or pending_tool_plan.get("tool") or "Not available."
+        expected_parameters = pending_intake.get("tool_parameters")
+        expected_allowed_tools = pending_intake.get("allowed_tools")
+
+        rendered_tool = driver.find_element(By.ID, "execution-planned-tool").text
+        rendered_parameters = driver.find_element(By.ID, "execution-tool-parameters").text
+        rendered_allowed_tools = driver.find_element(By.ID, "execution-allowed-tools").text
+        if rendered_tool != expected_tool:
+            raise AssertionError(
+                f"Approval planned tool differs from persisted run: rendered={rendered_tool!r} persisted={expected_tool!r}"
+            )
+        if json.loads(rendered_parameters) != expected_parameters:
+            raise AssertionError(
+                f"Approval tool parameters differ from persisted run: rendered={rendered_parameters!r} persisted={expected_parameters!r}"
+            )
+        if json.loads(rendered_allowed_tools) != expected_allowed_tools:
+            raise AssertionError(
+                f"Approval allowed tools differ from persisted run: rendered={rendered_allowed_tools!r} persisted={expected_allowed_tools!r}"
+            )
+        evidence["checks"].append("approval_execution_inputs_match_persisted_run")
+        evidence["approval_execution_inputs"] = {
+            "planned_tool": rendered_tool,
+            "tool_parameters": json.loads(rendered_parameters),
+            "allowed_tools": json.loads(rendered_allowed_tools),
+        }
+
         driver.find_element(By.ID, "approve-button").click()
         wait_text(wait, "run-status", "archived")
-        wait.until(lambda d: '"status": "executed"' in d.find_element(By.ID, "execution-result").text)
+        wait.until(lambda d: '\"status\": \"executed\"' in d.find_element(By.ID, "execution-result").text)
 
         execution_text = driver.find_element(By.ID, "execution-result").text
-        if '"tool_name": "legacy_db_lookup"' not in execution_text:
+        if '\"tool_name\": \"legacy_db_lookup\"' not in execution_text:
             raise AssertionError(f"Expected legacy_db_lookup execution result, got: {execution_text!r}")
-        if '"record_id": "LEG-001"' not in execution_text:
+        if '\"record_id\": \"LEG-001\"' not in execution_text:
             raise AssertionError(f"Expected LEG-001 execution result, got: {execution_text!r}")
 
         final_audit = wait_audit_sequence(wait, ["RAG_RETRIEVED", "APPROVED", "TOOL_EXECUTED", "COMPLETED"])

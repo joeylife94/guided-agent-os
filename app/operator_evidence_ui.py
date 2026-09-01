@@ -5,6 +5,19 @@ from fastapi.responses import HTMLResponse
 from app.operator_ui import operator_workspace
 
 
+_EXECUTION_INPUT_REVIEW = r'''
+
+    <div id="execution-input-review" class="hidden">
+      <h3>Execution inputs for approval</h3>
+      <div class="muted">Read-only persisted inputs consumed by the existing approved execution path. Review these values before approving.</div>
+      <div><span class="pill">Planned tool</span> <code id="execution-planned-tool">Not available.</code></div>
+      <h4>Tool parameters</h4>
+      <pre id="execution-tool-parameters">Not available.</pre>
+      <h4>Per-run allowed tools</h4>
+      <pre id="execution-allowed-tools">Not available.</pre>
+    </div>
+'''
+
 _EVIDENCE_PANEL = r'''
 
     <section id="run-evidence-panel" class="card">
@@ -25,6 +38,7 @@ _EVIDENCE_SCRIPT = r'''
   const refreshRunEvidenceButton = document.getElementById('refresh-run-evidence-button');
   const downloadRunEvidenceButton = document.getElementById('download-run-evidence-button');
   const evidenceVerificationStatus = document.getElementById('evidence-verification-status');
+  const executionInputReview = document.getElementById('execution-input-review');
   let currentEvidence = null;
 
   function canonicalizeEvidence(value) {
@@ -54,6 +68,18 @@ _EVIDENCE_SCRIPT = r'''
     } catch (error) {
       return 'UNAVAILABLE';
     }
+  }
+
+  function renderExecutionInputReview(run) {
+    const toolParameters = run.intake_data && run.intake_data.tool_parameters;
+    const allowedTools = run.intake_data && run.intake_data.allowed_tools;
+    const plannedTool = run.tool_plan && (run.tool_plan.tool_name || run.tool_plan.tool);
+    const isPendingApproval = run.status === 'pending_approval';
+
+    executionInputReview.classList.toggle('hidden', !isPendingApproval);
+    document.getElementById('execution-planned-tool').textContent = plannedTool || 'Not available.';
+    document.getElementById('execution-tool-parameters').textContent = JSON.stringify(toolParameters, null, 2);
+    document.getElementById('execution-allowed-tools').textContent = JSON.stringify(allowedTools, null, 2);
   }
 
   async function renderRunEvidence(evidence) {
@@ -122,6 +148,7 @@ _EVIDENCE_SCRIPT = r'''
   renderRun = function(run) {
     clearCurrentEvidence('Loading evidence for the current run...');
     originalRenderRun(run);
+    renderExecutionInputReview(run);
     refreshRunEvidence(run.run_id);
   };
 
@@ -131,9 +158,10 @@ _EVIDENCE_SCRIPT = r'''
 
 
 def operator_workspace_with_evidence() -> HTMLResponse:
-    """Return the existing Operator Workspace with a read-only evidence surface."""
+    """Return the existing Operator Workspace with read-only evidence and approval-input surfaces."""
     response = operator_workspace()
     html = response.body.decode("utf-8")
+    html = html.replace('    <div id="review-panel" class="hidden">', f'{_EXECUTION_INPUT_REVIEW}\n    <div id="review-panel" class="hidden">', 1)
     html = html.replace("  </section>\n</main>", f"  </section>{_EVIDENCE_PANEL}\n</main>", 1)
     html = html.replace("})();\n</script>", f"{_EVIDENCE_SCRIPT}\n}})();\n</script>", 1)
     return HTMLResponse(content=html)

@@ -35,12 +35,16 @@ _OPERATOR_HTML = r'''<!doctype html>
     .warning { border-left: 3px solid #ffd166; padding: 10px 12px; background: #2a2110; border-radius: 6px; }
     .source { border-top: 1px solid #293553; padding-top: 10px; margin-top: 10px; }
     .clarification { border-left: 3px solid #7c9cff; padding: 8px 12px; margin: 8px 0; background: #10192e; border-radius: 6px; }
+    .queue-item { display: flex; justify-content: space-between; gap: 12px; align-items: center; border-top: 1px solid #293553; padding: 10px 0; }
+    .queue-item:first-child { border-top: 0; }
+    .queue-meta { min-width: 0; }
+    .queue-run { font-weight: 700; word-break: break-all; }
     .audit-event { display: grid; grid-template-columns: 56px minmax(180px, .8fr) minmax(160px, .7fr) minmax(260px, 1.5fr); gap: 10px; align-items: start; padding: 10px 0; border-top: 1px solid #293553; font-size: 13px; }
     .audit-event:first-child { border-top: 0; }
     .audit-sequence { font-weight: 700; color: #7c9cff; }
     .audit-type { font-weight: 700; }
     .audit-payload { white-space: pre-wrap; word-break: break-word; color: #cbd4ed; }
-    @media (max-width: 760px) { .audit-event { grid-template-columns: 48px 1fr; } .audit-payload { grid-column: 1 / -1; } }
+    @media (max-width: 760px) { .audit-event { grid-template-columns: 48px 1fr; } .audit-payload { grid-column: 1 / -1; } .queue-item { align-items: flex-start; flex-direction: column; } }
   </style>
 </head>
 <body>
@@ -87,6 +91,12 @@ _OPERATOR_HTML = r'''<!doctype html>
       </div>
     </div>
     <div class="actions"><button id="load-run-button" class="primary" type="button">Load persisted run</button></div>
+
+    <h3>Interrupted-decision recovery queue</h3>
+    <div class="muted">Read-only discovery of persisted approval/rejection claims that require operator attention. Selecting a run only uses the existing persisted-run loader.</div>
+    <div class="actions"><button id="refresh-recovery-queue-button" class="primary" type="button">Refresh recovery queue</button></div>
+    <div id="recovery-queue" class="muted" aria-live="polite">Queue not loaded.</div>
+
     <p id="request-error" class="error hidden" role="alert"></p>
   </section>
 
@@ -143,6 +153,8 @@ _OPERATOR_HTML = r'''<!doctype html>
   const rejectButton = document.getElementById('reject-button');
   const loadRunIdInput = document.getElementById('load-run-id');
   const loadRunButton = document.getElementById('load-run-button');
+  const recoveryQueue = document.getElementById('recovery-queue');
+  const refreshRecoveryQueueButton = document.getElementById('refresh-recovery-queue-button');
   const recoveryPanel = document.getElementById('recovery-panel');
   const recoveryMessage = document.getElementById('recovery-message');
   const recoverDecisionButton = document.getElementById('recover-decision-button');
@@ -232,6 +244,58 @@ _OPERATOR_HTML = r'''<!doctype html>
     });
   }
 
+  function renderRecoveryQueue(runs) {
+    recoveryQueue.innerHTML = '';
+    if (!Array.isArray(runs) || runs.length === 0) {
+      recoveryQueue.className = 'muted';
+      recoveryQueue.textContent = 'No interrupted or recovery-required runs.';
+      return;
+    }
+    recoveryQueue.className = '';
+    runs.forEach(run => {
+      const row = document.createElement('div');
+      row.className = 'queue-item';
+
+      const meta = document.createElement('div');
+      meta.className = 'queue-meta';
+      const runId = document.createElement('div');
+      runId.className = 'queue-run';
+      runId.textContent = run.run_id;
+      const status = document.createElement('div');
+      status.className = 'muted';
+      status.textContent = `${run.status} · ${run.created_at || 'created time unavailable'}`;
+      meta.append(runId, status);
+
+      const openButton = document.createElement('button');
+      openButton.type = 'button';
+      openButton.className = 'primary';
+      openButton.textContent = 'Open persisted run';
+      openButton.addEventListener('click', () => {
+        loadRunIdInput.value = run.run_id;
+        loadPersistedRun();
+      });
+
+      row.append(meta, openButton);
+      recoveryQueue.appendChild(row);
+    });
+  }
+
+  async function refreshRecoveryQueue() {
+    refreshRecoveryQueueButton.disabled = true;
+    recoveryQueue.className = 'muted';
+    recoveryQueue.textContent = 'Loading recovery queue…';
+    requestError.classList.add('hidden');
+    try {
+      const runs = await api('/api/agents/runs/recovery-queue');
+      renderRecoveryQueue(runs);
+    } catch (error) {
+      recoveryQueue.className = 'error';
+      recoveryQueue.textContent = `Recovery queue unavailable: ${error.message}`;
+    } finally {
+      refreshRecoveryQueueButton.disabled = false;
+    }
+  }
+
   async function refreshAuditTimeline(runId) {
     const container = document.getElementById('audit-timeline');
     container.className = 'muted';
@@ -316,6 +380,7 @@ _OPERATOR_HTML = r'''<!doctype html>
     try {
       const run = await api(`/api/agents/runs/${currentRunId}/recover-decision`, { method: 'POST' });
       renderRun(run);
+      refreshRecoveryQueue();
     } catch (error) {
       requestError.textContent = error.message;
       requestError.classList.remove('hidden');
@@ -377,6 +442,7 @@ _OPERATOR_HTML = r'''<!doctype html>
   approveButton.addEventListener('click', () => submitDecision('approve'));
   rejectButton.addEventListener('click', () => submitDecision('reject'));
   loadRunButton.addEventListener('click', loadPersistedRun);
+  refreshRecoveryQueueButton.addEventListener('click', refreshRecoveryQueue);
   recoverDecisionButton.addEventListener('click', recoverInterruptedDecision);
 })();
 </script>

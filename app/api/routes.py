@@ -282,6 +282,21 @@ def create_run(
     return _run_to_response(run)
 
 
+@router.get("/runs/recovery-queue")
+def get_recovery_queue(db: Session = Depends(get_db)) -> list[AgentRunResponse]:
+    runs = (
+        db.query(AgentRun)
+        .filter(
+            AgentRun.status.in_(
+                {"approval_executing", "rejection_processing", "decision_recovery_required"}
+            )
+        )
+        .order_by(AgentRun.created_at.asc(), AgentRun.id.asc())
+        .all()
+    )
+    return [_run_to_response(run) for run in runs]
+
+
 @router.get("/runs/{run_id}", response_model=AgentRunResponse)
 def get_run(run_id: str, db: Session = Depends(get_db)) -> AgentRunResponse:
     run = db.get(AgentRun, run_id)

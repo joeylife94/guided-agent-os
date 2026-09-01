@@ -13,10 +13,11 @@
 | Current Level | **L3 — Usable / Demonstrable Proof** |
 | Progression Mode | **ENABLED — bounded milestones only** |
 | Latest accepted milestone | **P-006 / Issue #28 read-only interrupted-decision recovery queue — CLOSED** |
-| Active milestone | **NONE — Progression Review required** |
-| Active branch | none |
-| Active PR | none |
+| Active milestone | **P-007 / Issue #30 Operator deterministic evidence artifact — OPEN** |
+| Active branch | `proof-v1.1/30-operator-evidence-artifact` |
+| Active PR | **#31 — OPEN / first head RED expected** |
 | Latest accepted progression merge | `c405b66d0a91f2924660d049f05390daab20ddaa` |
+| P-007 first contract head | `873733a5c61611f5f475348005c39a1328545594` |
 
 The v1.0 acceptance baseline is not reopened by later milestones.
 
@@ -98,7 +99,7 @@ Rules:
 | L-20 | concurrency guarantee is current SQLite/SQLAlchemy-runtime scoped | ACCEPTED P-002 boundary |
 | L-21 | crash after decision claim can leave ambiguous transient state | CONTAINED by P-004 quarantine; no replay/reconstruction claim |
 | L-22 | interrupted/recovery-required run discovery requires a known run id | CLOSED by P-006 read-only recovery queue |
-| L-23 | deterministic evidence bundle is API-accessible but not yet surfaced as a compact Operator delivery/review artifact | OPEN — candidate for bounded progression |
+| L-23 | deterministic evidence bundle is API-accessible but not yet surfaced as a compact Operator delivery/review artifact | **ACTIVE — P-007 addresses Operator evidence usability only** |
 
 ---
 
@@ -150,29 +151,52 @@ Rules:
 - PR Validation `33466248162` #81, Firebat `33466248210` #74, Proof Evaluation `33466248142` #13 PASS.
 - read-only queue returns only `approval_executing`, `rejection_processing`, `decision_recovery_required`, deterministically oldest-first with run-id tie-breaker.
 - repeated reads are non-mutating and execute no tools; Operator queue selection reuses the persisted-run loader.
-- prior Codex P1 review on the first RED head was addressed on the accepted head and the review thread was resolved before merge.
 - limitation: discovery/read UX only; no automatic quarantine, retry, resume, notification, execution, or distributed recovery semantics.
 
-### P-006 acceptance record
-**Changed**
-- added read-only recovery queue endpoint and Operator queue UI within one Issue/PR.
+## P-007 — Operator deterministic evidence artifact
+**OPEN — CONTRACT HEAD / RED EXPECTED**
 
-**Actually Executed**
-- first-head RED verification.
-- exact-head PR Validation / Firebat Container / Proof Evaluation.
-- PR review/thread reconciliation.
-- expected-head-protected squash merge and Issue close.
+### Gate / Value
+P-003 already provides a deterministic read-only run+events evidence bundle and SHA-256 digest, but the Operator Workspace does not expose it. Surfacing the existing artifact gives a human reviewer/demo operator a compact inspectable delivery artifact without increasing execution authority.
 
-**Verified**
-- exact head `e8718b6ae823539be7cee3ffbc36500432a6bbb5` passed all three required workflows.
-- PR #29 merged as `c405b66d0a91f2924660d049f05390daab20ddaa`.
-- Issue #28 closed completed.
+### Lifecycle
+- Issue #30 — OPEN.
+- Branch `proof-v1.1/30-operator-evidence-artifact` from reconciled main `d338af13437f3276cfefd7d4c4e37039106b8be0`.
+- PR #31 — OPEN.
+- first exact head `873733a5c61611f5f475348005c39a1328545594`.
 
-**Not Verified**
-- no claim of automatic recovery, side-effect reconstruction, notification/SLA, or distributed exactly-once recovery.
+### Acceptance Contract
+1. Operator Workspace contains an explicit run-evidence panel/action tied to the currently loaded run.
+2. UI reuses only `GET /api/agents/runs/{run_id}/evidence` for the evidence artifact.
+3. Rendered artifact includes returned `evidence_digest` and deterministic bundle JSON.
+4. Evidence loading adds no approve/reject/recover/tool-execution path.
+5. Existing P-003 repeated-read/non-mutation semantics remain green.
+6. Existing Golden Path, replay/concurrency/quarantine/recovery-queue semantics and required workflow suites remain green.
+7. no signature/notarization/non-repudiation claim is introduced.
 
-**Limitations**
-- operator must still make the recovery decision; queue is a read-only discovery surface.
+### Changed This Run
+- accepted and reconciled P-006 after exact-head workflow success and expected-head merge.
+- created Issue #30 and linked branch.
+- added test-first Operator evidence UI contract.
+- opened PR #31 on exact test-only head `873733a5c61611f5f475348005c39a1328545594`.
 
-**Exact Next Action**
-Perform one bounded Progression Review. Prefer a milestone that improves human review/evidence usability without expanding execution authority.
+### Actually Executed
+- re-read root Master first.
+- verified P-006 exact head `e8718b6ae823539be7cee3ffbc36500432a6bbb5`: PR Validation #81, Firebat #74, Proof Evaluation #13 all success.
+- resolved the first-head Codex review thread after implementation evidence.
+- merged PR #29 with expected-head protection and closed Issue #28.
+- confirmed no open PR/Issue before selecting P-007.
+
+### Verified
+- P-006 is repository/executable-evidence accepted.
+- P-007 passes the milestone gate: concrete human review/delivery value, read-only scope, executable acceptance, no unresolved security/product decision.
+
+### Not Verified
+- P-007 evidence panel/action is not implemented on the first head.
+- no P-007 PASS or merge claim exists yet.
+
+### Limitations
+P-007 is evidence usability only. The digest remains an integrity checksum, not an external signature, timestamp authority, notarization, or non-repudiation mechanism.
+
+### Exact Next Action
+Observe PR #31 first-head CI to establish executable RED. Then, inside the same Issue/PR, add the smallest Operator-only evidence panel that reads the existing P-003 endpoint and re-run exact-head regression before any merge.

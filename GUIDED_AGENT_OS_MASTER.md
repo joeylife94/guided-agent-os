@@ -12,11 +12,11 @@
 | Proof v1.0 | **CLOSED / FROZEN** |
 | Current Level | **L3 — Usable / Demonstrable Proof** |
 | Progression Mode | **ENABLED — bounded milestones only** |
-| Latest accepted milestone | **P-010 / Issue #36 Operator approval execution-input review — CLOSED** |
-| Active milestone | **P-011 / Issue #38 auditable approval execution-input snapshot — OPEN** |
-| Active branch | `proof-v1.1/38-approval-execution-input-audit` |
-| Active PR | **#39 OPEN** |
-| Latest accepted progression merge | `3e8a653820f48c30bb60743184d2c90416523b26` |
+| Latest accepted milestone | **P-011 / Issue #38 auditable approval execution-input snapshot — CLOSED** |
+| Active milestone | **P-012 / Issue #40 bind human approval to reviewed execution-input digest — OPEN** |
+| Active branch | **not yet created** |
+| Active PR | **none yet** |
+| Latest accepted progression merge | `3c2a5c58d7735064e9f4132751e003dee8a58da6` |
 
 The v1.0 acceptance baseline is not reopened by later milestones.
 
@@ -98,10 +98,11 @@ Rules:
 | L-21 | crash after decision claim can leave ambiguous transient state | CONTAINED by P-004; no replay/reconstruction claim |
 | L-22 | interrupted/recovery-required run discovery requires known run id | CLOSED by P-006 |
 | L-23 | deterministic evidence bundle was API-only | CLOSED by P-007 |
-| L-24 | Operator could not independently check displayed bundle/digest consistency | CLOSED by P-008 local verification |
-| L-25 | reviewed deterministic evidence could not be persisted directly from Operator Workspace | CLOSED by P-009 client-side export |
+| L-24 | Operator could not independently check displayed bundle/digest consistency | CLOSED by P-008 |
+| L-25 | reviewed deterministic evidence could not be persisted directly from Operator Workspace | CLOSED by P-009 |
 | L-26 | exact persisted execution inputs were not surfaced together at the human approval boundary | CLOSED by P-010 |
-| L-27 | approval/tool audit events do not correlate the exact execution-input snapshot consumed by the approved execution | OPEN — P-011 |
+| L-27 | approval/tool audit events did not correlate the exact execution-input snapshot | CLOSED by P-011 |
+| L-28 | browser approval action is not explicitly bound to the exact execution-input digest reviewed by the operator | OPEN — P-012 |
 
 ---
 
@@ -129,69 +130,55 @@ Rules:
 **CLOSED — ACCEPTED** — Issue #30, PR #31, exact head `bc40adc59cfdc64c4d0a86b188bf9522b7873fc1`, merge `9d5a89b982eef8b3e492aa52a380e7806cd207d5`.
 
 ## P-008 — Operator evidence digest local verification
-**CLOSED — ACCEPTED**
-- Issue #32; PR #33.
-- first contract head `a5ba9cd763c1eeff5ff75462aa9fc1279949e6f7` established executable RED.
-- accepted exact head `90652198add41eaaf6f95c182898d3ef530057d6`; merge `a238a9a89e3edb7afa5a00d0290c53483726625e`.
-- exact-head checks: PR Validation run `33481981742`, Firebat Container run `33481981750`, Proof Evaluation run `33481981737` — all SUCCESS.
-- browser-side canonical SHA-256 recomputation renders MATCH / MISMATCH / UNAVAILABLE.
-- limitation: local consistency only; no external trust/signature/notarization/non-repudiation claim.
+**CLOSED — ACCEPTED** — Issue #32, PR #33, exact head `90652198add41eaaf6f95c182898d3ef530057d6`, merge `a238a9a89e3edb7afa5a00d0290c53483726625e`; exact-head validate / proof-eval / firebat-container SUCCESS.
 
 ## P-009 — Portable deterministic evidence download
-**CLOSED — ACCEPTED**
-- Issue #34; PR #35.
-- first contract head `441581079c328d363a5c10c5acfbc2b872c7576e` established executable RED; an implementation-head test route mismatch was corrected within the same gap.
-- accepted exact head `f21e2545a8a7417bda71f1b988aed15d7c77ee26`; squash merge `019f93ebffc9f9b0089e5f16378df8f160f6bcdc`.
-- exact-head checks: validate run `33497555117`, Firebat Container run `33497555088`, Proof Evaluation run `33497555180` — all SUCCESS.
-- Operator can download only the currently loaded deterministic evidence as browser-generated JSON with deterministic run-id/digest filename; stale prior-run evidence is blocked on run switch.
-- no additional network/mutation/execution authority is introduced by the download action.
-- limitation: portable client-side copy only; no trusted archival retention, signing, notarization, access control, or non-repudiation claim.
+**CLOSED — ACCEPTED** — Issue #34, PR #35, exact head `f21e2545a8a7417bda71f1b988aed15d7c77ee26`, merge `019f93ebffc9f9b0089e5f16378df8f160f6bcdc`; browser-only deterministic JSON export, no new network/execution authority.
 
 ## P-010 — Operator approval execution-input review
-**CLOSED — ACCEPTED**
-- Issue #36; PR #37.
-- first contract head `153fe586e3d753bb2566f8951c29a42b98cad485` established executable RED.
-- implementation head `e1cdfd98dae0614c5de96852ac30b784ad543779` was green but received a valid P2 review gap because the contract only checked HTML/JS strings.
-- accepted exact head `33dcb87a1da90dc0b8cc86a136a37ac9bf807afd`; squash merge `3e8a653820f48c30bb60743184d2c90416523b26`.
-- exact-head checks: validate run `33519469769`, Firebat Container run `33519469786`, Proof Evaluation run `33519469795` — all SUCCESS.
-- browser Golden Path verifies that pending-approval UI values for planned tool, persisted `tool_parameters`, and per-run `allowed_tools` equal backend persisted values before approval.
-- no execution/write endpoint, tool capability, autonomous execution, or permission expansion was introduced.
-- limitation: visibility only; no tamper-proof approval binding, signatures, production authorization/RBAC, or unrestricted tool safety claim.
+**CLOSED — ACCEPTED** — Issue #36, PR #37, exact head `33dcb87a1da90dc0b8cc86a136a37ac9bf807afd`, merge `3e8a653820f48c30bb60743184d2c90416523b26`; browser Golden Path verifies planned tool + persisted `tool_parameters` + per-run `allowed_tools` before approval.
 
 ## P-011 — Auditable approval execution-input snapshot
-**OPEN**
+**CLOSED — ACCEPTED**
 - Issue #38; PR #39.
-- branch `proof-v1.1/38-approval-execution-input-audit`.
-- first contract head `ac16e09a6c22ab644007f394e6b7d49229fda1b0` is test-only and expects executable RED.
-- bounded acceptance: successful approval must audit exact planned tool + persisted `tool_parameters` + per-run `allowed_tools` as a deterministic canonical snapshot and SHA-256 digest; `TOOL_EXECUTED` must correlate the same digest.
-- rejection/no-tool paths must not falsely emit tool-execution evidence.
-- no new endpoint, execution authority, replay behavior, permission expansion, signing, or tamper-proof storage claim.
+- first contract head `ac16e09a6c22ab644007f394e6b7d49229fda1b0` established executable RED: validate run `33525861379` FAILURE.
+- accepted exact head `cd3f3d6609772d8c4b74a0955570c9cfbc8808f3`; squash merge `3c2a5c58d7735064e9f4132751e003dee8a58da6`.
+- exact-head checks: validate run `33531771136`, Proof Evaluation run `33531771205`, Firebat Container run `33531771324` — all SUCCESS.
+- successful approval audits the canonical planned-tool + persisted `tool_parameters` + per-run `allowed_tools` snapshot and SHA-256 digest; `TOOL_EXECUTED` correlates the same digest.
+- rejection/no-tool paths do not gain false execution evidence under the bounded contract.
+- limitation: correlation in the same evidence store only; no signature, tamper-proof storage, notarization, non-repudiation, production RBAC, or unrestricted tool-safety claim.
+
+## P-012 — Bind human approval to reviewed execution-input digest
+**OPEN**
+- Issue #40.
+- bounded acceptance: Operator approve must carry the digest of the exact execution inputs reviewed in the pending-approval surface; server must recompute the current persisted digest after decision claim and before tool execution, fail closed on missing/mismatch, and preserve the successful matching path plus P-011 audit correlation.
+- mismatch/missing precondition must return/revert to `pending_approval` and emit no false `TOOL_EXECUTED` evidence.
+- no new endpoint, tool capability, write authority, autonomous execution, permission expansion, signing, or external trust claim.
 
 ### Changed This Run
-- accepted and merged P-010 after exact-head browser verification closed the valid P2 gap.
-- reconciled MASTER to P-010 CLOSED/ACCEPTED.
-- bounded Progression Review identified a concrete auditability gap: approval and execution events do not persist/correlate the exact execution-input snapshot.
-- opened P-011 Issue #38, branch, test-first contract, and PR #39.
+- accepted and merged P-011 after exact-head PR Validation, Proof Evaluation, and Firebat Container all completed SUCCESS.
+- closed Issue #38 completed and reconciled P-011 as accepted.
+- bounded Progression Review identified a direct human-approval correctness gap: the browser approval action sends only a reviewer note and is not explicitly bound to the exact execution-input digest the operator reviewed.
+- opened P-012 Issue #40 with fail-closed digest-precondition acceptance.
 
 ### Actually Executed
 - root MASTER read first.
-- P-010 exact-head check-runs inspected directly: validate, proof-eval, firebat-container all completed SUCCESS.
-- PR #37 squash merged using expected head `33dcb87a1da90dc0b8cc86a136a37ac9bf807afd`; Issue #36 closed completed.
-- P-011 test-only head `ac16e09a6c22ab644007f394e6b7d49229fda1b0` pushed and PR #39 opened.
-- first-head validate was observed queued then in-progress; no RED/PASS result inferred yet.
+- PR #39 exact head `cd3f3d6609772d8c4b74a0955570c9cfbc8808f3` inspected directly; validate, proof-eval, firebat-container all completed SUCCESS.
+- prior P1 review was confirmed addressed by the implementation head.
+- PR #39 squash merged with expected-head protection; Issue #38 closed completed.
+- current approval endpoint and Operator submit path inspected directly: approval execution recomputes/persists P-011 evidence, while browser approve currently submits only a note.
 
 ### Verified
-- P-010 acceptance is backed by exact-head executable workflow evidence.
-- P-011 has concrete evidence/review value, bounded executable acceptance, one-Issue/one-PR scope, and requires no product-direction or security-policy expansion.
+- P-011 acceptance is backed by exact-head executable evidence.
+- P-012 has concrete use/security value, bounded executable acceptance, one-Issue scope, and does not require product-direction or permission expansion.
 - frozen human approval, allowlist, read-only execution, recovery, and non-autonomy boundaries remain explicit.
 
 ### Not Verified
-- P-011 first-head executable RED has not yet completed.
-- P-011 implementation does not yet exist and no P-011 PASS is claimed.
-- no cryptographic signature, tamper-proof storage, external notarization, production authorization/RBAC, non-repudiation, or unrestricted tool safety is established.
+- P-012 implementation does not yet exist; no P-012 RED/PASS is claimed.
+- no cryptographic signature, authenticated reviewer identity, tamper-proof storage, external notarization, production authorization/RBAC, non-repudiation, or unrestricted tool safety is established.
 
 ### Limitations
-P-011 is intended to add audit correlation over the existing bounded execution path only. SHA-256 correlation inside the same persisted evidence store is not a signature or tamper-proof guarantee.
+P-012 is an optimistic approval precondition inside the existing bounded workflow. A digest equality check is not an identity/authentication or external integrity guarantee.
 
 ### Exact Next Action
-Observe PR #39 first-head validate for executable RED. Once RED is confirmed, implement the minimal canonical execution-input snapshot/digest audit correlation inside Issue #38, then run exact-head PR Validation, Proof Evaluation, and Firebat Container before any merge.
+Create the linked P-012 branch from this reconciled main, add one test-first contract establishing executable RED for missing/mismatched reviewed digest and matching-digest success, open one linked PR, then implement only after executable RED is observed.

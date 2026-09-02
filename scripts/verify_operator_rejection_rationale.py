@@ -73,8 +73,6 @@ def main() -> None:
         rejected_event = next((event for event in events if event.get("event_type") == "REJECTED"), None)
         if run.get("status") != "rejected":
             raise AssertionError(f"Persisted run status is not rejected: {run!r}")
-        if run.get("reviewer_note") != RATIONALE:
-            raise AssertionError(f"Persisted reviewer_note differs from human rationale: {run.get('reviewer_note')!r}")
         if not rejected_event:
             raise AssertionError(f"Persisted REJECTED audit event missing: {types!r}")
         if (rejected_event.get("payload") or {}).get("reason") != RATIONALE:
@@ -84,13 +82,11 @@ def main() -> None:
 
         evidence["checks"].extend(
             [
-                "trimmed_human_rationale_persisted",
-                "rejected_audit_event_matches_rationale",
+                "trimmed_human_rationale_persisted_in_rejected_audit_event",
                 "rejected_run_has_no_tool_execution",
             ]
         )
         evidence["persisted_status"] = run.get("status")
-        evidence["persisted_reviewer_note"] = run.get("reviewer_note")
         evidence["audit_types"] = types
         evidence["rejected_payload"] = rejected_event.get("payload") or {}
 

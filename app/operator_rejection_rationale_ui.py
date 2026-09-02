@@ -14,6 +14,22 @@ _REJECTION_RATIONALE_PANEL = r'''
 _REJECTION_RATIONALE_SCRIPT = r'''
 
   const rejectionReason = document.getElementById('rejection-reason');
+  let rejectionRationaleRunId = null;
+
+  function bindRejectionRationaleToRun(runId) {
+    const normalizedRunId = runId || null;
+    if (normalizedRunId !== rejectionRationaleRunId) {
+      rejectionReason.value = '';
+      rejectionRationaleRunId = normalizedRunId;
+    }
+  }
+
+  const p019RenderRun = renderRun;
+  renderRun = function(run) {
+    bindRejectionRationaleToRun(run.run_id);
+    return p019RenderRun(run);
+  };
+
   const p018SubmitDecision = submitDecision;
   submitDecision = async function(decision) {
     if (decision !== 'reject') return p018SubmitDecision(decision);

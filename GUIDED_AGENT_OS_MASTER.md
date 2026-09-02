@@ -12,11 +12,11 @@
 | Proof v1.0 | **CLOSED / FROZEN** |
 | Current Level | **L3 — Usable / Demonstrable Proof** |
 | Progression Mode | **ENABLED — bounded milestones only** |
-| Latest accepted milestone | **P-018 / Issue #52 capture explicit operator rejection rationale — CLOSED** |
-| Active milestone | **P-019 — bind rejection rationale to the currently reviewed run — PLANNED** |
-| Active branch | not created yet |
-| Active PR | none yet |
-| Latest accepted progression merge | `c5e2e705c3a9f313c3e7371b4d7499c2bf742883` |
+| Latest accepted milestone | **P-019 / Issue #54 bind rejection rationale to current run — CLOSED** |
+| Active milestone | none — Progression Review required |
+| Active branch | none |
+| Active PR | none |
+| Latest accepted progression merge | `0021f44ca571ff0d98add0bdd9e57779f302b54e` |
 
 The v1.0 acceptance baseline is not reopened by later milestones.
 
@@ -107,7 +107,8 @@ Rules:
 | L-32 | Firebat browser proof did not verify stale-digest rejection notice | CLOSED by P-016 |
 | L-33 | Firebat browser proof did not verify missing-digest rejection notice | CLOSED by P-017 |
 | L-34 | Operator rejection used a fixed generic rationale instead of a human-entered audit rationale | CLOSED by P-018 |
-| L-35 | typed rejection rationale is not explicitly cleared/bound when the Operator switches to another run, risking cross-run audit misattribution | OPEN — P-019 |
+| L-35 | typed rejection rationale could carry across Operator run changes | CLOSED by P-019 |
+| L-36 | reject API accepts blank/whitespace-only rationale because server schema only requires `str`, allowing audit-invalid human rejection when UI guard is bypassed | OPEN — candidate P-020 |
 
 ---
 
@@ -131,52 +132,34 @@ Rules:
 - **P-016 CLOSED — ACCEPTED** — browser-verify rejected approval digest mismatch notice; Issue #48 / PR #49; accepted head `b7cf9312cd342dab5e5b3a617169854dece9b506`; merge `4a1ae3167d082fb8bc3b7356119550fa8098a39e`. Exact-head validate / proof-eval / firebat-container SUCCESS.
 - **P-017 CLOSED — ACCEPTED** — browser-verify missing reviewed digest rejection notice; Issue #50 / PR #51; accepted head `96f393c4c4f3b267b16443215959daebfc6b3952`; merge `6afa4d909703497309cc6396d8548545a4b421e1`. Exact-head validate / proof-eval / firebat-container SUCCESS. Browser proof verifies actual omitted-digest 409, persisted `pending_approval`, `missing_expected_digest`, hidden/empty submitted digest, current server digest, no false `APPROVED`/`TOOL_EXECUTED`, then successful fresh-digest human-approved read-only execution.
 - **P-018 CLOSED — ACCEPTED** — capture explicit operator rejection rationale; Issue #52 / PR #53; accepted head `8e189460eb14a707124b95ca7e4de59f99faf03b`; merge `c5e2e705c3a9f313c3e7371b4d7499c2bf742883`. Exact-head PR Validation / Proof Evaluation / Firebat Container / P-018 Browser Rejection Rationale all SUCCESS. Browser proof verifies blank rationale is blocked, trimmed human rationale reaches persisted `REJECTED.payload.reason`, run is rejected, and no `TOOL_EXECUTED` event is emitted.
-
-## P-019 — Bind rejection rationale to the currently reviewed run
-**PLANNED — bounded next milestone**
-
-### Gap
-P-018 clears the rationale only after a successful reject. The textarea is not explicitly reset when `currentRunId` changes, so an operator can type a reason for run A, load run B, and accidentally reject run B with run A's rationale. That would preserve a technically valid rejection event but weaken audit truthfulness by misattributing the human rationale across runs.
-
-### Bounded acceptance
-1. Rejection rationale is cleared whenever the Operator changes from one run ID to another or resets the workspace to no run.
-2. Reload/refresh of the same run does not invent or transfer rationale to another run; approval behavior remains unchanged.
-3. Browser proof creates two pending-approval runs, types a distinctive rationale on run A, switches to run B, and verifies the rationale field is empty before any reject request can be issued.
-4. Browser proof rejects run B only after entering a new B-specific rationale, then verifies `REJECTED.payload.reason` contains only the B rationale and no `TOOL_EXECUTED` event exists.
-5. Exact-head PR Validation, Proof Evaluation, Firebat Container, and the dedicated P-019 browser gate are SUCCESS before acceptance.
-
-### Boundaries / non-claims
-- no new tool, endpoint, execution authority, write permission, autonomous behavior, authentication/RBAC, signing, or external trust claim.
-- this binds ephemeral browser input to the visible run context; it does not create authenticated reviewer identity or tamper-proof/non-repudiable evidence.
+- **P-019 CLOSED — ACCEPTED** — bind rejection rationale to current run; Issue #54 / PR #55; accepted head `7ae4dde3af88556e268b35f166d0a24698c09a2f`; merge `0021f44ca571ff0d98add0bdd9e57779f302b54e`. Exact-head PR Validation / Proof Evaluation / Firebat Container / P-018 Browser Rejection Rationale regression / P-019 Browser Rejection Rationale Run Binding all SUCCESS. Browser proof verifies A-specific rationale is cleared on switch to run B, B rejection persists only B-specific rationale, run A remains pending, and no `TOOL_EXECUTED` is emitted for rejected B.
 
 ---
 
 # 5. Current Run Record
 
 ### Changed
-- P-018 accepted on exact head `8e189460eb14a707124b95ca7e4de59f99faf03b` after all four required exact-head gates completed SUCCESS.
-- PR #53 squash merged with expected-head protection to `c5e2e705c3a9f313c3e7371b4d7499c2bf742883`; Issue #52 closed completed.
-- MASTER reconciled through P-018.
-- one next bounded milestone selected: P-019 cross-run rejection-rationale binding/reset.
+- P-019 reconciled as CLOSED / ACCEPTED after PR #55 merged to `0021f44ca571ff0d98add0bdd9e57779f302b54e` and Issue #54 closed completed.
+- L-35 closed by P-019.
+- one concrete next progression candidate recorded as L-36: server-side rejection rationale currently accepts blank/whitespace-only strings if the Operator UI guard is bypassed.
 
 ### Actually Executed
 - current root MASTER read first.
-- PR #53 exact head and mergeability inspected.
-- exact-head workflow runs inspected directly: PR Validation, Proof Evaluation, Firebat Container, and P-018 Browser Rejection Rationale all completed SUCCESS.
-- PR #53 review threads inspected; none were unresolved.
-- PR #53 merged with expected-head protection and Issue #52 closed completed.
-- merged P-018 Operator wrapper inspected on `main`; `rejectionReason.value = ''` occurs after successful reject, but no run-change binding/reset is installed by the wrapper.
+- Issue #54 and merged PR #55 inspected directly.
+- accepted exact head `7ae4dde3af88556e268b35f166d0a24698c09a2f` workflow runs inspected: PR Validation, Proof Evaluation, Firebat Container, P-018 browser regression, and dedicated P-019 browser gate all completed SUCCESS.
+- current `RejectRequest` schema inspected on merged `main`; `reason` is required as `str` but has no non-blank/trimmed constraint.
 
 ### Verified
-- P-018 executable evidence is green on the accepted exact head and remains inside the frozen human-approval/read-only boundary.
-- P-019 satisfies the milestone gate: direct audit-correctness value, one-Issue/one-PR scope, deterministic two-run browser acceptance, and no unresolved product/security direction decision.
+- P-019 executable evidence is green on the accepted exact head and remains inside the frozen human-approval/read-only boundary.
+- repository has no active P-019 work remaining.
+- L-36 is a bounded human-decision audit/policy enforcement gap with direct use value and no product-direction expansion.
 
 ### Not Verified
-- P-019 has not yet been implemented or executed.
+- no server-side blank/whitespace rejection-rationale guard has been implemented or executed yet.
 - no authenticated reviewer identity, tamper-proof logging, RBAC, non-repudiation, production authorization, or unrestricted tool-safety claim is established.
 
 ### Limitations
-P-018/P-019 evidence remains bounded to this repository, its existing Firebat/headless-Chrome proof environment, and its existing controlled read-only tool path.
+P-019 evidence remains bounded to this repository, its GitHub Actions/Firebat/headless-Chrome proof environment, and its existing controlled read-only tool path.
 
 ### Exact Next Action
-Create one P-019 Issue and linked branch/PR. Establish executable RED for cross-run rationale carryover, then minimally clear/bind the rationale on run-context change and require exact-head PR Validation / Proof Evaluation / Firebat Container / dedicated P-019 browser SUCCESS before merge.
+Perform one bounded Progression Review for L-36. If selected, create one P-020 Issue and linked branch/PR, establish executable RED for blank/whitespace direct API rejection, then minimally enforce a non-blank trimmed rationale server-side and require exact-head verification before merge.

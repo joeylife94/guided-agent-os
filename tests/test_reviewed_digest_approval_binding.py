@@ -101,6 +101,16 @@ def _events(run_id: str) -> list[dict]:
     return response.json()
 
 
+def _precondition_rejection(run_id: str) -> dict:
+    events = _events(run_id)
+    rejected = [
+        event for event in events
+        if event["event_type"] == "APPROVAL_PRECONDITION_REJECTED"
+    ]
+    assert len(rejected) == 1
+    return rejected[0]
+
+
 def test_approve_requires_reviewed_execution_input_digest_before_executor() -> None:
     run_id = _seed_pending_run("run-missing-reviewed-digest")
 
@@ -114,7 +124,12 @@ def test_approve_requires_reviewed_execution_input_digest_before_executor() -> N
     executor.assert_not_called()
     persisted = client.get(f"/api/agents/runs/{run_id}").json()
     assert persisted["status"] == "pending_approval"
-    assert all(event["event_type"] != "TOOL_EXECUTED" for event in _events(run_id))
+    events = _events(run_id)
+    assert all(event["event_type"] != "APPROVED" for event in events)
+    assert all(event["event_type"] != "TOOL_EXECUTED" for event in events)
+    rejected = _precondition_rejection(run_id)
+    assert rejected["payload"]["reason"] == "missing_expected_digest"
+    assert rejected["payload"]["current_execution_inputs_digest"] == _expected_digest()
 
 
 def test_approve_rejects_mismatched_reviewed_digest_before_executor() -> None:
@@ -133,7 +148,12 @@ def test_approve_rejects_mismatched_reviewed_digest_before_executor() -> None:
     executor.assert_not_called()
     persisted = client.get(f"/api/agents/runs/{run_id}").json()
     assert persisted["status"] == "pending_approval"
-    assert all(event["event_type"] != "TOOL_EXECUTED" for event in _events(run_id))
+    events = _events(run_id)
+    assert all(event["event_type"] != "APPROVED" for event in events)
+    assert all(event["event_type"] != "TOOL_EXECUTED" for event in events)
+    rejected = _precondition_rejection(run_id)
+    assert rejected["payload"]["reason"] == "digest_mismatch"
+    assert rejected["payload"]["current_execution_inputs_digest"] == _expected_digest()
 
 
 def test_approve_accepts_matching_reviewed_digest_and_preserves_audit_correlation() -> None:
@@ -154,6 +174,7 @@ def test_approve_accepts_matching_reviewed_digest_and_preserves_audit_correlatio
     executed = next(event for event in events if event["event_type"] == "TOOL_EXECUTED")
     assert approved["payload"]["execution_inputs_digest"] == expected_digest
     assert executed["payload"]["execution_inputs_digest"] == expected_digest
+    assert all(event["event_type"] != "APPROVAL_PRECONDITION_REJECTED" for event in events)
 
 
 def test_operator_approval_payload_is_bound_to_displayed_reviewed_digest() -> None:

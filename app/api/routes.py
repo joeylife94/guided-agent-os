@@ -410,6 +410,19 @@ def approve_run(
             reviewed_digest = (body.expected_execution_inputs_digest or "").strip().lower()
             if not reviewed_digest or reviewed_digest != execution_inputs_digest:
                 run.status = "pending_approval"
+                _append_audit_event(
+                    run,
+                    "APPROVAL_PRECONDITION_REJECTED",
+                    actor="human",
+                    payload={
+                        "reason": (
+                            "missing_expected_digest"
+                            if not reviewed_digest
+                            else "digest_mismatch"
+                        ),
+                        "current_execution_inputs_digest": execution_inputs_digest,
+                    },
+                )
                 _commit_and_refresh(db, run)
                 raise HTTPException(
                     status_code=409,

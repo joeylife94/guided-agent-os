@@ -6,6 +6,8 @@ def test_rejection_rationale_is_bound_to_current_run_context() -> None:
 
     assert "let rejectionRationaleRunId = null" in html
     assert "function bindRejectionRationaleToRun(runId)" in html
-    assert "runId !== rejectionRationaleRunId" in html
+    assert "const normalizedRunId = runId || null" in html
+    assert "normalizedRunId !== rejectionRationaleRunId" in html
     assert "rejectionReason.value = '';" in html
+    assert "rejectionRationaleRunId = normalizedRunId" in html
     assert "bindRejectionRationaleToRun(run.run_id);" in html

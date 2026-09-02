@@ -20,13 +20,23 @@ def test_hash_provider_requires_explicit_selection():
     assert len(provider.embed_texts(["legacy database access"])[0]) == 64
 
 
-def test_default_provider_is_bge_m3(monkeypatch):
+def test_default_semantic_provider_reports_truthful_sentence_transformers_minilm(monkeypatch):
     monkeypatch.delenv("RAG_EMBEDDING_PROVIDER", raising=False)
     monkeypatch.delenv("RAG_EMBEDDING_MODEL", raising=False)
 
     provider = rag_embeddings.get_embedding_provider()
 
-    assert provider.name == "bge_m3"
+    assert provider.name == "sentence_transformers"
+    assert provider.model_name == "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+
+
+def test_explicit_legacy_bge_m3_alias_preserves_explicit_model_selection():
+    provider = rag_embeddings.get_embedding_provider(
+        provider_name="bge_m3",
+        model_name="BAAI/bge-m3",
+    )
+
+    assert provider.name == "sentence_transformers"
     assert provider.model_name == "BAAI/bge-m3"
 
 

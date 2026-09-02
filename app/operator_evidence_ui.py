@@ -27,7 +27,7 @@ _EVIDENCE_PANEL = r'''
       <div id="approval-precondition-rejection" class="hidden">
         <h4>Approval precondition rejection</h4>
         <strong id="approval-precondition-rejection-message">No rejection loaded.</strong>
-        <div><span class="pill">Submitted reviewed digest</span> <code id="approval-rejection-submitted-digest">Not submitted.</code></div>
+        <div id="approval-rejection-submitted-row"><span class="pill">Submitted reviewed digest</span> <code id="approval-rejection-submitted-digest">Not submitted.</code></div>
         <div><span class="pill">Current server digest</span> <code id="approval-rejection-current-digest">Not available.</code></div>
       </div>
       <div class="actions">
@@ -48,6 +48,7 @@ _EVIDENCE_SCRIPT = r'''
   const executionInputReview = document.getElementById('execution-input-review');
   const executionInputsDigest = document.getElementById('execution-inputs-digest');
   const approvalPreconditionRejection = document.getElementById('approval-precondition-rejection');
+  const approvalRejectionSubmittedRow = document.getElementById('approval-rejection-submitted-row');
   let currentEvidence = null;
   let currentReviewedExecutionInputsDigest = null;
 
@@ -132,6 +133,7 @@ _EVIDENCE_SCRIPT = r'''
 
   function renderApprovalPreconditionRejection(evidence) {
     approvalPreconditionRejection.classList.add('hidden');
+    approvalRejectionSubmittedRow.classList.remove('hidden');
     const events = evidence && Array.isArray(evidence.audit_events) ? evidence.audit_events : [];
     const rejected = [...events].reverse().find((event) => event.event_type === 'APPROVAL_PRECONDITION_REJECTED');
     if (!rejected) return;
@@ -142,7 +144,8 @@ _EVIDENCE_SCRIPT = r'''
       document.getElementById('approval-rejection-submitted-digest').textContent = payload.submitted_execution_inputs_digest || 'Not submitted.';
     } else if (reason === 'missing_expected_digest') {
       document.getElementById('approval-precondition-rejection-message').textContent = 'No reviewed digest was submitted (missing_expected_digest).';
-      document.getElementById('approval-rejection-submitted-digest').textContent = 'No reviewed digest was submitted';
+      document.getElementById('approval-rejection-submitted-digest').textContent = '';
+      approvalRejectionSubmittedRow.classList.add('hidden');
     } else return;
     document.getElementById('approval-rejection-current-digest').textContent = payload.current_execution_inputs_digest || 'Not available.';
     approvalPreconditionRejection.classList.remove('hidden');
@@ -162,6 +165,7 @@ _EVIDENCE_SCRIPT = r'''
     currentEvidence = null;
     downloadRunEvidenceButton.disabled = true;
     approvalPreconditionRejection.classList.add('hidden');
+    approvalRejectionSubmittedRow.classList.remove('hidden');
     document.getElementById('evidence-digest').textContent = 'Not loaded.';
     evidenceVerificationStatus.textContent = 'UNAVAILABLE';
     document.getElementById('run-evidence-json').textContent = message;

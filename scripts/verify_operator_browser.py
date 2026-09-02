@@ -167,9 +167,22 @@ def main() -> None:
             raise AssertionError(rejected["__error"])
         if rejected.get("status") != 409:
             raise AssertionError(f"Expected stale approval digest to return 409, got: {rejected!r}")
-        rejected_body = rejected.get("body") or {}
-        if rejected_body.get("status") != "pending_approval":
-            raise AssertionError(f"Expected rejected approval to remain pending_approval, got: {rejected_body!r}")
+
+        rejected_state_result = driver.execute_async_script(
+            """
+            const done = arguments[arguments.length - 1];
+            fetch(`/api/agents/runs/${arguments[0]}`)
+              .then(response => response.json())
+              .then(run => done({run}))
+              .catch(error => done({__error: String(error)}));
+            """,
+            pending_run_id,
+        )
+        if rejected_state_result.get("__error"):
+            raise AssertionError(rejected_state_result["__error"])
+        rejected_run = rejected_state_result.get("run") or {}
+        if rejected_run.get("status") != "pending_approval":
+            raise AssertionError(f"Expected rejected approval to remain pending_approval, got: {rejected_run!r}")
 
         driver.find_element(By.ID, "refresh-run-evidence-button").click()
         wait.until(EC.visibility_of_element_located((By.ID, "approval-precondition-rejection")))

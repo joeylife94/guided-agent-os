@@ -6,6 +6,7 @@ on:
       - app/**
       - evaluation/**
       - scripts/run_proof_eval.py
+      - scripts/verify_operator_browser.py
       - Dockerfile
       - compose.firebat.yml
       - requirements.txt

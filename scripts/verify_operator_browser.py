@@ -226,6 +226,98 @@ def main() -> None:
             "audit_types": rejected_types,
         }
 
+        missing_rejected = driver.execute_async_script(
+            """
+            const done = arguments[arguments.length - 1];
+            fetch(`/api/agents/runs/${arguments[0]}/approve`, {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({
+                note: 'Intentional missing digest for browser proof.',
+              }),
+            })
+              .then(async response => done({status: response.status, body: await response.json()}))
+              .catch(error => done({__error: String(error)}));
+            """,
+            pending_run_id,
+        )
+        if missing_rejected.get("__error"):
+            raise AssertionError(missing_rejected["__error"])
+        if missing_rejected.get("status") != 409:
+            raise AssertionError(f"Expected missing approval digest to return 409, got: {missing_rejected!r}")
+
+        missing_state_result = driver.execute_async_script(
+            """
+            const done = arguments[arguments.length - 1];
+            fetch(`/api/agents/runs/${arguments[0]}`)
+              .then(response => response.json())
+              .then(run => done({run}))
+              .catch(error => done({__error: String(error)}));
+            """,
+            pending_run_id,
+        )
+        if missing_state_result.get("__error"):
+            raise AssertionError(missing_state_result["__error"])
+        missing_run = missing_state_result.get("run") or {}
+        if missing_run.get("status") != "pending_approval":
+            raise AssertionError(f"Expected missing-digest rejection to remain pending_approval, got: {missing_run!r}")
+
+        wait.until(lambda d: d.find_element(By.ID, "refresh-run-evidence-button").is_enabled())
+        driver.find_element(By.ID, "refresh-run-evidence-button").click()
+        wait.until(EC.visibility_of_element_located((By.ID, "approval-precondition-rejection")))
+        wait_text(wait, "approval-precondition-rejection-message", "missing_expected_digest")
+        submitted_row = driver.find_element(By.ID, "approval-rejection-submitted-row")
+        submitted_missing_digest = driver.find_element(By.ID, "approval-rejection-submitted-digest").text.strip()
+        missing_current_digest = driver.find_element(By.ID, "approval-rejection-current-digest").text.strip()
+        if submitted_row.is_displayed():
+            raise AssertionError("Missing-digest rejection must hide the submitted digest row")
+        if submitted_missing_digest:
+            raise AssertionError(
+                f"Missing-digest rejection must not fabricate submitted digest: {submitted_missing_digest!r}"
+            )
+        if missing_current_digest != reviewed_digest:
+            raise AssertionError(
+                f"Operator current digest differs after missing-digest rejection: rendered={missing_current_digest!r} reviewed={reviewed_digest!r}"
+            )
+
+        missing_events_result = driver.execute_async_script(
+            """
+            const done = arguments[arguments.length - 1];
+            fetch(`/api/agents/runs/${arguments[0]}/events`)
+              .then(response => response.json())
+              .then(events => done({events}))
+              .catch(error => done({__error: String(error)}));
+            """,
+            pending_run_id,
+        )
+        if missing_events_result.get("__error"):
+            raise AssertionError(missing_events_result["__error"])
+        missing_events = missing_events_result.get("events") or []
+        missing_types = [event.get("event_type") for event in missing_events]
+        if missing_types.count("APPROVAL_PRECONDITION_REJECTED") < 2:
+            raise AssertionError(f"Expected persisted missing-digest rejection event: {missing_types!r}")
+        if "APPROVED" in missing_types or "TOOL_EXECUTED" in missing_types:
+            raise AssertionError(f"Missing-digest rejection emitted false execution evidence: {missing_types!r}")
+        latest_rejection = next(
+            event for event in reversed(missing_events) if event.get("event_type") == "APPROVAL_PRECONDITION_REJECTED"
+        )
+        latest_payload = latest_rejection.get("payload") or {}
+        if latest_payload.get("reason") != "missing_expected_digest":
+            raise AssertionError(f"Latest rejection reason is not missing_expected_digest: {latest_payload!r}")
+        if latest_payload.get("submitted_execution_inputs_digest") is not None:
+            raise AssertionError(f"Missing-digest rejection fabricated submitted digest: {latest_payload!r}")
+        if latest_payload.get("current_execution_inputs_digest") != reviewed_digest:
+            raise AssertionError(f"Missing-digest rejection current digest mismatch: {latest_payload!r}")
+        evidence["checks"].append("missing_digest_rejected_409_pending_approval")
+        evidence["checks"].append("missing_digest_notice_hides_submitted_digest")
+        evidence["checks"].append("missing_digest_rejected_attempt_has_no_false_execution_events")
+        evidence["missing_digest_rejection"] = {
+            "current_digest": missing_current_digest,
+            "submitted_row_visible": submitted_row.is_displayed(),
+            "submitted_digest": submitted_missing_digest,
+            "audit_types": missing_types,
+        }
+
         driver.find_element(By.ID, "approve-button").click()
         wait_text(wait, "run-status", "archived")
         wait.until(lambda d: '\"status\": \"executed\"' in d.find_element(By.ID, "execution-result").text)

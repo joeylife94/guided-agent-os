@@ -175,6 +175,61 @@ def test_reject_blocks_execution_and_persists_rejection() -> None:
     assert "execution_result" not in persisted["raw_output"]
 
 
+def test_reject_blank_reason_is_validation_failure_without_terminal_mutation() -> None:
+    run_id = _seed_pending_run()
+
+    response = client.post(
+        f"/api/agents/runs/{run_id}/reject",
+        json={"reason": ""},
+    )
+    assert response.status_code == 422
+
+    persisted = client.get(f"/api/agents/runs/{run_id}").json()
+    assert persisted["status"] == "pending_approval"
+    assert persisted["review_status"] == "pending_approval"
+    events = _event_types(run_id)
+    assert "REJECTED" not in events
+    assert "TOOL_EXECUTED" not in events
+    assert "COMPLETED" not in events
+
+
+def test_reject_whitespace_reason_is_validation_failure_without_terminal_mutation() -> None:
+    run_id = _seed_pending_run()
+
+    response = client.post(
+        f"/api/agents/runs/{run_id}/reject",
+        json={"reason": "   \t  "},
+    )
+    assert response.status_code == 422
+
+    persisted = client.get(f"/api/agents/runs/{run_id}").json()
+    assert persisted["status"] == "pending_approval"
+    assert persisted["review_status"] == "pending_approval"
+    events = _event_types(run_id)
+    assert "REJECTED" not in events
+    assert "TOOL_EXECUTED" not in events
+    assert "COMPLETED" not in events
+
+
+def test_reject_reason_is_trimmed_before_audit_persistence() -> None:
+    run_id = _seed_pending_run()
+
+    response = client.post(
+        f"/api/agents/runs/{run_id}/reject",
+        json={"reason": "  Human explicitly rejects this lookup.  "},
+    )
+    assert response.status_code == 200
+
+    events_response = client.get(f"/api/agents/runs/{run_id}/events")
+    assert events_response.status_code == 200
+    rejected = [
+        event for event in events_response.json() if event["event_type"] == "REJECTED"
+    ]
+    assert len(rejected) == 1
+    assert rejected[0]["payload"]["reason"] == "Human explicitly rejects this lookup."
+    assert "TOOL_EXECUTED" not in _event_types(run_id)
+
+
 def test_duplicate_approval_is_idempotent_and_does_not_repeat_terminal_events() -> None:
     run_id = _seed_pending_run()
     first = client.post(

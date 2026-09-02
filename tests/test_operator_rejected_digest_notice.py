@@ -12,8 +12,11 @@ def test_operator_contains_rejected_digest_mismatch_rendering_contract() -> None
     assert "Reviewed approval inputs changed before execution" in html
 
 
-def test_operator_contains_missing_digest_notice_contract() -> None:
+def test_operator_missing_digest_contract_hides_submitted_digest_row() -> None:
     html = operator_workspace_with_evidence().body.decode("utf-8")
 
+    assert 'id="approval-rejection-submitted-row"' in html
     assert "missing_expected_digest" in html
     assert "No reviewed digest was submitted" in html
+    assert "approvalRejectionSubmittedRow.classList.add('hidden')" in html
+    assert "document.getElementById('approval-rejection-submitted-digest').textContent = ''" in html

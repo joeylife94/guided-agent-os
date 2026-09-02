@@ -298,6 +298,21 @@ def main() -> None:
         evidence_path = ARTIFACT_DIR / "operator-browser-evidence.json"
         evidence_path.write_text(json.dumps(evidence, indent=2, ensure_ascii=False), encoding="utf-8")
         print(json.dumps(evidence, ensure_ascii=False))
+    except Exception as error:
+        evidence["failure"] = {"type": type(error).__name__, "message": str(error)}
+        try:
+            evidence["failure_run_id"] = driver.find_element(By.ID, "run-id").text
+            evidence["failure_run_status"] = driver.find_element(By.ID, "run-status").text
+            evidence["failure_rejection_visible"] = driver.find_element(By.ID, "approval-precondition-rejection").is_displayed()
+            evidence["failure_rejection_message"] = driver.find_element(By.ID, "approval-precondition-rejection-message").text
+            evidence["failure_evidence_json"] = driver.find_element(By.ID, "run-evidence-json").text
+            driver.save_screenshot(str(ARTIFACT_DIR / "operator-golden-path.png"))
+        except Exception as diagnostic_error:
+            evidence["diagnostic_error"] = str(diagnostic_error)
+        (ARTIFACT_DIR / "operator-browser-evidence.json").write_text(
+            json.dumps(evidence, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
+        raise
     finally:
         driver.quit()
 

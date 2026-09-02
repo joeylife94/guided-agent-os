@@ -184,6 +184,7 @@ def main() -> None:
         if rejected_run.get("status") != "pending_approval":
             raise AssertionError(f"Expected rejected approval to remain pending_approval, got: {rejected_run!r}")
 
+        wait.until(lambda d: d.find_element(By.ID, "refresh-run-evidence-button").is_enabled())
         driver.find_element(By.ID, "refresh-run-evidence-button").click()
         wait.until(EC.visibility_of_element_located((By.ID, "approval-precondition-rejection")))
         wait_text(wait, "approval-precondition-rejection-message", "digest_mismatch")

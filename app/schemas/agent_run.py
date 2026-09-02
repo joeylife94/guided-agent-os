@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class ClarificationQuestion(BaseModel):
@@ -113,6 +113,14 @@ class ApproveRequest(BaseModel):
 
 
 class RejectRequest(BaseModel):
-    """Required reason for rejecting a run."""
+    """Required non-blank reason for rejecting a run."""
 
     reason: str = Field(..., description="Why this run is being rejected.")
+
+    @field_validator("reason")
+    @classmethod
+    def normalize_reason(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("Rejection reason must not be blank.")
+        return normalized

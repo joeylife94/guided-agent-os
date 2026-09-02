@@ -12,11 +12,11 @@
 | Proof v1.0 | **CLOSED / FROZEN** |
 | Current Level | **L3 — Usable / Demonstrable Proof** |
 | Progression Mode | **ENABLED — bounded milestones only** |
-| Latest accepted milestone | **P-017 / Issue #50 browser-verify missing reviewed digest rejection notice — CLOSED** |
-| Active milestone | **P-018 — capture explicit operator rejection rationale — PLANNED** |
+| Latest accepted milestone | **P-018 / Issue #52 capture explicit operator rejection rationale — CLOSED** |
+| Active milestone | **P-019 — bind rejection rationale to the currently reviewed run — PLANNED** |
 | Active branch | not created yet |
 | Active PR | none yet |
-| Latest accepted progression merge | `6afa4d909703497309cc6396d8548545a4b421e1` |
+| Latest accepted progression merge | `c5e2e705c3a9f313c3e7371b4d7499c2bf742883` |
 
 The v1.0 acceptance baseline is not reopened by later milestones.
 
@@ -106,7 +106,8 @@ Rules:
 | L-31 | Operator did not directly surface stale reviewed digest vs current digest | CLOSED by P-015 |
 | L-32 | Firebat browser proof did not verify stale-digest rejection notice | CLOSED by P-016 |
 | L-33 | Firebat browser proof did not verify missing-digest rejection notice | CLOSED by P-017 |
-| L-34 | Operator rejection uses a fixed generic rationale instead of a human-entered audit rationale | OPEN — P-018 |
+| L-34 | Operator rejection used a fixed generic rationale instead of a human-entered audit rationale | CLOSED by P-018 |
+| L-35 | typed rejection rationale is not explicitly cleared/bound when the Operator switches to another run, risking cross-run audit misattribution | OPEN — P-019 |
 
 ---
 
@@ -129,52 +130,53 @@ Rules:
 - **P-015 CLOSED — ACCEPTED** — surface rejected approval digest mismatch in Operator; Issue #46 / PR #47; accepted head `24de68835b4fa0cbd296f6d10e32b539a7238881`; merge `edd8564ec2eff9fa3971ede0192417b7dd5f8551`.
 - **P-016 CLOSED — ACCEPTED** — browser-verify rejected approval digest mismatch notice; Issue #48 / PR #49; accepted head `b7cf9312cd342dab5e5b3a617169854dece9b506`; merge `4a1ae3167d082fb8bc3b7356119550fa8098a39e`. Exact-head validate / proof-eval / firebat-container SUCCESS.
 - **P-017 CLOSED — ACCEPTED** — browser-verify missing reviewed digest rejection notice; Issue #50 / PR #51; accepted head `96f393c4c4f3b267b16443215959daebfc6b3952`; merge `6afa4d909703497309cc6396d8548545a4b421e1`. Exact-head validate / proof-eval / firebat-container SUCCESS. Browser proof verifies actual omitted-digest 409, persisted `pending_approval`, `missing_expected_digest`, hidden/empty submitted digest, current server digest, no false `APPROVED`/`TOOL_EXECUTED`, then successful fresh-digest human-approved read-only execution.
+- **P-018 CLOSED — ACCEPTED** — capture explicit operator rejection rationale; Issue #52 / PR #53; accepted head `8e189460eb14a707124b95ca7e4de59f99faf03b`; merge `c5e2e705c3a9f313c3e7371b4d7499c2bf742883`. Exact-head PR Validation / Proof Evaluation / Firebat Container / P-018 Browser Rejection Rationale all SUCCESS. Browser proof verifies blank rationale is blocked, trimmed human rationale reaches persisted `REJECTED.payload.reason`, run is rejected, and no `TOOL_EXECUTED` event is emitted.
 
-## P-018 — Capture explicit operator rejection rationale
+## P-019 — Bind rejection rationale to the currently reviewed run
 **PLANNED — bounded next milestone**
 
 ### Gap
-The rejection endpoint already persists `REJECTED` with `payload.reason`, but the browser Operator sends the fixed string `Rejected from operator workspace.` rather than a human-entered rationale. This weakens audit usefulness at the explicit human-denial boundary.
+P-018 clears the rationale only after a successful reject. The textarea is not explicitly reset when `currentRunId` changes, so an operator can type a reason for run A, load run B, and accidentally reject run B with run A's rationale. That would preserve a technically valid rejection event but weaken audit truthfulness by misattributing the human rationale across runs.
 
 ### Bounded acceptance
-1. Operator provides a small rejection-rationale input associated only with the Reject action.
-2. Reject is blocked client-side when the rationale is blank after trimming; approval behavior is unchanged.
-3. Existing reject endpoint receives the entered rationale and persists it unchanged in the `REJECTED` audit event.
-4. Firebat/browser proof performs one actual human rejection and verifies the persisted rationale plus no `TOOL_EXECUTED` event.
-5. Exact-head PR Validation, Proof Evaluation, and Firebat Container are all SUCCESS before acceptance.
+1. Rejection rationale is cleared whenever the Operator changes from one run ID to another or resets the workspace to no run.
+2. Reload/refresh of the same run does not invent or transfer rationale to another run; approval behavior remains unchanged.
+3. Browser proof creates two pending-approval runs, types a distinctive rationale on run A, switches to run B, and verifies the rationale field is empty before any reject request can be issued.
+4. Browser proof rejects run B only after entering a new B-specific rationale, then verifies `REJECTED.payload.reason` contains only the B rationale and no `TOOL_EXECUTED` event exists.
+5. Exact-head PR Validation, Proof Evaluation, Firebat Container, and the dedicated P-019 browser gate are SUCCESS before acceptance.
 
 ### Boundaries / non-claims
-- no new tool, endpoint, write authority, autonomous execution, replay, authentication/RBAC, signing, or external trust claim.
-- rationale is audit metadata entered by the operator; it is not authenticated identity, non-repudiation, or tamper-proof evidence.
+- no new tool, endpoint, execution authority, write permission, autonomous behavior, authentication/RBAC, signing, or external trust claim.
+- this binds ephemeral browser input to the visible run context; it does not create authenticated reviewer identity or tamper-proof/non-repudiable evidence.
 
 ---
 
 # 5. Current Run Record
 
 ### Changed
-- P-017 accepted on exact head `96f393c4c4f3b267b16443215959daebfc6b3952` after validate / proof-eval / firebat-container all completed SUCCESS.
-- PR #51 squash merged with expected-head protection to `6afa4d909703497309cc6396d8548545a4b421e1`; Issue #50 closed completed.
-- MASTER reconciled through P-017.
-- one next bounded milestone selected: P-018 explicit operator rejection rationale.
+- P-018 accepted on exact head `8e189460eb14a707124b95ca7e4de59f99faf03b` after all four required exact-head gates completed SUCCESS.
+- PR #53 squash merged with expected-head protection to `c5e2e705c3a9f313c3e7371b4d7499c2bf742883`; Issue #52 closed completed.
+- MASTER reconciled through P-018.
+- one next bounded milestone selected: P-019 cross-run rejection-rationale binding/reset.
 
 ### Actually Executed
 - current root MASTER read first.
-- PR #51 metadata and exact head inspected.
-- exact-head check runs inspected directly; all three acceptance gates completed SUCCESS.
-- PR #51 discussion inspected; no unresolved comments were present.
-- PR #51 merged with expected-head protection and Issue #50 closed.
-- Operator rejection implementation inspected: current browser body uses a fixed generic reason while server-side rejection already persists `payload.reason`.
+- PR #53 exact head and mergeability inspected.
+- exact-head workflow runs inspected directly: PR Validation, Proof Evaluation, Firebat Container, and P-018 Browser Rejection Rationale all completed SUCCESS.
+- PR #53 review threads inspected; none were unresolved.
+- PR #53 merged with expected-head protection and Issue #52 closed completed.
+- merged P-018 Operator wrapper inspected on `main`; `rejectionReason.value = ''` occurs after successful reject, but no run-change binding/reset is installed by the wrapper.
 
 ### Verified
-- P-017 is reproducible on the accepted exact head and does not broaden approval/execution authority.
-- P-018 satisfies the milestone gate: direct audit/use value, one-Issue/one-PR scope, executable browser acceptance, and no unresolved product-direction/security decision.
+- P-018 executable evidence is green on the accepted exact head and remains inside the frozen human-approval/read-only boundary.
+- P-019 satisfies the milestone gate: direct audit-correctness value, one-Issue/one-PR scope, deterministic two-run browser acceptance, and no unresolved product/security direction decision.
 
 ### Not Verified
-- P-018 has not yet been implemented or executed.
+- P-019 has not yet been implemented or executed.
 - no authenticated reviewer identity, tamper-proof logging, RBAC, non-repudiation, production authorization, or unrestricted tool-safety claim is established.
 
 ### Limitations
-P-017/P-018 evidence remains bounded to this repository, its existing Firebat/headless-Chrome proof environment, and its existing read-only controlled tool path.
+P-018/P-019 evidence remains bounded to this repository, its existing Firebat/headless-Chrome proof environment, and its existing controlled read-only tool path.
 
 ### Exact Next Action
-Create one P-018 Issue and linked branch/PR. Establish test-first executable RED for human-entered rejection rationale, then implement minimally inside that same milestone and require exact-head validate / proof-eval / firebat-container SUCCESS before merge.
+Create one P-019 Issue and linked branch/PR. Establish executable RED for cross-run rationale carryover, then minimally clear/bind the rationale on run-context change and require exact-head PR Validation / Proof Evaluation / Firebat Container / dedicated P-019 browser SUCCESS before merge.

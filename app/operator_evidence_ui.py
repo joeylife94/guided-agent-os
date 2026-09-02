@@ -134,7 +134,7 @@ _EVIDENCE_SCRIPT = r'''
   function renderApprovalPreconditionRejection(evidence) {
     approvalPreconditionRejection.classList.add('hidden');
     approvalRejectionSubmittedRow.classList.remove('hidden');
-    const events = evidence && Array.isArray(evidence.audit_events) ? evidence.audit_events : [];
+    const events = evidence && Array.isArray(evidence.events) ? evidence.events : [];
     const rejected = [...events].reverse().find((event) => event.event_type === 'APPROVAL_PRECONDITION_REJECTED');
     if (!rejected) return;
     const payload = rejected.payload || {};

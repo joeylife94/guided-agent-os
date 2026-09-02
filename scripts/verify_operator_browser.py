@@ -143,6 +143,89 @@ def main() -> None:
         evidence["checks"].append("reviewed_execution_inputs_digest_ready")
         evidence["reviewed_execution_inputs_digest"] = reviewed_digest
 
+        stale_digest = "0" * 64
+        if stale_digest == reviewed_digest:
+            stale_digest = "f" * 64
+        rejected = driver.execute_async_script(
+            """
+            const done = arguments[arguments.length - 1];
+            fetch(`/api/agents/runs/${arguments[0]}/approve`, {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({
+                note: 'Intentional stale digest for browser proof.',
+                expected_execution_inputs_digest: arguments[1],
+              }),
+            })
+              .then(async response => done({status: response.status, body: await response.json()}))
+              .catch(error => done({__error: String(error)}));
+            """,
+            pending_run_id,
+            stale_digest,
+        )
+        if rejected.get("__error"):
+            raise AssertionError(rejected["__error"])
+        if rejected.get("status") != 409:
+            raise AssertionError(f"Expected stale approval digest to return 409, got: {rejected!r}")
+
+        rejected_state_result = driver.execute_async_script(
+            """
+            const done = arguments[arguments.length - 1];
+            fetch(`/api/agents/runs/${arguments[0]}`)
+              .then(response => response.json())
+              .then(run => done({run}))
+              .catch(error => done({__error: String(error)}));
+            """,
+            pending_run_id,
+        )
+        if rejected_state_result.get("__error"):
+            raise AssertionError(rejected_state_result["__error"])
+        rejected_run = rejected_state_result.get("run") or {}
+        if rejected_run.get("status") != "pending_approval":
+            raise AssertionError(f"Expected rejected approval to remain pending_approval, got: {rejected_run!r}")
+
+        wait.until(lambda d: d.find_element(By.ID, "refresh-run-evidence-button").is_enabled())
+        driver.find_element(By.ID, "refresh-run-evidence-button").click()
+        wait.until(EC.visibility_of_element_located((By.ID, "approval-precondition-rejection")))
+        wait_text(wait, "approval-precondition-rejection-message", "digest_mismatch")
+        submitted_digest = driver.find_element(By.ID, "approval-rejection-submitted-digest").text.strip()
+        current_digest = driver.find_element(By.ID, "approval-rejection-current-digest").text.strip()
+        if submitted_digest != stale_digest:
+            raise AssertionError(
+                f"Operator submitted rejection digest differs from attempted digest: rendered={submitted_digest!r} attempted={stale_digest!r}"
+            )
+        if current_digest != reviewed_digest:
+            raise AssertionError(
+                f"Operator current rejection digest differs from reviewed digest: rendered={current_digest!r} reviewed={reviewed_digest!r}"
+            )
+
+        rejected_events_result = driver.execute_async_script(
+            """
+            const done = arguments[arguments.length - 1];
+            fetch(`/api/agents/runs/${arguments[0]}/events`)
+              .then(response => response.json())
+              .then(events => done({events}))
+              .catch(error => done({__error: String(error)}));
+            """,
+            pending_run_id,
+        )
+        if rejected_events_result.get("__error"):
+            raise AssertionError(rejected_events_result["__error"])
+        rejected_events = rejected_events_result.get("events") or []
+        rejected_types = [event.get("event_type") for event in rejected_events]
+        if "APPROVAL_PRECONDITION_REJECTED" not in rejected_types:
+            raise AssertionError(f"Persisted rejection event missing: {rejected_types!r}")
+        if "APPROVED" in rejected_types or "TOOL_EXECUTED" in rejected_types:
+            raise AssertionError(f"Rejected attempt emitted false execution evidence: {rejected_types!r}")
+        evidence["checks"].append("stale_digest_rejected_409_pending_approval")
+        evidence["checks"].append("rejection_notice_renders_submitted_and_current_digests")
+        evidence["checks"].append("rejected_attempt_has_no_false_execution_events")
+        evidence["rejected_approval"] = {
+            "submitted_digest": submitted_digest,
+            "current_digest": current_digest,
+            "audit_types": rejected_types,
+        }
+
         driver.find_element(By.ID, "approve-button").click()
         wait_text(wait, "run-status", "archived")
         wait.until(lambda d: '\"status\": \"executed\"' in d.find_element(By.ID, "execution-result").text)
@@ -215,6 +298,21 @@ def main() -> None:
         evidence_path = ARTIFACT_DIR / "operator-browser-evidence.json"
         evidence_path.write_text(json.dumps(evidence, indent=2, ensure_ascii=False), encoding="utf-8")
         print(json.dumps(evidence, ensure_ascii=False))
+    except Exception as error:
+        evidence["failure"] = {"type": type(error).__name__, "message": str(error)}
+        try:
+            evidence["failure_run_id"] = driver.find_element(By.ID, "run-id").text
+            evidence["failure_run_status"] = driver.find_element(By.ID, "run-status").text
+            evidence["failure_rejection_visible"] = driver.find_element(By.ID, "approval-precondition-rejection").is_displayed()
+            evidence["failure_rejection_message"] = driver.find_element(By.ID, "approval-precondition-rejection-message").text
+            evidence["failure_evidence_json"] = driver.find_element(By.ID, "run-evidence-json").text
+            driver.save_screenshot(str(ARTIFACT_DIR / "operator-golden-path.png"))
+        except Exception as diagnostic_error:
+            evidence["diagnostic_error"] = str(diagnostic_error)
+        (ARTIFACT_DIR / "operator-browser-evidence.json").write_text(
+            json.dumps(evidence, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
+        raise
     finally:
         driver.quit()
 

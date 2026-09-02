@@ -12,11 +12,11 @@
 | Proof v1.0 | **CLOSED / FROZEN** |
 | Current Level | **L3 — Usable / Demonstrable Proof** |
 | Progression Mode | **ENABLED — bounded milestones only** |
-| Latest accepted milestone | **P-012 / Issue #40 bind human approval to reviewed execution-input digest — CLOSED** |
-| Active milestone | **P-013 / Issue #42 audit rejected approval digest preconditions — OPEN** |
-| Active branch | `proof-v1.1/42-audit-rejected-approval-digest` |
-| Active PR | **#43 OPEN** |
-| Latest accepted progression merge | `48137e552784af2f18c9220a846a57efad9012b7` |
+| Latest accepted milestone | **P-013 / Issue #42 audit rejected approval digest preconditions — CLOSED** |
+| Active milestone | **P-014 / Issue #44 correlate rejected approval attempt digest — OPEN** |
+| Active branch | `proof-v1.1/44-rejected-approval-attempt-digest` |
+| Active PR | **#45 OPEN** |
+| Latest accepted progression merge | `1b36d26f68da46e86915991e31fa73d67af1566a` |
 
 The v1.0 acceptance baseline is not reopened by later milestones.
 
@@ -101,7 +101,8 @@ Rules:
 | L-26 | exact persisted execution inputs were not surfaced together at the human approval boundary | CLOSED by P-010 |
 | L-27 | approval/tool audit events did not correlate the exact execution-input snapshot | CLOSED by P-011 |
 | L-28 | browser approval action was not explicitly bound to the exact execution-input digest reviewed by the operator | CLOSED by P-012 |
-| L-29 | rejected missing/mismatched approval-digest attempts are not explicit persisted audit evidence | OPEN — P-013 |
+| L-29 | rejected missing/mismatched approval-digest attempts are not explicit persisted audit evidence | CLOSED by P-013 |
+| L-30 | mismatched rejection evidence does not preserve the submitted stale digest for direct attempt-vs-current correlation | OPEN — P-014 |
 
 ---
 
@@ -152,39 +153,47 @@ Rules:
 - limitation: optimistic digest precondition only; no reviewer identity/authentication, signing, tamper-proof storage, RBAC, non-repudiation, or unrestricted tool-safety claim.
 
 ## P-013 — Audit rejected approval digest preconditions
-**OPEN**
-- Issue #42; PR #43.
-- branch `proof-v1.1/42-audit-rejected-approval-digest`.
-- first contract head `75f266f580a1635687ecf6e4b5e69583764ae235` is test-only and expects executable RED.
-- bounded acceptance: missing/mismatched P-012 digest rejection must persist one explicit `APPROVAL_PRECONDITION_REJECTED` event, distinguish missing vs mismatch, correlate the current server execution-input digest, remain `pending_approval`, make zero executor calls, and emit no false `APPROVED`/`TOOL_EXECUTED` evidence.
+**CLOSED — ACCEPTED**
+- Issue #42; PR #43; branch `proof-v1.1/42-audit-rejected-approval-digest`.
+- first contract head `75f266f580a1635687ecf6e4b5e69583764ae235` established executable RED during progression.
+- accepted exact head `3e38aea547981fd6f4f79a369a5cd441435f60fe`; squash merge `1b36d26f68da46e86915991e31fa73d67af1566a`.
+- exact-head PR Validation, Proof Evaluation, and Firebat Container all completed SUCCESS.
+- missing/mismatched P-012 digest rejection persists exactly one `APPROVAL_PRECONDITION_REJECTED` event, distinguishes missing vs mismatch, correlates the current server execution-input digest, remains `pending_approval`, makes zero executor calls, and emits no false `APPROVED`/`TOOL_EXECUTED` evidence.
 - matching digest path and P-011/P-012 successful correlation remain unchanged.
-- no new endpoint, tool capability, write authority, autonomous execution, replay, permission expansion, authentication/RBAC, signing, or external trust claim.
+- limitation: persisted audit-store evidence only; no tamper-proof, reviewer-authentication, signing, RBAC, non-repudiation, or external trust claim.
+
+## P-014 — Correlate rejected approval attempt digest
+**OPEN**
+- Issue #44; PR #45; branch `proof-v1.1/44-rejected-approval-attempt-digest`.
+- first contract head `165fbf5fdf6f6f526befd9acef3a2babd1ccd434` is test-only and expects executable RED.
+- bounded acceptance: mismatch rejection records the normalized submitted reviewed digest alongside the existing current server digest; missing-digest rejection records no fabricated submitted digest; `pending_approval`, zero executor calls, no false approval/execution evidence, and successful matching behavior remain unchanged.
+- no new endpoint, tool capability, execution-input snapshot expansion, write authority, autonomous execution, replay, permission expansion, authentication/RBAC, signing, or external trust claim.
 
 ### Changed This Run
-- accepted P-012 after exact head `a73299f88d46c95bc9dc0f1789b038514f37acf7` completed PR Validation, Proof Evaluation, and Firebat Container successfully.
-- squash merged PR #41 with expected-head protection to `48137e552784af2f18c9220a846a57efad9012b7`; closed Issue #40 completed.
-- Progression Review identified the next bounded auditability gap: failed missing/mismatched approval-digest attempts leave the run safely pending but are not explicit persisted evidence.
-- opened P-013 Issue #42, branch, test-first contract, and PR #43.
+- accepted P-013 after exact head `3e38aea547981fd6f4f79a369a5cd441435f60fe` completed PR Validation, Proof Evaluation, and Firebat Container successfully.
+- squash merged PR #43 with expected-head protection to `1b36d26f68da46e86915991e31fa73d67af1566a`; closed Issue #42 completed.
+- Progression Review identified one bounded traceability gap: mismatch rejection records the current server digest but not the stale/submitted digest that was rejected.
+- opened P-014 Issue #44, branch, test-first contract, and PR #45.
 
 ### Actually Executed
 - root MASTER read first.
-- PR #41 exact head and its three check runs inspected directly; all completed SUCCESS.
-- PR #41 merged with expected-head SHA protection; Issue #40 closed completed.
-- P-012 route diff inspected: missing/mismatch restores `pending_approval` and raises 409 before `execute_approved_tool`, but does not append a rejection audit event.
-- P-013 test-only head `75f266f580a1635687ecf6e4b5e69583764ae235` pushed and PR #43 opened.
+- PR #43 exact head and all three required workflow runs inspected directly; all completed SUCCESS.
+- PR #43 merged with expected-head SHA protection; Issue #42 closed completed.
+- current `main` approval route inspected: rejection evidence includes `reason` and `current_execution_inputs_digest` but does not preserve the submitted reviewed digest.
+- P-014 test-only head `165fbf5fdf6f6f526befd9acef3a2babd1ccd434` pushed and PR #45 opened.
 
 ### Verified
-- P-012 acceptance is backed by exact-head executable evidence.
-- P-013 has direct evidence/audit value, bounded executable acceptance, one-Issue/one-PR scope, and no product-direction or permission decision.
+- P-013 acceptance is backed by exact-head executable evidence.
+- P-014 has direct audit/traceability value, bounded executable acceptance, one-Issue/one-PR scope, and no unresolved product-direction or permission decision.
 - frozen human approval, allowlist, read-only execution, recovery, and non-autonomy boundaries remain explicit.
 
 ### Not Verified
-- P-013 first-head executable RED has not yet completed.
-- P-013 implementation does not yet exist and no P-013 PASS is claimed.
+- P-014 first-head executable RED has not yet completed.
+- P-014 implementation does not yet exist and no P-014 PASS is claimed.
 - no authenticated reviewer identity, tamper-proof logging, external notarization, production authorization/RBAC, non-repudiation, or unrestricted tool safety is established.
 
 ### Limitations
-P-013 adds evidence inside the existing persisted audit store only. It does not make that store externally trustworthy or tamper-proof.
+P-014 adds only digest-level correlation metadata inside the existing persisted audit store. It does not make that store externally trustworthy or tamper-proof.
 
 ### Exact Next Action
-Observe PR #43 first-head validate for executable RED. Once RED is confirmed, implement only the minimal rejection audit event inside Issue #42, then run exact-head PR Validation, Proof Evaluation, and Firebat Container before any merge.
+Observe PR #45 first-head validate for executable RED. Once RED is confirmed, implement only the minimal submitted-digest rejection correlation inside Issue #44, then run exact-head PR Validation, Proof Evaluation, and Firebat Container before any merge.

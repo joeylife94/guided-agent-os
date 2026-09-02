@@ -17,8 +17,9 @@ from functools import lru_cache
 from typing import Iterable, List, Protocol
 
 
-DEFAULT_PROVIDER = "bge_m3"
-DEFAULT_BGE_MODEL = "BAAI/bge-m3"
+DEFAULT_PROVIDER = "sentence_transformers"
+DEFAULT_SENTENCE_TRANSFORMERS_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+LEGACY_BGE_PROVIDER_ALIAS = "bge_m3"
 HASH_TEST_PROVIDER = "hash_test"
 HASH_TEST_DIMENSIONS = 64
 _TOKEN_PATTERN = re.compile(r"[a-z0-9]+")
@@ -123,24 +124,31 @@ def get_embedding_provider(
     provider_name: str | None = None,
     model_name: str | None = None,
 ) -> EmbeddingProvider:
-    """Return the configured provider without implicit fallback behavior."""
+    """Return the configured provider without implicit fallback behavior.
+
+    ``bge_m3`` remains an explicit compatibility alias for callers that already
+    select it, but the implementation boundary and persisted provider metadata
+    truthfully identify SentenceTransformers.
+    """
     selected = (provider_name or os.getenv("RAG_EMBEDDING_PROVIDER", DEFAULT_PROVIDER)).strip().lower()
 
     if selected == HASH_TEST_PROVIDER:
         return HashTestEmbeddingProvider()
 
-    if selected == DEFAULT_PROVIDER:
+    if selected in {DEFAULT_PROVIDER, LEGACY_BGE_PROVIDER_ALIAS}:
         configured_model = (
             model_name
-            or os.getenv("RAG_EMBEDDING_MODEL", DEFAULT_BGE_MODEL)
+            or os.getenv("RAG_EMBEDDING_MODEL", DEFAULT_SENTENCE_TRANSFORMERS_MODEL)
         ).strip()
         if not configured_model:
-            raise RuntimeError("RAG_EMBEDDING_MODEL must not be empty for bge_m3 provider.")
+            raise RuntimeError(
+                "RAG_EMBEDDING_MODEL must not be empty for sentence_transformers provider."
+            )
         return SentenceTransformerEmbeddingProvider(configured_model)
 
     raise RuntimeError(
         f"Unsupported RAG_EMBEDDING_PROVIDER '{selected}'. "
-        f"Supported providers: {DEFAULT_PROVIDER}, {HASH_TEST_PROVIDER}."
+        f"Supported providers: {DEFAULT_PROVIDER}, {LEGACY_BGE_PROVIDER_ALIAS}, {HASH_TEST_PROVIDER}."
     )
 
 

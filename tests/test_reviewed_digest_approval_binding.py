@@ -130,17 +130,19 @@ def test_approve_requires_reviewed_execution_input_digest_before_executor() -> N
     rejected = _precondition_rejection(run_id)
     assert rejected["payload"]["reason"] == "missing_expected_digest"
     assert rejected["payload"]["current_execution_inputs_digest"] == _expected_digest()
+    assert rejected["payload"].get("submitted_execution_inputs_digest") is None
 
 
 def test_approve_rejects_mismatched_reviewed_digest_before_executor() -> None:
     run_id = _seed_pending_run("run-mismatched-reviewed-digest")
+    submitted_digest = "0" * 64
 
     with patch("app.api.routes.execute_approved_tool") as executor:
         response = client.post(
             f"/api/agents/runs/{run_id}/approve",
             json={
                 "note": "Approve with stale reviewed digest",
-                "expected_execution_inputs_digest": "0" * 64,
+                "expected_execution_inputs_digest": submitted_digest,
             },
         )
 
@@ -154,6 +156,7 @@ def test_approve_rejects_mismatched_reviewed_digest_before_executor() -> None:
     rejected = _precondition_rejection(run_id)
     assert rejected["payload"]["reason"] == "digest_mismatch"
     assert rejected["payload"]["current_execution_inputs_digest"] == _expected_digest()
+    assert rejected["payload"]["submitted_execution_inputs_digest"] == submitted_digest
 
 
 def test_approve_accepts_matching_reviewed_digest_and_preserves_audit_correlation() -> None:

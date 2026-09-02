@@ -10,7 +10,7 @@ from sqlalchemy import text
 from app.api.rag_routes import router as rag_router
 from app.api.routes import router
 from app.models.database import Base, SessionLocal, engine
-from app.operator_evidence_ui import operator_workspace_with_evidence
+from app.operator_rejection_rationale_ui import operator_workspace_with_rejection_rationale
 from app.services.rag_indexer import get_index_stats
 
 # Create all tables on startup (idempotent).
@@ -62,7 +62,7 @@ app.include_router(rag_router)
 @app.get("/", include_in_schema=False)
 def root():
     """Open the dependency-free operator workspace."""
-    return operator_workspace_with_evidence()
+    return operator_workspace_with_rejection_rationale()
 
 
 @app.get("/health", tags=["system"])

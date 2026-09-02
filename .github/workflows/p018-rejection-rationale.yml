@@ -1,0 +1,71 @@
+name: P-018 Browser Rejection Rationale
+
+on:
+  pull_request:
+    paths:
+      - app/**
+      - scripts/verify_operator_rejection_rationale.py
+      - tests/test_operator_rejection_rationale_contract.py
+      - .github/workflows/p018-rejection-rationale.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser-rejection-rationale:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare Firebat environment
+        run: |
+          cp .env.firebat.example .env.firebat
+          sed -i 's/HOST_PORT=8701/HOST_PORT=18701/' .env.firebat
+          sed -i 's/LOCAL_LLM_TIMEOUT=5/LOCAL_LLM_TIMEOUT=2/' .env.firebat
+          chmod 600 .env.firebat
+          echo 'APP_VERSION=ci' >> "$GITHUB_ENV"
+          echo "GIT_REVISION=${GITHUB_SHA}" >> "$GITHUB_ENV"
+          echo 'HOST_PORT=18701' >> "$GITHUB_ENV"
+
+      - name: Build and start production image
+        run: |
+          docker compose --env-file .env.firebat -f compose.firebat.yml build app
+          docker compose --env-file .env.firebat -f compose.firebat.yml up -d
+          chmod +x scripts/healthcheck-firebat.sh
+          HEALTHCHECK_MAX_ATTEMPTS=90 sh scripts/healthcheck-firebat.sh
+
+      - name: Verify actual browser rejection rationale persistence
+        env:
+          OPERATOR_BASE_URL: http://127.0.0.1:18701
+          OPERATOR_ARTIFACT_DIR: /tmp/operator-proof
+        run: |
+          google-chrome --version
+          python -m pip install --disable-pip-version-check 'selenium==4.35.0'
+          python scripts/verify_operator_rejection_rationale.py
+
+      - name: Capture diagnostics
+        if: always()
+        run: |
+          docker compose --env-file .env.firebat -f compose.firebat.yml ps || true
+          docker compose --env-file .env.firebat -f compose.firebat.yml logs --tail=250 app > p018-rejection-rationale-container.log 2>&1 || true
+          cp /tmp/operator-proof/operator-rejection-rationale-evidence.json operator-rejection-rationale-evidence.json 2>/dev/null || true
+          cp /tmp/operator-proof/operator-rejection-rationale.png operator-rejection-rationale.png 2>/dev/null || true
+
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: guided-agent-p018-rejection-rationale
+          path: |
+            p018-rejection-rationale-container.log
+            operator-rejection-rationale-evidence.json
+            operator-rejection-rationale.png
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Stop Firebat service
+        if: always()
+        run: docker compose --env-file .env.firebat -f compose.firebat.yml down -v || true

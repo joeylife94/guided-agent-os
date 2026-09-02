@@ -1,7 +1,7 @@
 from app.operator_evidence_ui import operator_workspace_with_evidence
 
 
-def test_operator_surfaces_rejected_digest_mismatch_correlation() -> None:
+def test_operator_contains_rejected_digest_mismatch_rendering_contract() -> None:
     html = operator_workspace_with_evidence().body.decode("utf-8")
 
     assert 'id="approval-precondition-rejection"' in html
@@ -12,7 +12,7 @@ def test_operator_surfaces_rejected_digest_mismatch_correlation() -> None:
     assert "Reviewed approval inputs changed before execution" in html
 
 
-def test_operator_missing_digest_notice_does_not_fabricate_submitted_digest() -> None:
+def test_operator_contains_missing_digest_notice_contract() -> None:
     html = operator_workspace_with_evidence().body.decode("utf-8")
 
     assert "missing_expected_digest" in html

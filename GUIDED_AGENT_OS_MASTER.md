@@ -12,11 +12,11 @@
 | Proof v1.0 | **CLOSED / FROZEN** |
 | Current Level | **L3 — Usable / Demonstrable Proof** |
 | Progression Mode | **ENABLED — bounded milestones only** |
-| Latest accepted milestone | **P-015 / Issue #46 surface rejected approval digest mismatch in Operator — CLOSED** |
-| Active milestone | **P-016 / Issue #48 browser-verify rejected approval digest mismatch notice — OPEN** |
-| Active branch | `proof-v1.1/48-browser-rejected-digest-notice` |
-| Active PR | **#49 OPEN** |
-| Latest accepted progression merge | `edd8564ec2eff9fa3971ede0192417b7dd5f8551` |
+| Latest accepted milestone | **P-017 / Issue #50 browser-verify missing reviewed digest rejection notice — CLOSED** |
+| Active milestone | **P-018 — capture explicit operator rejection rationale — PLANNED** |
+| Active branch | not created yet |
+| Active PR | none yet |
+| Latest accepted progression merge | `6afa4d909703497309cc6396d8548545a4b421e1` |
 
 The v1.0 acceptance baseline is not reopened by later milestones.
 
@@ -101,124 +101,80 @@ Rules:
 | L-26 | exact persisted execution inputs were not surfaced together at the human approval boundary | CLOSED by P-010 |
 | L-27 | approval/tool audit events did not correlate the exact execution-input snapshot | CLOSED by P-011 |
 | L-28 | browser approval action was not explicitly bound to the exact execution-input digest reviewed by the operator | CLOSED by P-012 |
-| L-29 | rejected missing/mismatched approval-digest attempts are not explicit persisted audit evidence | CLOSED by P-013 |
-| L-30 | mismatched rejection evidence does not preserve the submitted stale digest for direct attempt-vs-current correlation | CLOSED by P-014 |
-| L-31 | Operator does not directly surface stale reviewed digest vs current server digest after approval precondition rejection | CLOSED by P-015 |
-| L-32 | Firebat browser proof does not execute and visibly verify the P-015 stale-digest rejection notice | OPEN — P-016 |
+| L-29 | rejected missing/mismatched approval-digest attempts were not explicit persisted audit evidence | CLOSED by P-013 |
+| L-30 | mismatch rejection did not preserve submitted stale digest | CLOSED by P-014 |
+| L-31 | Operator did not directly surface stale reviewed digest vs current digest | CLOSED by P-015 |
+| L-32 | Firebat browser proof did not verify stale-digest rejection notice | CLOSED by P-016 |
+| L-33 | Firebat browser proof did not verify missing-digest rejection notice | CLOSED by P-017 |
+| L-34 | Operator rejection uses a fixed generic rationale instead of a human-entered audit rationale | OPEN — P-018 |
 
 ---
 
 # 4. Progression Registry
 
-## P-001 — Replay-safe human approval finalization
-**CLOSED — ACCEPTED** — Issue #17, PR #18, merge `fc5f237f78a41ae4c099599445df99ea6d56f1b3`.
+- **P-001 CLOSED — ACCEPTED** — replay-safe human approval finalization; Issue #17 / PR #18; merge `fc5f237f78a41ae4c099599445df99ea6d56f1b3`.
+- **P-002 CLOSED — ACCEPTED** — concurrent approval finalization guard; Issue #19 / PR #20 + #21; merge `ad5f9b1a865d1be97ce427cc18760d7de5ca5a2e`.
+- **P-003 CLOSED — ACCEPTED** — deterministic run evidence bundle; Issue #22 / PR #23; merge `ff70352ba87017654ca5d180d141dc1c8eb1fe75`.
+- **P-004 CLOSED — ACCEPTED** — quarantine interrupted decisions without replay; Issue #24 / PR #25; merge `b43da1762ed04cee9fa87e295511e3eb5b5d8a03`.
+- **P-005 CLOSED — ACCEPTED** — Operator quarantine UX; Issue #26 / PR #27; merge `8cf4a2847b527ae3f322dd744f0abec8b30844c8`.
+- **P-006 CLOSED — ACCEPTED** — read-only interrupted-decision recovery queue; Issue #28 / PR #29; merge `c405b66d0a91f2924660d049f05390daab20ddaa`.
+- **P-007 CLOSED — ACCEPTED** — Operator deterministic evidence artifact; Issue #30 / PR #31; merge `9d5a89b982eef8b3e492aa52a380e7806cd207d5`.
+- **P-008 CLOSED — ACCEPTED** — Operator evidence digest local verification; Issue #32 / PR #33; merge `a238a9a89e3edb7afa5a00d0290c53483726625e`.
+- **P-009 CLOSED — ACCEPTED** — portable deterministic evidence download; Issue #34 / PR #35; merge `019f93ebffc9f9b0089e5f16378df8f160f6bcdc`.
+- **P-010 CLOSED — ACCEPTED** — Operator approval execution-input review; Issue #36 / PR #37; merge `3e8a653820f48c30bb60743184d2c90416523b26`.
+- **P-011 CLOSED — ACCEPTED** — auditable approval execution-input snapshot; Issue #38 / PR #39; merge `3c2a5c58d7735064e9f4132751e003dee8a58da6`.
+- **P-012 CLOSED — ACCEPTED** — bind human approval to reviewed execution-input digest; Issue #40 / PR #41; merge `48137e552784af2f18c9220a846a57efad9012b7`.
+- **P-013 CLOSED — ACCEPTED** — audit rejected approval digest preconditions; Issue #42 / PR #43; merge `1b36d26f68da46e86915991e31fa73d67af1566a`.
+- **P-014 CLOSED — ACCEPTED** — correlate rejected approval attempt digest; Issue #44 / PR #45; merge `422352d9292584e5a238b1f37acadcc11e462124`.
+- **P-015 CLOSED — ACCEPTED** — surface rejected approval digest mismatch in Operator; Issue #46 / PR #47; accepted head `24de68835b4fa0cbd296f6d10e32b539a7238881`; merge `edd8564ec2eff9fa3971ede0192417b7dd5f8551`.
+- **P-016 CLOSED — ACCEPTED** — browser-verify rejected approval digest mismatch notice; Issue #48 / PR #49; accepted head `b7cf9312cd342dab5e5b3a617169854dece9b506`; merge `4a1ae3167d082fb8bc3b7356119550fa8098a39e`. Exact-head validate / proof-eval / firebat-container SUCCESS.
+- **P-017 CLOSED — ACCEPTED** — browser-verify missing reviewed digest rejection notice; Issue #50 / PR #51; accepted head `96f393c4c4f3b267b16443215959daebfc6b3952`; merge `6afa4d909703497309cc6396d8548545a4b421e1`. Exact-head validate / proof-eval / firebat-container SUCCESS. Browser proof verifies actual omitted-digest 409, persisted `pending_approval`, `missing_expected_digest`, hidden/empty submitted digest, current server digest, no false `APPROVED`/`TOOL_EXECUTED`, then successful fresh-digest human-approved read-only execution.
 
-## P-002 — Concurrent approval finalization guard
-**CLOSED — ACCEPTED** — Issue #19, PR #20 + corrective PR #21, latest merge `ad5f9b1a865d1be97ce427cc18760d7de5ca5a2e`.
+## P-018 — Capture explicit operator rejection rationale
+**PLANNED — bounded next milestone**
 
-## P-003 — Deterministic run evidence bundle
-**CLOSED — ACCEPTED** — Issue #22, PR #23, exact head `ab1c09a017184285e51d43758bd9f688e81e3a72`, merge `ff70352ba87017654ca5d180d141dc1c8eb1fe75`.
+### Gap
+The rejection endpoint already persists `REJECTED` with `payload.reason`, but the browser Operator sends the fixed string `Rejected from operator workspace.` rather than a human-entered rationale. This weakens audit usefulness at the explicit human-denial boundary.
 
-## P-004 — Quarantine interrupted decisions without replay
-**CLOSED — ACCEPTED** — Issue #24, PR #25, exact head `3b99e9aebb9363aea3b1ce2434587839c3c352f0`, merge `b43da1762ed04cee9fa87e295511e3eb5b5d8a03`.
+### Bounded acceptance
+1. Operator provides a small rejection-rationale input associated only with the Reject action.
+2. Reject is blocked client-side when the rationale is blank after trimming; approval behavior is unchanged.
+3. Existing reject endpoint receives the entered rationale and persists it unchanged in the `REJECTED` audit event.
+4. Firebat/browser proof performs one actual human rejection and verifies the persisted rationale plus no `TOOL_EXECUTED` event.
+5. Exact-head PR Validation, Proof Evaluation, and Firebat Container are all SUCCESS before acceptance.
 
-## P-005 — Operator quarantine UX
-**CLOSED — ACCEPTED** — Issue #26, PR #27, exact head `db42ce1d86cd578e97743814ce6ac1615ce4b751`, merge `8cf4a2847b527ae3f322dd744f0abec8b30844c8`.
+### Boundaries / non-claims
+- no new tool, endpoint, write authority, autonomous execution, replay, authentication/RBAC, signing, or external trust claim.
+- rationale is audit metadata entered by the operator; it is not authenticated identity, non-repudiation, or tamper-proof evidence.
 
-## P-006 — Read-only interrupted-decision recovery queue
-**CLOSED — ACCEPTED** — Issue #28, PR #29, exact head `e8718b6ae823539be7cee3ffbc36500432a6bbb5`, merge `c405b66d0a91f2924660d049f05390daab20ddaa`.
+---
 
-## P-007 — Operator deterministic evidence artifact
-**CLOSED — ACCEPTED** — Issue #30, PR #31, exact head `bc40adc59cfdc64c4d0a86b188bf9522b7873fc1`, merge `9d5a89b982eef8b3e492aa52a380e7806cd207d5`.
+# 5. Current Run Record
 
-## P-008 — Operator evidence digest local verification
-**CLOSED — ACCEPTED** — Issue #32, PR #33, exact head `90652198add41eaaf6f95c182898d3ef530057d6`, merge `a238a9a89e3edb7afa5a00d0290c53483726625e`; exact-head validate / proof-eval / firebat-container SUCCESS.
-
-## P-009 — Portable deterministic evidence download
-**CLOSED — ACCEPTED** — Issue #34, PR #35, exact head `f21e2545a8a7417bda71f1b988aed15d7c77ee26`, merge `019f93ebffc9f9b0089e5f16378df8f160f6bcdc`; browser-only deterministic JSON export, no new network/execution authority.
-
-## P-010 — Operator approval execution-input review
-**CLOSED — ACCEPTED** — Issue #36, PR #37, exact head `33dcb87a1da90dc0b8cc86a136a37ac9bf807afd`, merge `3e8a653820f48c30bb60743184d2c90416523b26`; browser Golden Path verifies planned tool + persisted `tool_parameters` + per-run `allowed_tools` before approval.
-
-## P-011 — Auditable approval execution-input snapshot
-**CLOSED — ACCEPTED** — Issue #38, PR #39, accepted exact head `cd3f3d6609772d8c4b74a0955570c9cfbc8808f3`, merge `3c2a5c58d7735064e9f4132751e003dee8a58da6`; exact-head validate / proof-eval / firebat-container SUCCESS. Successful approval audits the canonical execution-input snapshot and SHA-256 digest; `TOOL_EXECUTED` correlates the same digest. No signature/tamper-proof/non-repudiation claim.
-
-## P-012 — Bind human approval to reviewed execution-input digest
-**CLOSED — ACCEPTED**
-- Issue #40; PR #41; branch `proof-v1.1/40-reviewed-digest-approval-binding`.
-- first contract head `bb48fb44c6c62c5a96d75af1f0986e0ba18a5255` established executable RED during progression.
-- accepted exact head `a73299f88d46c95bc9dc0f1789b038514f37acf7`; squash merge `48137e552784af2f18c9220a846a57efad9012b7`.
-- exact-head checks `validate`, `proof-eval`, and `firebat-container` all completed SUCCESS.
-- Operator approval carries the digest of the exact execution inputs reviewed; server recomputes current persisted inputs after decision claim and before tool execution and fails closed on missing/mismatch.
-- missing/mismatch returns/reverts to `pending_approval`, executor is not called, and no false `TOOL_EXECUTED` evidence is emitted.
-- matching digest preserves P-011 `APPROVED` / `TOOL_EXECUTED` digest correlation.
-- limitation: optimistic digest precondition only; no reviewer identity/authentication, signing, tamper-proof storage, RBAC, non-repudiation, or unrestricted tool-safety claim.
-
-## P-013 — Audit rejected approval digest preconditions
-**CLOSED — ACCEPTED**
-- Issue #42; PR #43; branch `proof-v1.1/42-audit-rejected-approval-digest`.
-- first contract head `75f266f580a1635687ecf6e4b5e69583764ae235` established executable RED during progression.
-- accepted exact head `3e38aea547981fd6f4f79a369a5cd441435f60fe`; squash merge `1b36d26f68da46e86915991e31fa73d67af1566a`.
-- exact-head PR Validation, Proof Evaluation, and Firebat Container all completed SUCCESS.
-- missing/mismatched P-012 digest rejection persists exactly one `APPROVAL_PRECONDITION_REJECTED` event, distinguishes missing vs mismatch, correlates the current server execution-input digest, remains `pending_approval`, makes zero executor calls, and emits no false `APPROVED`/`TOOL_EXECUTED` evidence.
-- matching digest path and P-011/P-012 successful correlation remain unchanged.
-- limitation: persisted audit-store evidence only; no tamper-proof, reviewer-authentication, signing, RBAC, non-repudiation, or external trust claim.
-
-## P-014 — Correlate rejected approval attempt digest
-**CLOSED — ACCEPTED**
-- Issue #44; PR #45; branch `proof-v1.1/44-rejected-approval-attempt-digest`.
-- first contract head `165fbf5fdf6f6f526befd9acef3a2babd1ccd434` established executable RED.
-- accepted exact head `cbabb0f2bffa533240ddc4d38334af32a1a8ab34`; squash merge `422352d9292584e5a238b1f37acadcc11e462124`.
-- exact-head PR Validation, Proof Evaluation, and Firebat Container all completed SUCCESS.
-- mismatch rejection persists the normalized submitted reviewed digest alongside the current server digest; missing-digest rejection does not fabricate a submitted digest.
-- `pending_approval`, zero executor calls, no false `APPROVED`/`TOOL_EXECUTED`, and successful matching behavior remain unchanged.
-- limitation: digest correlation metadata only inside the existing persisted audit store; no reviewer authentication, tamper-proof storage, signing, RBAC, non-repudiation, or external trust claim.
-
-## P-015 — Surface rejected approval digest mismatch in Operator
-**CLOSED — ACCEPTED**
-- Issue #46; PR #47; branch `proof-v1.1/46-operator-digest-mismatch-notice`.
-- first contract head `6ccf548d91e701b1c0dc3d655a4d89a0c820b4cc` established executable RED.
-- accepted exact head `24de68835b4fa0cbd296f6d10e32b539a7238881`; squash merge `edd8564ec2eff9fa3971ede0192417b7dd5f8551`.
-- exact-head PR Validation, Proof Evaluation, and Firebat Container all completed SUCCESS.
-- Operator renders a distinct `digest_mismatch` notice with the persisted submitted reviewed digest and current server digest.
-- `missing_expected_digest` renders an explanatory notice while clearing and hiding the submitted-digest row rather than fabricating a value.
-- approval/execution authority is unchanged; human approval, reviewed-digest binding, allowlist, and read-only tool boundaries remain intact.
-- limitation: P-015 acceptance includes static browser UI contract plus existing Golden Path; the Golden Path did not itself create a mismatch rejection. No reviewer authentication, tamper-proof storage, signing, RBAC, non-repudiation, or external trust claim.
-
-## P-016 — Browser-verify rejected approval digest mismatch notice
-**OPEN**
-- Issue #48; PR #49; branch `proof-v1.1/48-browser-rejected-digest-notice`.
-- first implementation/proof head `1cdb3c08615c14982150115209ec869b89149881` extends the existing Selenium Firebat Golden Path only.
-- bounded acceptance: create one actual stale-digest approval rejection through the existing endpoint; verify 409 + `pending_approval`; verify live Operator submitted/current digest correlation; verify no false `APPROVED`/`TOOL_EXECUTED`; then approve with the fresh reviewed digest and preserve the existing successful read-only tool path.
-- no new endpoint, tool capability, write authority, autonomous execution, replay, permission expansion, authentication/RBAC, signing, or external trust claim.
-
-### Changed This Run
-- accepted P-015 after exact head `24de68835b4fa0cbd296f6d10e32b539a7238881` completed PR Validation, Proof Evaluation, and Firebat Container successfully.
-- verified the prior P2 review concern was addressed on that exact head: missing-digest rendering clears and hides the submitted-digest row while mismatch retains the submitted value.
-- squash merged PR #47 with expected-head protection to `edd8564ec2eff9fa3971ede0192417b7dd5f8551`; Issue #46 closed completed.
-- Progression Review identified one bounded reproducibility gap: the accepted P-015 UI behavior was source-contract tested, while the Firebat Selenium Golden Path only exercised a successful matching-digest approval.
-- opened P-016 Issue #48, branch, browser proof implementation, and PR #49.
+### Changed
+- P-017 accepted on exact head `96f393c4c4f3b267b16443215959daebfc6b3952` after validate / proof-eval / firebat-container all completed SUCCESS.
+- PR #51 squash merged with expected-head protection to `6afa4d909703497309cc6396d8548545a4b421e1`; Issue #50 closed completed.
+- MASTER reconciled through P-017.
+- one next bounded milestone selected: P-018 explicit operator rejection rationale.
 
 ### Actually Executed
-- root MASTER on `main` read first.
-- PR #47 exact head and all three required check runs inspected directly; validate / proof-eval / firebat-container all completed SUCCESS.
-- PR #47 review discussion inspected; corrective response was present and implementation matched the bounded review concern.
-- PR #47 merged with expected-head SHA protection; Issue #46 verified closed/completed.
-- existing static P-015 pytest contract and current Selenium Golden Path inspected to establish the browser-runtime evidence gap.
-- P-016 branch created from accepted P-015 merge and `scripts/verify_operator_browser.py` extended to exercise a real mismatch rejection before the normal successful approval.
+- current root MASTER read first.
+- PR #51 metadata and exact head inspected.
+- exact-head check runs inspected directly; all three acceptance gates completed SUCCESS.
+- PR #51 discussion inspected; no unresolved comments were present.
+- PR #51 merged with expected-head protection and Issue #50 closed.
+- Operator rejection implementation inspected: current browser body uses a fixed generic reason while server-side rejection already persists `payload.reason`.
 
 ### Verified
-- P-015 acceptance is backed by exact-head executable evidence.
-- P-016 has direct use/show/delivery value, one-Issue/one-PR scope, concrete executable acceptance, and does not require a product-direction or permission decision.
-- P-016 implementation uses only the existing approval/evidence/events surfaces and preserves the frozen human approval, allowlist, read-only execution, and non-autonomy boundaries.
+- P-017 is reproducible on the accepted exact head and does not broaden approval/execution authority.
+- P-018 satisfies the milestone gate: direct audit/use value, one-Issue/one-PR scope, executable browser acceptance, and no unresolved product-direction/security decision.
 
 ### Not Verified
-- P-016 exact-head PR Validation, Proof Evaluation, and Firebat Container have not yet completed; no P-016 PASS is claimed.
-- the newly added browser mismatch path has not yet produced executable CI evidence.
-- no authenticated reviewer identity, tamper-proof logging, external notarization, production authorization/RBAC, non-repudiation, or unrestricted tool safety is established.
+- P-018 has not yet been implemented or executed.
+- no authenticated reviewer identity, tamper-proof logging, RBAC, non-repudiation, production authorization, or unrestricted tool-safety claim is established.
 
 ### Limitations
-P-016 is one bounded Firebat/headless-Chrome delivery proof. A successful run would verify this repository/runtime path only, not distributed or unrestricted safety/reliability.
+P-017/P-018 evidence remains bounded to this repository, its existing Firebat/headless-Chrome proof environment, and its existing read-only controlled tool path.
 
 ### Exact Next Action
-Observe PR #49 exact head `1cdb3c08615c14982150115209ec869b89149881`. Require PR Validation, Proof Evaluation, and Firebat Container all SUCCESS before merge; if any fails, keep same-gap correction inside Issue #48 / PR #49.
+Create one P-018 Issue and linked branch/PR. Establish test-first executable RED for human-entered rejection rationale, then implement minimally inside that same milestone and require exact-head validate / proof-eval / firebat-container SUCCESS before merge.

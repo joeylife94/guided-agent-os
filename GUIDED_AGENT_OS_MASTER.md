@@ -12,11 +12,11 @@
 | Proof v1.0 | **CLOSED / FROZEN** |
 | Current Level | **L3 — Usable / Demonstrable Proof** |
 | Progression Mode | **ENABLED — bounded milestones only** |
-| Latest accepted milestone | **P-021 / Issue #58 semantic embedding provenance + delivery defaults — CLOSED / ACCEPTED** |
+| Latest accepted milestone | **P-022 / Issue #60 semantic retrieval provenance in run audit evidence — CLOSED / ACCEPTED** |
 | Active milestone | **None — Progression Review required** |
 | Active branch | None |
 | Active PR | None |
-| Latest accepted progression merge | `1db147e10f630dd0880e636c43849a93874c10b8` |
+| Latest accepted progression merge | `485ad9f218467d6ec3d66e4502e30a0ed972d239` |
 
 The v1.0 acceptance baseline is not reopened by later milestones.
 
@@ -109,6 +109,7 @@ Rules:
 | L-34 | Operator rejection used a fixed generic rationale instead of a human-entered audit rationale | CLOSED by P-018 |
 | L-35 | typed rejection rationale could carry across Operator run changes | CLOSED by P-019 |
 | L-36 | reject API accepted blank/whitespace-only rationale when UI guard was bypassed | CLOSED by P-020 |
+| L-37 | deterministic run evidence did not identify the embedding stack that grounded retrieval | **CLOSED by P-022** |
 
 ---
 
@@ -134,28 +135,30 @@ Rules:
 - **P-018 CLOSED — ACCEPTED** — capture explicit operator rejection rationale; Issue #52 / PR #53; merge `c5e2e705c3a9f313c3e7371b4d7499c2bf742883`.
 - **P-019 CLOSED — ACCEPTED** — bind rejection rationale to current run; Issue #54 / PR #55; merge `0021f44ca571ff0d98add0bdd9e57779f302b54e`.
 - **P-020 CLOSED — ACCEPTED** — enforce non-blank rejection rationale server-side; Issue #56 / PR #57; accepted head `62e0e58ef5a5b65716455a7ec6283a3d2b7cb2de`; merge `02b310378591e81ca4d26d02fb6c0315d9f4f2b5`.
-- **P-021 CLOSED — ACCEPTED** — truthful semantic embedding provenance + MiniLM delivery defaults; Issue #58 / PR #59; accepted head `c07d01d05672172be520e60d868b240982408b47`; merge `1db147e10f630dd0880e636c43849a93874c10b8`. Exact-head PR Validation / Proof Evaluation / Firebat Container / P-018 Browser Rejection Rationale regression / P-019 Browser Rejection Rationale Run Binding regression were required green before merge. Runtime/default delivery metadata now identify `sentence_transformers` + `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`; explicit legacy `bge_m3` remains a compatibility alias without false provider provenance.
+- **P-021 CLOSED — ACCEPTED** — truthful semantic embedding provenance + MiniLM delivery defaults; Issue #58 / PR #59; accepted head `c07d01d05672172be520e60d868b240982408b47`; merge `1db147e10f630dd0880e636c43849a93874c10b8`.
+- **P-022 CLOSED — ACCEPTED** — persist semantic retrieval provenance in run audit evidence; Issue #60 / PR #61; accepted head `75cd898ea22218af124339a3871aa83b0eb7fb2c`; merge `485ad9f218467d6ec3d66e4502e30a0ed972d239`. Exact-head PR Validation / Proof Evaluation / Firebat Container / P-018 Browser Rejection Rationale / P-019 Browser Rejection Rationale Run Binding were all SUCCESS before merge. Existing `RAG_RETRIEVED` audit evidence now persists the active embedding provider, model, and dimension alongside the existing retrieval counts/citation data.
 
 ---
 
 # 5. Current Run Record
 
 ### Changed
-- Reconciled P-021 as CLOSED / ACCEPTED after PR #59 merged to `1db147e10f630dd0880e636c43849a93874c10b8` and Issue #58 closed completed.
-- Closed L-11 by P-021.
+- Reconciled P-022 as CLOSED / ACCEPTED after PR #61 merged to `485ad9f218467d6ec3d66e4502e30a0ed972d239` and Issue #60 closed completed.
+- Added L-37 and closed it by P-022.
 - Cleared active milestone/branch/PR pending the next bounded Progression Review.
 
 ### Actually Executed
 - current root MASTER read first.
-- PR #59 state/head/merge inspected.
-- Issue #58 state inspected and confirmed CLOSED / completed.
-- `main` inspected at merge `1db147e10f630dd0880e636c43849a93874c10b8` before this reconciliation commit.
-- current evidence-bundle and retrieval-audit implementation inspected for next-milestone review.
+- PR #61 exact implementation head `75cd898ea22218af124339a3871aa83b0eb7fb2c` inspected.
+- exact-head PR Validation / Proof Evaluation / Firebat Container / P-018 browser regression / P-019 run-binding regression all confirmed completed SUCCESS.
+- PR #61 comments/review blocker surface inspected; no comments were present.
+- PR #61 merged with expected-head protection.
+- Issue #60 inspected after merge and confirmed CLOSED / completed.
 
 ### Verified
-- P-021 merged and Issue #58 closed.
-- semantic runtime/delivery defaults on `main` are aligned to SentenceTransformers + multilingual MiniLM.
-- current run evidence bundle includes persisted run state and audit events under a deterministic digest.
+- P-022 merged and Issue #60 closed.
+- deterministic run evidence now carries the persisted semantic embedding provenance through the existing `RAG_RETRIEVED` audit event.
+- no new endpoint/tool/write permission/autonomy boundary was introduced by this milestone.
 
 ### Not Verified
 - no next milestone is accepted yet.
@@ -165,4 +168,4 @@ Rules:
 Evidence remains bounded to this repository, GitHub Actions/Firebat/headless-Chrome proof environment, and the controlled read-only tool path.
 
 ### Exact Next Action
-Perform one bounded Progression Review. Prefer a directly demonstrable auditability/grounding gap with executable acceptance. If none passes the milestone gate, remain ENABLED in HOLD/no-mutation mode.
+Perform one bounded Progression Review. Prefer a directly demonstrable operator/evidence usability or policy-enforcement gap with executable acceptance. If none passes the milestone gate, remain ENABLED in HOLD/no-mutation mode.

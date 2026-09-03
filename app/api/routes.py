@@ -20,6 +20,7 @@ from app.schemas.agent_run import (
     ClarificationQuestion,
     RejectRequest,
 )
+from app.services.rag_embeddings import get_embedding_metadata
 from app.services.tool_executor import ToolExecutionError, execute_approved_tool
 from app.templates import controlled_rag_agent, freelance, public_enterprise_ai
 
@@ -149,6 +150,7 @@ def _retrieval_audit_payload(rag_answer: dict[str, Any]) -> dict[str, Any]:
         "collection_counts": collection_counts,
         "retrieved_chunks": sum(collection_counts.values()),
         "citation_count": len(rag_answer.get("citations") or []),
+        **get_embedding_metadata(),
     }
 
 

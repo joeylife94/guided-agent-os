@@ -13,9 +13,9 @@
 | Current Level | **L3 — Usable / Demonstrable Proof** |
 | Progression Mode | **ENABLED — bounded milestones only** |
 | Latest accepted milestone | **P-023 / Issue #62 Operator retrieval provenance summary — CLOSED / ACCEPTED** |
-| Active milestone | **None — next bounded Progression Review required** |
-| Active branch | None |
-| Active PR | None |
+| Active milestone | **P-024 / Issue #64 browser-verify Operator retrieval provenance summary — CONTRACT-FIRST** |
+| Active branch | `proof-v1.1/64-browser-retrieval-provenance` |
+| Active PR | **#65 OPEN** |
 | Latest accepted progression merge | `b656e1881c13f40845a463076e0d9fffe786a211` |
 
 The v1.0 acceptance baseline is not reopened by later milestones.
@@ -111,6 +111,7 @@ Rules:
 | L-36 | reject API accepted blank/whitespace-only rationale when UI guard was bypassed | CLOSED by P-020 |
 | L-37 | deterministic run evidence did not identify the embedding stack that grounded retrieval | **CLOSED by P-022** |
 | L-38 | Operator requires raw JSON inspection to identify persisted retrieval provenance | **CLOSED by P-023** |
+| L-39 | P-023 retrieval provenance summary has static contract coverage but no dedicated executed browser proof | **ACTIVE — P-024** |
 
 ---
 
@@ -137,34 +138,39 @@ Rules:
 - **P-019 CLOSED — ACCEPTED** — bind rejection rationale to current run; Issue #54 / PR #55; merge `0021f44ca571ff0d98add0bdd9e57779f302b54e`.
 - **P-020 CLOSED — ACCEPTED** — enforce non-blank rejection rationale server-side; Issue #56 / PR #57; accepted head `62e0e58ef5a5b65716455a7ec6283a3d2b7cb2de`; merge `02b310378591e81ca4d26d02fb6c0315d9f4f2b5`.
 - **P-021 CLOSED — ACCEPTED** — truthful semantic embedding provenance + MiniLM delivery defaults; Issue #58 / PR #59; accepted head `c07d01d05672172be520e60d868b240982408b47`; merge `1db147e10f630dd0880e636c43849a93874c10b8`.
-- **P-022 CLOSED — ACCEPTED** — persist semantic retrieval provenance in run audit evidence; Issue #60 / PR #61; accepted head `75cd898ea22218af124339a3871aa83b0eb7fb2c`; merge `485ad9f218467d6ec3d66e4502e30a0ed972d239`. Exact-head PR Validation / Proof Evaluation / Firebat Container / P-018 Browser Rejection Rationale / P-019 Browser Rejection Rationale Run Binding were all SUCCESS before merge. Existing `RAG_RETRIEVED` audit evidence now persists the active embedding provider, model, and dimension alongside the existing retrieval counts/citation data.
-- **P-023 CLOSED — ACCEPTED** — surface retrieval provenance in Operator evidence summary; Issue #62 / PR #63; accepted head `4156b24a4a1fb0107333c25ec0d467f35df9570e`; merge `b656e1881c13f40845a463076e0d9fffe786a211`. Exact-head PR Validation / Proof Evaluation / Firebat Container / P-018 Browser Rejection Rationale / P-019 Browser Rejection Rationale Run Binding were all SUCCESS before merge. The Operator now renders provider/model/dimension strictly from persisted current-run `RAG_RETRIEVED` evidence and explicitly fails closed when provenance is unavailable.
+- **P-022 CLOSED — ACCEPTED** — persist semantic retrieval provenance in run audit evidence; Issue #60 / PR #61; accepted head `75cd898ea22218af124339a3871aa83b0eb7fb2c`; merge `485ad9f218467d6ec3d66e4502e30a0ed972d239`.
+- **P-023 CLOSED — ACCEPTED** — surface retrieval provenance in Operator evidence summary; Issue #62 / PR #63; accepted head `4156b24a4a1fb0107333c25ec0d467f35df9570e`; merge `b656e1881c13f40845a463076e0d9fffe786a211`. Exact-head PR Validation / Proof Evaluation / Firebat Container / P-018 Browser Rejection Rationale / P-019 Browser Rejection Rationale Run Binding were all SUCCESS before merge. The Operator renders provider/model/dimension strictly from persisted current-run `RAG_RETRIEVED` evidence and explicitly fails closed when provenance is unavailable.
+- **P-024 OPEN — CONTRACT-FIRST** — browser-verify Operator retrieval provenance summary; Issue #64 / PR #65; contract head `4b62b81e536e6b9aafbd3d27f293ef3358302f59`. Acceptance requires a dedicated exact-head browser workflow to prove persisted provider/model/dimension rendering plus unavailable/clear behavior without changing agent authority.
 
 ---
 
 # 5. Current Run Record
 
 ### Changed
-- Accepted P-023 after exact-head verification and expected-head merge of PR #63.
-- Closed L-38 because the Operator now exposes persisted retrieval provenance without raw JSON inspection.
+- Accepted P-023 after exact-head verification and expected-head merge of PR #63; reconciled MASTER in commit `4e588ebb0fec0daa60325fcc8633805d1467519f`.
+- Performed one bounded Progression Review and selected P-024 only.
+- Opened Issue #64, branch `proof-v1.1/64-browser-retrieval-provenance`, and contract-first PR #65.
 
 ### Actually Executed
 - current root MASTER read first.
-- PR #63 exact implementation head `4156b24a4a1fb0107333c25ec0d467f35df9570e` inspected.
-- exact-head PR Validation / Proof Evaluation / Firebat Container / P-018 browser regression / P-019 run-binding regression all confirmed completed SUCCESS.
-- the only review thread, raised against the deliberately red contract-first commit, was answered against the implemented exact head and resolved.
+- PR #63 exact implementation head `4156b24a4a1fb0107333c25ec0d467f35df9570e` verified with PR Validation / Proof Evaluation / Firebat Container / P-018 / P-019 all completed SUCCESS.
+- review thread against the red contract-first commit was answered against the implemented head and resolved.
 - PR #63 merged with expected-head protection to `b656e1881c13f40845a463076e0d9fffe786a211`; Issue #62 confirmed CLOSED / completed.
+- Progression Review inspected current P-023 test coverage and workflow inventory. The P-023 test is static HTML/JavaScript contract inspection, while existing dedicated browser workflows cover rejection rationale paths rather than retrieval provenance.
+- contract-first P-024 test added at head `4b62b81e536e6b9aafbd3d27f293ef3358302f59`; PR #65 opened.
 
 ### Verified
-- P-023 merged and Issue #62 closed.
-- the accepted implementation is bounded to a read-only Operator evidence summary derived from persisted current-run `RAG_RETRIEVED` provenance.
+- P-023 repository lifecycle is CLOSED / ACCEPTED.
+- P-024 has direct delivery/evidence value: the accepted Operator provenance summary currently lacks dedicated executed browser proof.
+- scope is bounded to one browser proof workflow and does not expand runtime capability or permissions.
 
 ### Not Verified
+- P-024 executable RED has not yet been established for contract head `4b62b81e536e6b9aafbd3d27f293ef3358302f59`.
+- no P-024 implementation or PASS is claimed.
 - no authenticated reviewer identity, tamper-proof logging, RBAC, non-repudiation, production authorization, customer-system integration, distributed recovery guarantee, unrestricted tool safety, or positive final-stack local-LLM inference claim is established.
-- no next progression milestone has yet been accepted by a Progression Review.
 
 ### Limitations
-Evidence remains bounded to this repository, GitHub Actions/Firebat/headless-Chrome proof environment, and the controlled read-only tool path. P-023 does not expand agent authority.
+Evidence remains bounded to this repository, GitHub Actions/Firebat/headless-Chrome proof environment, and the controlled read-only tool path. P-024 is proof coverage only and does not expand agent authority.
 
 ### Exact Next Action
-Perform one bounded Progression Review. Select exactly one next milestone only if it has direct use/show/delivery value, executable acceptance, one-Issue/one-PR scope, and no unresolved product/security decision; otherwise remain ENABLED in HOLD/no-mutation mode.
+Observe PR Validation on exact contract head `4b62b81e536e6b9aafbd3d27f293ef3358302f59`. Only after actual FAILURE establishes executable RED, implement the minimal dedicated P-024 browser proof inside Issue #64 / PR #65, then require exact-head PR Validation / Proof Evaluation / Firebat Container / P-018 / P-019 / P-024 browser proof SUCCESS before merge.

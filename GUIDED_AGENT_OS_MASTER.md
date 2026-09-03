@@ -12,11 +12,11 @@
 | Proof v1.0 | **CLOSED / FROZEN** |
 | Current Level | **L3 — Usable / Demonstrable Proof** |
 | Progression Mode | **ENABLED — bounded milestones only** |
-| Latest accepted milestone | **P-020 / Issue #56 enforce non-blank rejection rationale server-side — CLOSED** |
-| Active milestone | **P-021 / Issue #58 semantic embedding provenance + delivery defaults — OPEN** |
-| Active branch | `proof-v1.1/58-semantic-embedding-provenance` |
-| Active PR | **#59 OPEN** |
-| Latest accepted progression merge | `02b310378591e81ca4d26d02fb6c0315d9f4f2b5` |
+| Latest accepted milestone | **P-021 / Issue #58 semantic embedding provenance + delivery defaults — CLOSED / ACCEPTED** |
+| Active milestone | **None — Progression Review required** |
+| Active branch | None |
+| Active PR | None |
+| Latest accepted progression merge | `1db147e10f630dd0880e636c43849a93874c10b8` |
 
 The v1.0 acceptance baseline is not reopened by later milestones.
 
@@ -88,7 +88,7 @@ Rules:
 | ID | Risk | Status |
 |---|---|---|
 | L-09 | CPU image resolves large CUDA/NVIDIA Torch dependency footprint | OPEN — deferred |
-| L-11 | semantic provider identifier remains legacy `bge_m3` while runtime is SentenceTransformers; Firebat compose default model also differs from accepted MiniLM baseline | ACTIVE — P-021 |
+| L-11 | semantic provider/default provenance mismatch | **CLOSED by P-021** |
 | L-12 | positive local-LLM final-stack inference not verified | ACCEPTED explicit non-claim |
 | L-13 | controlled tool uses local fixture rather than customer system | ACCEPTED frozen-scope boundary |
 | L-17 | browser CI depends on GitHub runner Chrome + Selenium | ACCEPTED for Proof |
@@ -128,45 +128,41 @@ Rules:
 - **P-012 CLOSED — ACCEPTED** — bind human approval to reviewed execution-input digest; Issue #40 / PR #41; merge `48137e552784af2f18c9220a846a57efad9012b7`.
 - **P-013 CLOSED — ACCEPTED** — audit rejected approval digest preconditions; Issue #42 / PR #43; merge `1b36d26f68da46e86915991e31fa73d67af1566a`.
 - **P-014 CLOSED — ACCEPTED** — correlate rejected approval attempt digest; Issue #44 / PR #45; merge `422352d9292584e5a238b1f37acadcc11e462124`.
-- **P-015 CLOSED — ACCEPTED** — surface rejected approval digest mismatch in Operator; Issue #46 / PR #47; accepted head `24de68835b4fa0cbd296f6d10e32b539a7238881`; merge `edd8564ec2eff9fa3971ede0192417b7dd5f8551`.
-- **P-016 CLOSED — ACCEPTED** — browser-verify rejected approval digest mismatch notice; Issue #48 / PR #49; accepted head `b7cf9312cd342dab5e5b3a617169854dece9b506`; merge `4a1ae3167d082fb8bc3b7356119550fa8098a39e`. Exact-head validate / proof-eval / firebat-container SUCCESS.
-- **P-017 CLOSED — ACCEPTED** — browser-verify missing reviewed digest rejection notice; Issue #50 / PR #51; accepted head `96f393c4c4f3b267b16443215959daebfc6b3952`; merge `6afa4d909703497309cc6396d8548545a4b421e1`. Exact-head validate / proof-eval / firebat-container SUCCESS. Browser proof verifies actual omitted-digest 409, persisted `pending_approval`, `missing_expected_digest`, hidden/empty submitted digest, current server digest, no false `APPROVED`/`TOOL_EXECUTED`, then successful fresh-digest human-approved read-only execution.
-- **P-018 CLOSED — ACCEPTED** — capture explicit operator rejection rationale; Issue #52 / PR #53; accepted head `8e189460eb14a707124b95ca7e4de59f99faf03b`; merge `c5e2e705c3a9f313c3e7371b4d7499c2bf742883`. Exact-head PR Validation / Proof Evaluation / Firebat Container / P-018 Browser Rejection Rationale all SUCCESS. Browser proof verifies blank rationale is blocked, trimmed human rationale reaches persisted `REJECTED.payload.reason`, run is rejected, and no `TOOL_EXECUTED` event is emitted.
-- **P-019 CLOSED — ACCEPTED** — bind rejection rationale to current run; Issue #54 / PR #55; accepted head `7ae4dde3af88556e268b35f166d0a24698c09a2f`; merge `0021f44ca571ff0d98add0bdd9e57779f302b54e`. Exact-head PR Validation / Proof Evaluation / Firebat Container / P-018 Browser Rejection Rationale regression / P-019 Browser Rejection Rationale Run Binding all SUCCESS. Browser proof verifies A-specific rationale is cleared on switch to run B, B rejection persists only B-specific rationale, run A remains pending, and no `TOOL_EXECUTED` is emitted for rejected B.
-- **P-020 CLOSED — ACCEPTED** — enforce non-blank rejection rationale server-side; Issue #56 / PR #57; accepted head `62e0e58ef5a5b65716455a7ec6283a3d2b7cb2de`; merge `02b310378591e81ca4d26d02fb6c0315d9f4f2b5`. Exact-head PR Validation / Proof Evaluation / Firebat Container / P-018 Browser Rejection Rationale regression / P-019 Browser Rejection Rationale Run Binding regression all SUCCESS. Direct API blank/whitespace rejection rationale is rejected at request validation without terminal mutation/events; accepted rationale is trimmed before persisted `REJECTED.payload.reason`.
-- **P-021 OPEN** — make semantic embedding provenance and delivery defaults truthful; Issue #58 / PR #59; contract-first head `64879eea01e7ff7f82923ffa80940256e768e01f`. Acceptance requires truthful SentenceTransformers provider metadata, MiniLM-consistent default delivery configuration, explicit legacy `bge_m3` compatibility semantics, and exact-head regression evidence before merge.
+- **P-015 CLOSED — ACCEPTED** — surface rejected approval digest mismatch in Operator; Issue #46 / PR #47; merge `edd8564ec2eff9fa3971ede0192417b7dd5f8551`.
+- **P-016 CLOSED — ACCEPTED** — browser-verify rejected approval digest mismatch notice; Issue #48 / PR #49; merge `4a1ae3167d082fb8bc3b7356119550fa8098a39e`.
+- **P-017 CLOSED — ACCEPTED** — browser-verify missing reviewed digest rejection notice; Issue #50 / PR #51; merge `6afa4d909703497309cc6396d8548545a4b421e1`.
+- **P-018 CLOSED — ACCEPTED** — capture explicit operator rejection rationale; Issue #52 / PR #53; merge `c5e2e705c3a9f313c3e7371b4d7499c2bf742883`.
+- **P-019 CLOSED — ACCEPTED** — bind rejection rationale to current run; Issue #54 / PR #55; merge `0021f44ca571ff0d98add0bdd9e57779f302b54e`.
+- **P-020 CLOSED — ACCEPTED** — enforce non-blank rejection rationale server-side; Issue #56 / PR #57; accepted head `62e0e58ef5a5b65716455a7ec6283a3d2b7cb2de`; merge `02b310378591e81ca4d26d02fb6c0315d9f4f2b5`.
+- **P-021 CLOSED — ACCEPTED** — truthful semantic embedding provenance + MiniLM delivery defaults; Issue #58 / PR #59; accepted head `c07d01d05672172be520e60d868b240982408b47`; merge `1db147e10f630dd0880e636c43849a93874c10b8`. Exact-head PR Validation / Proof Evaluation / Firebat Container / P-018 Browser Rejection Rationale regression / P-019 Browser Rejection Rationale Run Binding regression were required green before merge. Runtime/default delivery metadata now identify `sentence_transformers` + `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`; explicit legacy `bge_m3` remains a compatibility alias without false provider provenance.
 
 ---
 
 # 5. Current Run Record
 
 ### Changed
-- P-020 reconciled as CLOSED / ACCEPTED after PR #57 merged to `02b310378591e81ca4d26d02fb6c0315d9f4f2b5` and Issue #56 closed completed.
-- L-36 closed by P-020.
-- Progression Review selected exactly one next milestone: P-021 / Issue #58 / PR #59 for semantic embedding provenance and delivery-default truthfulness.
-- P-021 first head changes executable contract only; implementation has not been added yet.
+- Reconciled P-021 as CLOSED / ACCEPTED after PR #59 merged to `1db147e10f630dd0880e636c43849a93874c10b8` and Issue #58 closed completed.
+- Closed L-11 by P-021.
+- Cleared active milestone/branch/PR pending the next bounded Progression Review.
 
 ### Actually Executed
 - current root MASTER read first.
-- P-020 exact head `62e0e58ef5a5b65716455a7ec6283a3d2b7cb2de` workflow runs inspected: PR Validation, Proof Evaluation, Firebat Container, P-018 browser regression, and P-019 browser run-binding regression all completed SUCCESS.
-- PR #57 discussion inspected; no review comments/blockers remained.
-- PR #57 squash-merged with expected-head protection; Issue #56 closed completed.
-- current semantic embedding implementation and Firebat compose defaults inspected.
-- Issue #58, branch `proof-v1.1/58-semantic-embedding-provenance`, and PR #59 created.
-- contract-first head `64879eea01e7ff7f82923ffa80940256e768e01f` pushed with default-provider/legacy-alias expectations.
+- PR #59 state/head/merge inspected.
+- Issue #58 state inspected and confirmed CLOSED / completed.
+- `main` inspected at merge `1db147e10f630dd0880e636c43849a93874c10b8` before this reconciliation commit.
+- current evidence-bundle and retrieval-audit implementation inspected for next-milestone review.
 
 ### Verified
-- P-020 acceptance criteria are covered by executable tests and all required exact-head gates were green before merge.
-- P-021 addresses an actual provenance/reproducibility mismatch: runtime class is SentenceTransformers while provider identity remains `bge_m3`, and compose default model `BAAI/bge-m3` differs from the accepted MiniLM baseline.
-- P-021 does not expand agent execution authority or autonomy.
+- P-021 merged and Issue #58 closed.
+- semantic runtime/delivery defaults on `main` are aligned to SentenceTransformers + multilingual MiniLM.
+- current run evidence bundle includes persisted run state and audit events under a deterministic digest.
 
 ### Not Verified
-- P-021 executable RED has not yet been confirmed from a completed workflow run.
-- no P-021 implementation or PASS is claimed.
-- no authenticated reviewer identity, tamper-proof logging, RBAC, non-repudiation, production authorization, customer-system integration, distributed recovery guarantee, or unrestricted tool-safety claim is established.
+- no next milestone is accepted yet.
+- no authenticated reviewer identity, tamper-proof logging, RBAC, non-repudiation, production authorization, customer-system integration, distributed recovery guarantee, unrestricted tool safety, or positive final-stack local-LLM inference claim is established.
 
 ### Limitations
-P-020/P-021 evidence remains bounded to this repository, its GitHub Actions/Firebat/headless-Chrome proof environment, and its existing controlled read-only tool path.
+Evidence remains bounded to this repository, GitHub Actions/Firebat/headless-Chrome proof environment, and the controlled read-only tool path.
 
 ### Exact Next Action
-Confirm PR #59 contract-first head `64879eea01e7ff7f82923ffa80940256e768e01f` reaches executable RED. If RED is confirmed, stay inside Issue #58 / PR #59 and minimally align runtime provider identity/default MiniLM model, Firebat/example/README defaults, metadata assertions, and compatibility behavior; require exact-head verification before merge.
+Perform one bounded Progression Review. Prefer a directly demonstrable auditability/grounding gap with executable acceptance. If none passes the milestone gate, remain ENABLED in HOLD/no-mutation mode.

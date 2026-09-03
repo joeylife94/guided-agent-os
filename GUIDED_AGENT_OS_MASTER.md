@@ -10,15 +10,17 @@
 | Repository | `joeylife94/guided-agent-os` |
 | Baseline branch | `main` |
 | Proof v1.0 | **CLOSED / FROZEN** |
-| Current Level | **L3 — Usable / Demonstrable Proof** |
-| Progression Mode | **ENABLED — bounded milestones only** |
-| Latest accepted milestone | **P-023 / Issue #62 Operator retrieval provenance summary — CLOSED / ACCEPTED** |
-| Active milestone | **P-024 / Issue #64 browser-verify Operator retrieval provenance summary — CONTRACT-FIRST** |
-| Active branch | `proof-v1.1/64-browser-retrieval-provenance` |
-| Active PR | **#65 OPEN** |
-| Latest accepted progression merge | `b656e1881c13f40845a463076e0d9fffe786a211` |
+| Current Level | **DESTINATION REACHED — L3 USABLE / DEMONSTRABLE** |
+| D1 | **REACHED / ACCEPTED — Usable / Demonstrable Guided Agent Proof with human-approved, policy-bounded, allowlisted read-only execution and persistent evidence/auditability** |
+| Farther destination | **D2 — L4 Controlled Operator Pilot** |
+| Progression Mode | **ENABLED — destination-gated bounded milestones only** |
+| Latest accepted milestone | **P-024 / Issue #64 browser-verify Operator retrieval provenance summary — CLOSED / ACCEPTED** |
+| Active milestone | **P-025 / Issue #66 Controlled Operator Pilot acceptance path — CONTRACT-FIRST** |
+| Active branch | `proof-v1.2/66-controlled-operator-pilot` |
+| Active PR | **#67 OPEN** |
+| Latest accepted progression merge | `7096ae6d1dc9d41d24f895daed56f665736b58fa` |
 
-The v1.0 acceptance baseline is not reopened by later milestones.
+The v1.0 acceptance baseline is not reopened by later milestones. D1 is reached; do not create more narrow D1 UI/audit/provenance variants unless a distinct current defect blocks D2 acceptance.
 
 ---
 
@@ -64,14 +66,33 @@ Frozen evidence anchors:
 
 ---
 
-# 2. Validation / Lifecycle Rules
+# 2. Destination / Lifecycle Rules
+
+D1 — **L3 Usable / Demonstrable** is now reached. It consists of a usable Guided Agent Proof with human-approved, policy-bounded, allowlisted read-only execution and persistent evidence/auditability.
+
+D2 — **L4 Controlled Operator Pilot** is the next destination. D2 is one coherent clean-environment operator acceptance path demonstrating the already accepted bounded product without private tribal knowledge:
+
+```text
+setup/start
+→ structured intake + RAG grounding
+→ exact execution-input review
+→ explicit approve/reject boundary
+→ allowlisted read-only execution when approved
+→ persisted result/audit/provenance
+→ deterministic evidence export/reload
+→ bounded recovery/quarantine visibility
+```
+
+Do not recursively add micro-proofs after P-024. A new micro milestone is justified only when a concrete defect blocks D2.
+
+After D2, if the next meaningful destination requires customer-system integration, reviewer authentication/identity, RBAC/SSO, write/destructive tools, unrestricted autonomy, distributed guarantees, signing/non-repudiation, or another major product/security decision, stop at **HUMAN REVIEW — NEXT DESTINATION DECISION**.
 
 Each iteration records **Changed / Actually Executed / Verified / Not Verified / Limitations / Exact Next Action**.
 
 ```text
 MASTER → one bounded Issue → linked branch → implementation/proof → PR
 → exact-head executed verification/review → merge → Issue close
-→ MASTER reconciliation → milestone acceptance → next Progression Review
+→ MASTER reconciliation → milestone acceptance → destination review
 ```
 
 Rules:
@@ -79,7 +100,8 @@ Rules:
 - same-gap fixes remain inside the milestone.
 - code existence/self-report is not PASS.
 - no successful bounded run is generalized into unrestricted safety/autonomy/reliability claims.
-- if no candidate has direct use/show/delivery value and bounded executable acceptance, remain ENABLED in HOLD/no-mutation mode.
+- no more than 2 consecutive milestones on one narrow proof axis unless a distinct blocker is demonstrated.
+- if no destination-level candidate has direct use/show/delivery value and bounded executable acceptance, remain ENABLED in HOLD/no-mutation mode.
 
 ---
 
@@ -110,8 +132,9 @@ Rules:
 | L-35 | typed rejection rationale could carry across Operator run changes | CLOSED by P-019 |
 | L-36 | reject API accepted blank/whitespace-only rationale when UI guard was bypassed | CLOSED by P-020 |
 | L-37 | deterministic run evidence did not identify the embedding stack that grounded retrieval | **CLOSED by P-022** |
-| L-38 | Operator requires raw JSON inspection to identify persisted retrieval provenance | **CLOSED by P-023** |
-| L-39 | P-023 retrieval provenance summary has static contract coverage but no dedicated executed browser proof | **ACTIVE — P-024** |
+| L-38 | Operator required raw JSON inspection to identify persisted retrieval provenance | **CLOSED by P-023** |
+| L-39 | P-023 retrieval provenance summary lacked dedicated executed browser proof | **CLOSED by P-024** |
+| L-40 | D2 acceptance is fragmented across multiple proof scripts/workflows rather than one reviewer-runnable clean-environment pilot path | **ACTIVE — P-025** |
 
 ---
 
@@ -139,38 +162,54 @@ Rules:
 - **P-020 CLOSED — ACCEPTED** — enforce non-blank rejection rationale server-side; Issue #56 / PR #57; accepted head `62e0e58ef5a5b65716455a7ec6283a3d2b7cb2de`; merge `02b310378591e81ca4d26d02fb6c0315d9f4f2b5`.
 - **P-021 CLOSED — ACCEPTED** — truthful semantic embedding provenance + MiniLM delivery defaults; Issue #58 / PR #59; accepted head `c07d01d05672172be520e60d868b240982408b47`; merge `1db147e10f630dd0880e636c43849a93874c10b8`.
 - **P-022 CLOSED — ACCEPTED** — persist semantic retrieval provenance in run audit evidence; Issue #60 / PR #61; accepted head `75cd898ea22218af124339a3871aa83b0eb7fb2c`; merge `485ad9f218467d6ec3d66e4502e30a0ed972d239`.
-- **P-023 CLOSED — ACCEPTED** — surface retrieval provenance in Operator evidence summary; Issue #62 / PR #63; accepted head `4156b24a4a1fb0107333c25ec0d467f35df9570e`; merge `b656e1881c13f40845a463076e0d9fffe786a211`. Exact-head PR Validation / Proof Evaluation / Firebat Container / P-018 Browser Rejection Rationale / P-019 Browser Rejection Rationale Run Binding were all SUCCESS before merge. The Operator renders provider/model/dimension strictly from persisted current-run `RAG_RETRIEVED` evidence and explicitly fails closed when provenance is unavailable.
-- **P-024 OPEN — CONTRACT-FIRST** — browser-verify Operator retrieval provenance summary; Issue #64 / PR #65; contract head `4b62b81e536e6b9aafbd3d27f293ef3358302f59`. Acceptance requires a dedicated exact-head browser workflow to prove persisted provider/model/dimension rendering plus unavailable/clear behavior without changing agent authority.
+- **P-023 CLOSED — ACCEPTED** — surface retrieval provenance in Operator evidence summary; Issue #62 / PR #63; accepted head `4156b24a4a1fb0107333c25ec0d467f35df9570e`; merge `b656e1881c13f40845a463076e0d9fffe786a211`.
+- **P-024 CLOSED — ACCEPTED** — browser-verify Operator retrieval provenance summary; Issue #64 / PR #65; accepted head `d043612382c8f6c5e1977f1acea2642f9b24155d`; merge `7096ae6d1dc9d41d24f895daed56f665736b58fa`. Exact-head PR Validation / Firebat Container / P-024 Browser Retrieval Provenance were all SUCCESS. P-018/P-019 and Proof Evaluation are path-scoped and were not triggered by this proof-only diff; no application/runtime authority changed. The contract-first P1 thread was resolved against the implemented head before merge.
+- **P-025 OPEN — CONTRACT-FIRST** — D2 Controlled Operator Pilot acceptance path; Issue #66 / PR #67; contract head `a4d72d0a84e000afa1809eeabe5655c2f4696268`. Acceptance requires one clean-environment coherent operator path and artifact/runbook rather than another isolated micro-proof.
 
 ---
 
-# 5. Current Run Record
+# 5. Destination Review
+
+## D1 verdict
+
+**DESTINATION REACHED — L3 USABLE / DEMONSTRABLE.**
+
+Evidence now spans the required bounded product path: structured intake and semantic grounding; exact human review inputs; reviewed-digest binding; explicit approve/reject behavior; allowlisted read-only execution; persisted result/audit correlation; deterministic evidence bundle/digest/export; recovery/quarantine visibility; retrieval provenance persisted and rendered; browser proof for the provenance presentation. This satisfies D1 without claiming production auth, customer integration, destructive/write tooling, unrestricted autonomy, distributed guarantees, non-repudiation, or final-stack local-LLM success.
+
+## D2 verdict
+
+A distinct destination-level gap remains: those accepted assets are fragmented across several scripts/workflows and README sections. The existing `scripts/verify_operator_browser.py` already demonstrates clarification, grounding, exact execution-input review, rejected approval preconditions, approved `legacy_db_lookup`, persisted execution and audit correlation, but portable evidence export/reload and recovery visibility are accepted elsewhere rather than composed into one reviewer-runnable clean-environment path. P-025 is therefore justified as one coherent D2 acceptance milestone.
+
+---
+
+# 6. Current Run Record
 
 ### Changed
-- Accepted P-023 after exact-head verification and expected-head merge of PR #63; reconciled MASTER in commit `4e588ebb0fec0daa60325fcc8633805d1467519f`.
-- Performed one bounded Progression Review and selected P-024 only.
-- Opened Issue #64, branch `proof-v1.1/64-browser-retrieval-provenance`, and contract-first PR #65.
+- P-024 accepted and merged via expected-head protection; Issue #64 closed.
+- D1 explicitly recorded as **DESTINATION REACHED — L3 USABLE / DEMONSTRABLE**.
+- Destination Review selected exactly one next milestone: P-025 / D2 Controlled Operator Pilot acceptance path.
+- Opened Issue #66, branch `proof-v1.2/66-controlled-operator-pilot`, and PR #67 with contract-first head `a4d72d0a84e000afa1809eeabe5655c2f4696268`.
 
 ### Actually Executed
 - current root MASTER read first.
-- PR #63 exact implementation head `4156b24a4a1fb0107333c25ec0d467f35df9570e` verified with PR Validation / Proof Evaluation / Firebat Container / P-018 / P-019 all completed SUCCESS.
-- review thread against the red contract-first commit was answered against the implemented head and resolved.
-- PR #63 merged with expected-head protection to `b656e1881c13f40845a463076e0d9fffe786a211`; Issue #62 confirmed CLOSED / completed.
-- Progression Review inspected current P-023 test coverage and workflow inventory. The P-023 test is static HTML/JavaScript contract inspection, while existing dedicated browser workflows cover rejection rationale paths rather than retrieval provenance.
-- contract-first P-024 test added at head `4b62b81e536e6b9aafbd3d27f293ef3358302f59`; PR #65 opened.
+- P-024 exact head `d043612382c8f6c5e1977f1acea2642f9b24155d` verified: PR Validation SUCCESS, Firebat Container SUCCESS, P-024 Browser Retrieval Provenance SUCCESS.
+- unresolved P1 contract-first review thread answered against the current implementation and resolved.
+- PR #65 merged with expected-head protection to `7096ae6d1dc9d41d24f895daed56f665736b58fa`; Issue #64 confirmed CLOSED/completed.
+- Destination Review inspected README Golden Path, clean Docker Compose setup, and `scripts/verify_operator_browser.py`; confirmed the existing Golden Path covers approval/rejection/execution/persistence deeply but D2 evidence remains fragmented for export/reload/recovery as one operator path.
+- P-025 contract test committed and PR #67 opened.
 
 ### Verified
-- P-023 repository lifecycle is CLOSED / ACCEPTED.
-- P-024 has direct delivery/evidence value: the accepted Operator provenance summary currently lacks dedicated executed browser proof.
-- scope is bounded to one browser proof workflow and does not expand runtime capability or permissions.
+- P-024 repository lifecycle is CLOSED / ACCEPTED.
+- D1 is fully evidenced at the bounded Guided Agent Proof level.
+- P-025 has direct use/show/delivery value and is not another narrow approval/audit/UI proof: it composes existing accepted assets into one controlled pilot acceptance.
 
 ### Not Verified
-- P-024 executable RED has not yet been established for contract head `4b62b81e536e6b9aafbd3d27f293ef3358302f59`.
-- no P-024 implementation or PASS is claimed.
+- P-025 executable RED is not yet established on contract head `a4d72d0a84e000afa1809eeabe5655c2f4696268`.
+- no P-025 implementation or D2 PASS is claimed.
 - no authenticated reviewer identity, tamper-proof logging, RBAC, non-repudiation, production authorization, customer-system integration, distributed recovery guarantee, unrestricted tool safety, or positive final-stack local-LLM inference claim is established.
 
 ### Limitations
-Evidence remains bounded to this repository, GitHub Actions/Firebat/headless-Chrome proof environment, and the controlled read-only tool path. P-024 is proof coverage only and does not expand agent authority.
+Evidence remains bounded to this repository, GitHub Actions/Firebat/headless-Chrome proof environment, local fixture tool, SQLite/SQLAlchemy runtime scope, and explicit accepted non-claims above.
 
 ### Exact Next Action
-Observe PR Validation on exact contract head `4b62b81e536e6b9aafbd3d27f293ef3358302f59`. Only after actual FAILURE establishes executable RED, implement the minimal dedicated P-024 browser proof inside Issue #64 / PR #65, then require exact-head PR Validation / Proof Evaluation / Firebat Container / P-018 / P-019 / P-024 browser proof SUCCESS before merge.
+Observe PR Validation on exact contract head `a4d72d0a84e000afa1809eeabe5655c2f4696268`. Only after actual FAILURE establishes executable RED, implement one coherent P-025 clean-environment Controlled Operator Pilot workflow/verifier/runbook inside Issue #66 / PR #67. Reuse existing accepted product surfaces; fix only concrete D2-blocking defects found by the coherent path. Require exact-head PR Validation + Firebat baseline + P-025 pilot workflow SUCCESS and clean review before merge and D2 acceptance.

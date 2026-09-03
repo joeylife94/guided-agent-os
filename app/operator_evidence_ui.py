@@ -30,6 +30,13 @@ _EVIDENCE_PANEL = r'''
         <div id="approval-rejection-submitted-row"><span class="pill">Submitted reviewed digest</span> <code id="approval-rejection-submitted-digest">Not submitted.</code></div>
         <div><span class="pill">Current server digest</span> <code id="approval-rejection-current-digest">Not available.</code></div>
       </div>
+      <div id="retrieval-provenance-summary">
+        <h4>Retrieval provenance</h4>
+        <div class="muted" id="retrieval-provenance-status">Retrieval provenance unavailable.</div>
+        <div><span class="pill">Embedding provider</span> <code id="retrieval-embedding-provider">Unavailable</code></div>
+        <div><span class="pill">Embedding model</span> <code id="retrieval-embedding-model">Unavailable</code></div>
+        <div><span class="pill">Embedding dimensions</span> <code id="retrieval-embedding-dimensions">Unavailable</code></div>
+      </div>
       <div class="actions">
         <button id="refresh-run-evidence-button" class="primary" type="button">Refresh run evidence</button>
         <button id="download-run-evidence-button" type="button" disabled>Download evidence</button>
@@ -131,6 +138,29 @@ _EVIDENCE_SCRIPT = r'''
     }
   }
 
+  function clearRetrievalProvenance() {
+    document.getElementById('retrieval-provenance-status').textContent = 'Retrieval provenance unavailable.';
+    document.getElementById('retrieval-embedding-provider').textContent = 'Unavailable';
+    document.getElementById('retrieval-embedding-model').textContent = 'Unavailable';
+    document.getElementById('retrieval-embedding-dimensions').textContent = 'Unavailable';
+  }
+
+  function renderRetrievalProvenance(evidence) {
+    clearRetrievalProvenance();
+    const events = evidence && Array.isArray(evidence.events) ? evidence.events : [];
+    const retrieved = [...events].reverse().find((event) => event.event_type === 'RAG_RETRIEVED');
+    if (!retrieved) return;
+    const payload = retrieved.payload || {};
+    const provider = payload.embedding_provider;
+    const model = payload.embedding_model;
+    const dimensions = payload.embedding_dimensions;
+    if (!provider || !model || dimensions === undefined || dimensions === null) return;
+    document.getElementById('retrieval-provenance-status').textContent = 'Persisted current-run retrieval provenance.';
+    document.getElementById('retrieval-embedding-provider').textContent = String(provider);
+    document.getElementById('retrieval-embedding-model').textContent = String(model);
+    document.getElementById('retrieval-embedding-dimensions').textContent = String(dimensions);
+  }
+
   function renderApprovalPreconditionRejection(evidence) {
     approvalPreconditionRejection.classList.add('hidden');
     approvalRejectionSubmittedRow.classList.remove('hidden');
@@ -156,6 +186,7 @@ _EVIDENCE_SCRIPT = r'''
     downloadRunEvidenceButton.disabled = false;
     document.getElementById('evidence-digest').textContent = evidence.evidence_digest || 'Digest unavailable.';
     document.getElementById('run-evidence-json').textContent = JSON.stringify(evidence, null, 2);
+    renderRetrievalProvenance(evidence);
     renderApprovalPreconditionRejection(evidence);
     evidenceVerificationStatus.textContent = 'UNAVAILABLE';
     evidenceVerificationStatus.textContent = await verifyEvidenceDigest(evidence);
@@ -166,6 +197,7 @@ _EVIDENCE_SCRIPT = r'''
     downloadRunEvidenceButton.disabled = true;
     approvalPreconditionRejection.classList.add('hidden');
     approvalRejectionSubmittedRow.classList.remove('hidden');
+    clearRetrievalProvenance();
     document.getElementById('evidence-digest').textContent = 'Not loaded.';
     evidenceVerificationStatus.textContent = 'UNAVAILABLE';
     document.getElementById('run-evidence-json').textContent = message;
@@ -185,7 +217,7 @@ _EVIDENCE_SCRIPT = r'''
 
   async function refreshRunEvidence(runId) {
     if (!runId) { clearCurrentEvidence(); return; }
-    currentEvidence = null; downloadRunEvidenceButton.disabled = true; refreshRunEvidenceButton.disabled = true; evidenceVerificationStatus.textContent = 'UNAVAILABLE';
+    currentEvidence = null; downloadRunEvidenceButton.disabled = true; refreshRunEvidenceButton.disabled = true; evidenceVerificationStatus.textContent = 'UNAVAILABLE'; clearRetrievalProvenance();
     try {
       const evidence = await api(`/api/agents/runs/${runId}/evidence`);
       if (runId === currentRunId) await renderRunEvidence(evidence);

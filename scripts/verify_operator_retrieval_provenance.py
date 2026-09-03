@@ -87,15 +87,22 @@ def main() -> None:
             )
         evidence["checks"].append("persisted_provenance_rendered_exactly")
 
-        # Stall only the next evidence request, then use the real Run button. renderRun() must
-        # clear the previous run's provenance synchronously before the new evidence arrives.
+        # Hold only the next evidence request in a controllable rejected promise, then use the
+        # real Run button. renderRun() must clear the previous run's provenance synchronously
+        # before refreshRunEvidence() can settle. The verifier then rejects that held request so
+        # the UI's real finally block re-enables the visible refresh control.
         driver.execute_script(
             """
             window.__p024OriginalFetch = window.fetch;
+            window.__p024RejectEvidence = null;
+            window.__p024HeldEvidence = false;
             window.fetch = function(resource, init) {
               const url = String(resource);
-              if (url.includes('/evidence')) {
-                return new Promise(() => {});
+              if (!window.__p024HeldEvidence && url.includes('/evidence')) {
+                window.__p024HeldEvidence = true;
+                return new Promise((resolve, reject) => {
+                  window.__p024RejectEvidence = reject;
+                });
               }
               return window.__p024OriginalFetch(resource, init);
             };
@@ -111,16 +118,23 @@ def main() -> None:
             raise AssertionError(f"stale provenance remained after current-run change: {cleared!r}")
         evidence["checks"].append("run_change_clears_stale_provenance_before_evidence_arrives")
 
-        # Restore real network behavior and exercise the visible refresh control to prove the
-        # new current run can populate its own persisted provenance after the clear.
+        # Settle the intentionally held request through the product's real error/finally path,
+        # restore network behavior, and exercise the visible refresh control. This avoids leaving
+        # refreshRunEvidence() permanently pending (which would itself keep the button disabled).
         driver.execute_script(
             """
+            if (window.__p024RejectEvidence) {
+              window.__p024RejectEvidence(new Error('P-024 intentional evidence hold'));
+              window.__p024RejectEvidence = null;
+            }
             if (window.__p024OriginalFetch) {
               window.fetch = window.__p024OriginalFetch;
               delete window.__p024OriginalFetch;
             }
+            delete window.__p024HeldEvidence;
             """
         )
+        wait.until(lambda d: d.find_element(By.ID, "refresh-run-evidence-button").is_enabled())
         driver.find_element(By.ID, "refresh-run-evidence-button").click()
         wait.until(lambda d: text(d, "retrieval-provenance-status") == "Persisted current-run retrieval provenance.")
         second_persisted = fetch_evidence(driver, second_run_id)

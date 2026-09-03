@@ -131,11 +131,12 @@ The Proof runtime uses:
 
 - ChromaDB persistent collections
 - local Markdown knowledge under `app/knowledge/`
-- `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`
+- SentenceTransformers provider metadata: `sentence_transformers`
+- default model `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`
 - 384-dimensional embeddings
 - Korean/English retrieval verification
 
-The semantic model was selected after `BAAI/bge-m3` proved unstable inside the frozen 1536 MiB Firebat container envelope.
+The semantic model was selected after `BAAI/bge-m3` proved unstable inside the frozen 1536 MiB Firebat container envelope. `bge_m3` remains an explicit compatibility alias for callers that intentionally select a BGE-family model, but persisted semantic provider metadata identifies the actual implementation boundary as `sentence_transformers`.
 
 The local LLM path is optional. When the configured local model endpoint is unavailable, the service remains healthy and returns retrieved context/citations for review rather than inventing successful inference.
 
@@ -178,14 +179,14 @@ The grounding/citation cases in GitHub CI used the documented unavailable-local-
 cp .env.firebat.example .env.firebat
 ```
 
-The example is already configured for the Proof semantic model:
+The example and compose defaults are configured for the accepted Proof semantic model:
 
 ```env
-RAG_EMBEDDING_PROVIDER=bge_m3
+RAG_EMBEDDING_PROVIDER=sentence_transformers
 RAG_EMBEDDING_MODEL=sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
 ```
 
-`RAG_EMBEDDING_PROVIDER=bge_m3` is a legacy provider identifier retained for compatibility; runtime model metadata identifies the actual MiniLM model.
+For compatibility, callers may explicitly set `RAG_EMBEDDING_PROVIDER=bge_m3` together with an intentional model such as `BAAI/bge-m3`; runtime and persisted metadata still report the SentenceTransformers implementation boundary truthfully.
 
 ### 2. Optional local LLM
 
@@ -256,7 +257,7 @@ Proof v1.0 deliberately accepts these limitations:
 
 - `legacy_db_lookup` uses a deterministic local fixture rather than a customer system.
 - execution result currently shares an existing persisted raw-output field rather than a dedicated execution-result table.
-- the semantic provider identifier is still named `bge_m3` for compatibility even though MiniLM is the actual Proof model.
+- `bge_m3` remains only as an explicit compatibility alias; the default provider and persisted semantic provider metadata are `sentence_transformers`.
 - the CPU-oriented Python image still resolves a relatively large Torch dependency footprint.
 - browser CI depends on Chrome + Selenium availability.
 - authentication, OAuth/SSO, multi-tenancy, complex RBAC, destructive tools, external-account actions, Kubernetes, HA, and enterprise observability are outside the frozen Proof v1.0 scope.

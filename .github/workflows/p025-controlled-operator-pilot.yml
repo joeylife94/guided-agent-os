@@ -1,0 +1,90 @@
+name: P-025 Controlled Operator Pilot
+
+on:
+  pull_request:
+    paths:
+      - app/**
+      - scripts/verify_operator_browser.py
+      - scripts/verify_operator_rejection_rationale.py
+      - scripts/verify_controlled_operator_pilot.py
+      - docs/CONTROLLED_OPERATOR_PILOT.md
+      - tests/test_controlled_operator_pilot_contract.py
+      - .github/workflows/p025-controlled-operator-pilot.yml
+      - compose.firebat.yml
+      - .env.firebat.example
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  controlled-operator-pilot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare clean Firebat environment
+        run: |
+          cp .env.firebat.example .env.firebat
+          sed -i 's/HOST_PORT=8701/HOST_PORT=18701/' .env.firebat
+          sed -i 's/LOCAL_LLM_TIMEOUT=5/LOCAL_LLM_TIMEOUT=2/' .env.firebat
+          chmod 600 .env.firebat
+          echo 'APP_VERSION=ci-p025' >> "$GITHUB_ENV"
+          echo "GIT_REVISION=${GITHUB_SHA}" >> "$GITHUB_ENV"
+          echo 'HOST_PORT=18701' >> "$GITHUB_ENV"
+
+      - name: Build and start production image
+        run: |
+          docker compose --env-file .env.firebat -f compose.firebat.yml build app
+          docker compose --env-file .env.firebat -f compose.firebat.yml up -d
+          chmod +x scripts/healthcheck-firebat.sh
+          HEALTHCHECK_MAX_ATTEMPTS=90 sh scripts/healthcheck-firebat.sh
+
+      - name: Execute coherent controlled operator pilot acceptance
+        env:
+          OPERATOR_BASE_URL: http://127.0.0.1:18701
+          OPERATOR_ARTIFACT_DIR: /tmp/operator-proof
+        run: |
+          google-chrome --version
+          python -m pip install --disable-pip-version-check 'selenium==4.35.0'
+          python scripts/verify_controlled_operator_pilot.py
+
+      - name: Capture diagnostics and acceptance evidence
+        if: always()
+        run: |
+          docker compose --env-file .env.firebat -f compose.firebat.yml ps || true
+          docker compose --env-file .env.firebat -f compose.firebat.yml logs --tail=350 app > p025-controlled-operator-pilot-container.log 2>&1 || true
+          cp /tmp/operator-proof/controlled_operator_pilot_evidence.json controlled_operator_pilot_evidence.json 2>/dev/null || true
+          cp /tmp/operator-proof/controlled_operator_pilot_run_evidence.json controlled_operator_pilot_run_evidence.json 2>/dev/null || true
+          cp /tmp/operator-proof/operator-browser-evidence.json operator-browser-evidence.json 2>/dev/null || true
+          cp /tmp/operator-proof/operator-rejection-rationale-evidence.json operator-rejection-rationale-evidence.json 2>/dev/null || true
+          cp /tmp/operator-proof/operator-golden-path.png operator-golden-path.png 2>/dev/null || true
+          cp /tmp/operator-proof/operator-rejection-rationale.png operator-rejection-rationale.png 2>/dev/null || true
+
+      - name: Upload pilot evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: guided-agent-p025-controlled-operator-pilot
+          path: |
+            p025-controlled-operator-pilot-container.log
+            controlled_operator_pilot_evidence.json
+            controlled_operator_pilot_run_evidence.json
+            operator-browser-evidence.json
+            operator-rejection-rationale-evidence.json
+            operator-golden-path.png
+            operator-rejection-rationale.png
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Stop Firebat service
+        if: always()
+        run: docker compose --env-file .env.firebat -f compose.firebat.yml down -v || true
+
+# Destination-level acceptance markers:
+# structured_intake_and_grounding exact_execution_input_review rejection_blocks_execution
+# approved_allowlisted_read_only_execution persisted_result_and_audit retrieval_provenance_verified
+# evidence_export_reloaded recovery_visibility_verified controlled_operator_pilot_evidence.json
+# Tool boundary: legacy_db_lookup remains allowlisted and read-only.

@@ -13,9 +13,9 @@
 | Current Level | **L3 — Usable / Demonstrable Proof** |
 | Progression Mode | **ENABLED — bounded milestones only** |
 | Latest accepted milestone | **P-022 / Issue #60 semantic retrieval provenance in run audit evidence — CLOSED / ACCEPTED** |
-| Active milestone | **None — Progression Review required** |
-| Active branch | None |
-| Active PR | None |
+| Active milestone | **P-023 / Issue #62 Operator retrieval provenance summary — CONTRACT-FIRST** |
+| Active branch | `proof-v1.1/62-operator-retrieval-provenance` |
+| Active PR | **#63 OPEN** |
 | Latest accepted progression merge | `485ad9f218467d6ec3d66e4502e30a0ed972d239` |
 
 The v1.0 acceptance baseline is not reopened by later milestones.
@@ -110,6 +110,7 @@ Rules:
 | L-35 | typed rejection rationale could carry across Operator run changes | CLOSED by P-019 |
 | L-36 | reject API accepted blank/whitespace-only rationale when UI guard was bypassed | CLOSED by P-020 |
 | L-37 | deterministic run evidence did not identify the embedding stack that grounded retrieval | **CLOSED by P-022** |
+| L-38 | Operator requires raw JSON inspection to identify persisted retrieval provenance | **ACTIVE — P-023** |
 
 ---
 
@@ -137,6 +138,7 @@ Rules:
 - **P-020 CLOSED — ACCEPTED** — enforce non-blank rejection rationale server-side; Issue #56 / PR #57; accepted head `62e0e58ef5a5b65716455a7ec6283a3d2b7cb2de`; merge `02b310378591e81ca4d26d02fb6c0315d9f4f2b5`.
 - **P-021 CLOSED — ACCEPTED** — truthful semantic embedding provenance + MiniLM delivery defaults; Issue #58 / PR #59; accepted head `c07d01d05672172be520e60d868b240982408b47`; merge `1db147e10f630dd0880e636c43849a93874c10b8`.
 - **P-022 CLOSED — ACCEPTED** — persist semantic retrieval provenance in run audit evidence; Issue #60 / PR #61; accepted head `75cd898ea22218af124339a3871aa83b0eb7fb2c`; merge `485ad9f218467d6ec3d66e4502e30a0ed972d239`. Exact-head PR Validation / Proof Evaluation / Firebat Container / P-018 Browser Rejection Rationale / P-019 Browser Rejection Rationale Run Binding were all SUCCESS before merge. Existing `RAG_RETRIEVED` audit evidence now persists the active embedding provider, model, and dimension alongside the existing retrieval counts/citation data.
+- **P-023 OPEN — CONTRACT-FIRST** — surface retrieval provenance in Operator evidence summary; Issue #62 / PR #63; contract head `e8b6a7808aef542a671474b937a9b692983a4fe9`. Acceptance requires the dedicated read-only summary to derive only from persisted current-run `RAG_RETRIEVED` evidence and clear/fail closed when unavailable.
 
 ---
 
@@ -144,28 +146,30 @@ Rules:
 
 ### Changed
 - Reconciled P-022 as CLOSED / ACCEPTED after PR #61 merged to `485ad9f218467d6ec3d66e4502e30a0ed972d239` and Issue #60 closed completed.
-- Added L-37 and closed it by P-022.
-- Cleared active milestone/branch/PR pending the next bounded Progression Review.
+- Performed one bounded Progression Review and selected P-023 only.
+- Opened Issue #62, branch `proof-v1.1/62-operator-retrieval-provenance`, and contract-first PR #63.
 
 ### Actually Executed
 - current root MASTER read first.
 - PR #61 exact implementation head `75cd898ea22218af124339a3871aa83b0eb7fb2c` inspected.
 - exact-head PR Validation / Proof Evaluation / Firebat Container / P-018 browser regression / P-019 run-binding regression all confirmed completed SUCCESS.
 - PR #61 comments/review blocker surface inspected; no comments were present.
-- PR #61 merged with expected-head protection.
-- Issue #60 inspected after merge and confirmed CLOSED / completed.
+- PR #61 merged with expected-head protection; Issue #60 confirmed CLOSED / completed.
+- current Operator evidence implementation inspected: it renders digest/verification/raw JSON but no dedicated retrieval-provenance summary.
+- contract-first test added at head `e8b6a7808aef542a671474b937a9b692983a4fe9`; PR #63 opened.
 
 ### Verified
 - P-022 merged and Issue #60 closed.
-- deterministic run evidence now carries the persisted semantic embedding provenance through the existing `RAG_RETRIEVED` audit event.
-- no new endpoint/tool/write permission/autonomy boundary was introduced by this milestone.
+- deterministic run evidence carries persisted semantic embedding provenance through `RAG_RETRIEVED`.
+- Operator currently exposes the evidence as raw JSON and does not yet provide the dedicated P-023 summary.
 
 ### Not Verified
-- no next milestone is accepted yet.
+- P-023 executable RED is not yet established; no workflow run was registered for contract head `e8b6a7808aef542a671474b937a9b692983a4fe9` at the last check.
+- no P-023 implementation or PASS is claimed.
 - no authenticated reviewer identity, tamper-proof logging, RBAC, non-repudiation, production authorization, customer-system integration, distributed recovery guarantee, unrestricted tool safety, or positive final-stack local-LLM inference claim is established.
 
 ### Limitations
-Evidence remains bounded to this repository, GitHub Actions/Firebat/headless-Chrome proof environment, and the controlled read-only tool path.
+Evidence remains bounded to this repository, GitHub Actions/Firebat/headless-Chrome proof environment, and the controlled read-only tool path. P-023 is presentation/readability only and does not expand agent authority.
 
 ### Exact Next Action
-Perform one bounded Progression Review. Prefer a directly demonstrable operator/evidence usability or policy-enforcement gap with executable acceptance. If none passes the milestone gate, remain ENABLED in HOLD/no-mutation mode.
+Wait for PR Validation on exact contract head `e8b6a7808aef542a671474b937a9b692983a4fe9`; only after an actual FAILURE establishes executable RED, implement the minimal read-only Operator provenance summary inside Issue #62 / PR #63 and then require exact-head required gates to be SUCCESS before merge.

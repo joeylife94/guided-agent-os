@@ -107,6 +107,15 @@ def test_full_controlled_run_events_persist_and_reload_in_sequence(monkeypatch) 
             return _final_state()
 
     monkeypatch.setattr(routes_module, "workflow", FakeWorkflow())
+    monkeypatch.setattr(
+        routes_module,
+        "get_embedding_metadata",
+        lambda: {
+            "embedding_provider": "sentence_transformers",
+            "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+            "embedding_dimensions": 384,
+        },
+    )
 
     create_response = client.post(
         "/api/agents/controlled_rag_agent/runs",
@@ -145,7 +154,23 @@ def test_full_controlled_run_events_persist_and_reload_in_sequence(monkeypatch) 
         },
         "retrieved_chunks": 2,
         "citation_count": 1,
+        "embedding_provider": "sentence_transformers",
+        "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+        "embedding_dimensions": 384,
     }
+
+    evidence_response = client.get(f"/api/agents/runs/{run_id}/evidence")
+    assert evidence_response.status_code == 200
+    evidence_retrieval = next(
+        event
+        for event in evidence_response.json()["events"]
+        if event["event_type"] == "RAG_RETRIEVED"
+    )
+    assert evidence_retrieval["payload"]["embedding_provider"] == "sentence_transformers"
+    assert evidence_retrieval["payload"]["embedding_model"] == (
+        "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    )
+    assert evidence_retrieval["payload"]["embedding_dimensions"] == 384
 
     approve_response = client.post(
         f"/api/agents/runs/{run_id}/approve",

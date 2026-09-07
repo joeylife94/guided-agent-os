@@ -86,6 +86,7 @@ jobs:
           ollama list > d3-ollama-models.txt 2>&1 || true
           cp /tmp/ollama.log d3-ollama.log 2>/dev/null || true
           docker compose --env-file .env.firebat -f compose.firebat.yml logs --tail=400 app > d3-app.log 2>&1 || true
+          cp /tmp/operator-proof/d3_positive_local_llm_diagnostic.json d3_positive_local_llm_diagnostic.json 2>/dev/null || true
           cp /tmp/operator-proof/d3_positive_local_llm_evidence.json d3_positive_local_llm_evidence.json 2>/dev/null || true
           cp /tmp/operator-proof/controlled_operator_pilot_evidence.json controlled_operator_pilot_evidence.json 2>/dev/null || true
           cp /tmp/operator-proof/controlled_operator_pilot_run_evidence.json controlled_operator_pilot_run_evidence.json 2>/dev/null || true
@@ -100,6 +101,7 @@ jobs:
             d3-ollama-models.txt
             d3-ollama.log
             d3-app.log
+            d3_positive_local_llm_diagnostic.json
             d3_positive_local_llm_evidence.json
             controlled_operator_pilot_evidence.json
             controlled_operator_pilot_run_evidence.json

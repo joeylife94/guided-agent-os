@@ -93,16 +93,27 @@ def _normalize_retrieved_context(
     return normalized
 
 
+def _source_label(collection_name: str, result: dict[str, Any]) -> str:
+    metadata = result.get("metadata") or {}
+    doc_id = str(metadata.get("doc_id") or "").strip()
+    chunk_index = _safe_chunk_index(metadata.get("chunk_index", 0))
+    return f"{collection_name}:{doc_id}:chunk-{chunk_index}" if doc_id else ""
+
+
+def _first_retrieved_source_label(
+    retrieved_context: dict[str, list[dict[str, Any]]],
+) -> str | None:
+    """Choose a citation target only from the exact context returned for this answer."""
+    for collection_name in get_collection_names():
+        for result in retrieved_context.get(collection_name, []):
+            label = _source_label(collection_name, result)
+            if label:
+                return label
+    return None
+
+
 def _build_context_block(retrieved_context: dict[str, list[dict[str, Any]]]) -> str:
-    """
-    Build a formatted context block from retrieved documents.
-
-    Args:
-        retrieved_context: Dict mapping collection names to lists of results
-
-    Returns:
-        Formatted context string for inclusion in the prompt
-    """
+    """Build a formatted context block from retrieved documents."""
     context_parts = []
 
     for collection_name in get_collection_names():
@@ -117,10 +128,8 @@ def _build_context_block(retrieved_context: dict[str, list[dict[str, Any]]]) -> 
             content = result.get("content", "")
             metadata = result.get("metadata", {})
             title = metadata.get("title", "Unknown")
-            doc_id = metadata.get("doc_id", "")
             source_path = metadata.get("source_path", "")
-            chunk_index = metadata.get("chunk_index", 0)
-            source_label = f"{collection_name}:{doc_id}:chunk-{chunk_index}"
+            source_label = _source_label(collection_name, result)
 
             context_parts.append(f"\nSOURCE [{source_label}]\n")
             context_parts.append(f"Title: {title}\n")
@@ -151,11 +160,11 @@ def _build_system_prompt() -> str:
         "external account actions, approvals, or file operations.\n"
         "5. Do NOT produce SQL, command, or executable code.\n"
         "6. If retrieved policy context requires human review or approval, mention it explicitly.\n"
-        "7. When retrieved context is present, the generated answer MUST contain at least one "
-        "exact SOURCE [collection:doc_id:chunk-N] label copied verbatim from the supplied context. "
+        "7. When retrieved context is present, the generated answer MUST contain the exact "
+        "required SOURCE [collection:doc_id:chunk-N] label supplied by the application. "
         "Do not shorten, paraphrase, invent, or omit the label.\n"
-        "8. Put the copied SOURCE label in the final sentence of the answer so the grounding is "
-        "explicit and machine-verifiable.\n"
+        "8. Put that exact required SOURCE label in the final sentence of the answer so the "
+        "grounding is explicit and machine-verifiable.\n"
         "9. Keep answers concise and grounded in the retrieved knowledge."
     )
 
@@ -206,24 +215,7 @@ def generate_rag_answer(
     model: str | None = None,
     llm_client: LocalLLMClient | None = None,
 ) -> dict[str, Any]:
-    """
-    Generate a grounded answer to a question using RAG + local LLM.
-
-    Args:
-        question: User question to answer
-        top_k_per_collection: Number of results per collection to retrieve
-        model: Optional model name override
-        llm_client: Optional pre-initialized LLMClient (for testing)
-
-    Returns:
-        Dict with:
-        - question: The input question
-        - answer: Generated answer or fallback message
-        - citations: List of cited sources
-        - retrieved_context: Dict of retrieved results by collection
-        - limitations: List of limitations
-        - model: Dict with provider, name, and availability
-    """
+    """Generate a grounded answer to a question using RAG + local LLM."""
     question_text = _validate_question(question)
     safe_top_k = _validate_top_k_per_collection(top_k_per_collection)
 
@@ -232,24 +224,27 @@ def generate_rag_answer(
         top_k_per_collection=safe_top_k,
     )
     retrieved_context = _normalize_retrieved_context(raw_retrieved_context)
+    required_source_label = _first_retrieved_source_label(retrieved_context)
 
-    # Build context block for the prompt
     context_block = _build_context_block(retrieved_context)
 
-    # Initialize LLM client if not provided (for testing)
     if llm_client is None:
         llm_client = LocalLLMClient(model=model)
 
-    # Try to generate answer with the local LLM
     system_prompt = _build_system_prompt()
+    citation_instruction = (
+        f"The application selected this exact citation from the returned context: "
+        f"SOURCE [{required_source_label}]. Your final sentence MUST be exactly that SOURCE "
+        f"label, copied verbatim with no extra text after it."
+        if required_source_label
+        else "No SOURCE label is available because no retrieved context was returned."
+    )
     user_prompt = (
         f"Based on the retrieved knowledge base context below, "
         f"answer the following question:\n\n"
         f"QUESTION: {question_text}\n\n"
         f"RETRIEVED CONTEXT:\n{context_block}\n\n"
-        f"Answer only from the retrieved context. If retrieved context is present, "
-        f"finish the generated answer with at least one exact SOURCE "
-        f"[collection:doc_id:chunk-N] label copied verbatim from a SOURCE header above. "
+        f"Answer only from the retrieved context. {citation_instruction} "
         f"If the context is insufficient, say that it is insufficient.\n\n"
         f"ANSWER:"
     )
@@ -271,7 +266,6 @@ def generate_rag_answer(
 
     citations = _build_citations(retrieved_context)
 
-    # Determine model availability
     model_name = (
         llm_response.get("model")
         or getattr(llm_client, "model", None)
@@ -281,7 +275,6 @@ def generate_rag_answer(
     llm_content = str(llm_response.get("content", "")).strip()
     model_available = bool(llm_response.get("ok", False) and llm_content)
 
-    # Build answer based on LLM availability
     if model_available:
         answer = llm_content
     else:

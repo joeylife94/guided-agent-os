@@ -27,7 +27,7 @@ jobs:
       - name: Install and start real local Ollama endpoint
         run: |
           curl -fsSL https://ollama.com/install.sh | sh
-          nohup ollama serve > /tmp/ollama.log 2>&1 &
+          OLLAMA_HOST=0.0.0.0:11434 nohup ollama serve > /tmp/ollama.log 2>&1 &
           for i in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null; then break; fi
             sleep 2
@@ -106,5 +106,6 @@ jobs:
           docker compose --env-file .env.firebat -f compose.firebat.yml down -v || true
           pkill -f 'ollama serve' || true
 
-# Positive acceptance requires a real Ollama process and a pulled qwen2.5:0.5b model.
-# A stub, fallback response, or cloud endpoint does not satisfy this workflow.
+# Positive acceptance requires a real host-local Ollama process reachable from the
+# Firebat container and a pulled qwen2.5:0.5b model. A stub, fallback response,
+# or cloud endpoint does not satisfy this workflow.

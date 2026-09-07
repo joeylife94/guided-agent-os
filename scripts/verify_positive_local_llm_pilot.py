@@ -7,7 +7,7 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 BASE_URL = os.getenv("OPERATOR_BASE_URL", "http://127.0.0.1:18701").rstrip("/")
-MODEL = os.getenv("D3_LOCAL_LLM_MODEL", "qwen2.5:0.5b")
+MODEL = os.getenv("D3_LOCAL_LLM_MODEL", "qwen2.5:1.5b")
 PROVIDER = os.getenv("D3_LOCAL_LLM_PROVIDER", "ollama-openai-compatible")
 RUNTIME = os.getenv("D3_LOCAL_LLM_RUNTIME", "ollama-localhost")
 ARTIFACT_DIR = Path(os.getenv("OPERATOR_ARTIFACT_DIR", "/tmp/operator-proof"))
@@ -72,9 +72,6 @@ def main() -> None:
     source_labels = _source_labels(positive)
     cited_labels = sorted(label for label in source_labels if label in answer_text)
 
-    # Persist the real endpoint response before acceptance assertions so a RED
-    # run remains diagnosable without weakening any D3 predicate. Keep only
-    # repository fixture/public-safe fields; no host address or secrets.
     diagnostic = {
         "provider": PROVIDER,
         "expected_model": MODEL,

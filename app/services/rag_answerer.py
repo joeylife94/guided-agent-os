@@ -112,6 +112,13 @@ def _first_retrieved_source_label(
     return None
 
 
+def _contains_required_source_label(content: str, required_source_label: str | None) -> bool:
+    """Return whether model-generated content contains the required exact SOURCE label."""
+    if not required_source_label:
+        return True
+    return f"SOURCE [{required_source_label}]" in str(content or "")
+
+
 def _build_context_block(retrieved_context: dict[str, list[dict[str, Any]]]) -> str:
     """Build a formatted context block from retrieved documents."""
     context_parts = []
@@ -167,6 +174,32 @@ def _build_system_prompt() -> str:
         "grounding is explicit and machine-verifiable.\n"
         "9. Keep answers concise and grounded in the retrieved knowledge."
     )
+
+
+def _build_citation_repair_messages(
+    answer: str,
+    required_source_label: str,
+) -> list[dict[str, str]]:
+    """Build one bounded real-model retry for a missing exact citation label."""
+    exact_label = f"SOURCE [{required_source_label}]"
+    return [
+        {
+            "role": "system",
+            "content": (
+                "You are repairing citation formatting only. Preserve the supplied answer's "
+                "meaning. Do not add facts, tools, SQL, API claims, or new sources."
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                "Return the supplied answer, followed by one final line containing exactly the "
+                "required citation token. The final line must be copied verbatim and nothing may "
+                f"appear after it.\n\nANSWER TO REPAIR:\n{answer}\n\n"
+                f"REQUIRED FINAL LINE:\n{exact_label}\n\nREPAIRED ANSWER:"
+            ),
+        },
+    ]
 
 
 def _build_fallback_answer(
@@ -263,6 +296,35 @@ def generate_rag_answer(
             "content": "",
             "error": f"Unexpected local LLM client error: {str(e)}",
         }
+
+    # A small local model can produce a grounded answer while dropping an exact citation token.
+    # Permit exactly one real-model formatting repair. The final answer still comes entirely from
+    # the configured local endpoint; no application-side citation text is appended or synthesized.
+    initial_content = str(llm_response.get("content", "")).strip()
+    if (
+        llm_response.get("ok", False)
+        and initial_content
+        and required_source_label
+        and not _contains_required_source_label(initial_content, required_source_label)
+    ):
+        try:
+            repair_response = llm_client.chat(
+                messages=_build_citation_repair_messages(
+                    answer=initial_content,
+                    required_source_label=required_source_label,
+                ),
+                temperature=0.0,
+            )
+        except Exception:
+            repair_response = {"ok": False, "content": ""}
+
+        repaired_content = str(repair_response.get("content", "")).strip()
+        if (
+            repair_response.get("ok", False)
+            and repaired_content
+            and _contains_required_source_label(repaired_content, required_source_label)
+        ):
+            llm_response = repair_response
 
     citations = _build_citations(retrieved_context)
 

@@ -54,8 +54,11 @@ def main() -> None:
     _json_request("/api/rag/rebuild-index", {})
 
     question = (
-        "How should an AI agent handle legacy database access and human approval? "
-        "Cite at least one exact SOURCE label from the retrieved context in the answer."
+        "Using only the retrieved context, explain briefly how an AI agent should handle "
+        "legacy database access and human approval. Your final sentence MUST be a citation "
+        "copied verbatim from one retrieved SOURCE header, exactly in this format: "
+        "SOURCE [collection:doc_id:chunk-N]. Do not invent, shorten, paraphrase, or omit "
+        "that SOURCE label."
     )
     positive = _json_request(
         "/api/rag/answer",

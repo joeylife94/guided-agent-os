@@ -1,0 +1,137 @@
+name: D3 Positive Local LLM Pilot
+
+on:
+  pull_request:
+    paths:
+      - app/**
+      - scripts/verify_positive_local_llm_pilot.py
+      - scripts/verify_controlled_operator_pilot.py
+      - scripts/verify_operator_browser.py
+      - scripts/verify_operator_rejection_rationale.py
+      - docs/VERIFIED_LOCAL_LLM_PILOT.md
+      - .github/workflows/d3-positive-local-llm.yml
+      - compose.firebat.yml
+      - .env.firebat.example
+      - GUIDED_AGENT_OS_MASTER.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  positive-local-llm-pilot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # pull_request workflows normally checkout GitHub's synthetic merge ref.
+          # D3 acceptance requires executable evidence tied to the candidate head itself.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Install and start real local Ollama endpoint
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          # The installer starts a systemd service bound to loopback. Stop that
+          # instance before starting the repository-owned acceptance endpoint;
+          # otherwise the second `ollama serve` cannot acquire port 11434 and
+          # the Firebat container cannot reach the loopback-only daemon.
+          sudo systemctl stop ollama || true
+          OLLAMA_HOST=0.0.0.0:11434 nohup ollama serve > /tmp/ollama.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null; then break; fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:11434/api/tags >/dev/null
+          ollama pull qwen2.5:1.5b
+          ollama list
+
+      - name: Prepare Firebat environment bound to host-local Ollama
+        run: |
+          cp .env.firebat.example .env.firebat
+          sed -i 's/HOST_PORT=8701/HOST_PORT=18701/' .env.firebat
+          sed -i 's|LOCAL_LLM_BASE_URL=.*|LOCAL_LLM_BASE_URL=http://host.docker.internal:11434/v1|' .env.firebat
+          sed -i 's/LOCAL_LLM_MODEL=.*/LOCAL_LLM_MODEL=qwen2.5:1.5b/' .env.firebat
+          sed -i 's/LOCAL_LLM_TIMEOUT=.*/LOCAL_LLM_TIMEOUT=90/' .env.firebat
+          chmod 600 .env.firebat
+          CANDIDATE_SHA='${{ github.event.pull_request.head.sha }}'
+          if [ -z "$CANDIDATE_SHA" ]; then
+            CANDIDATE_SHA="$GITHUB_SHA"
+          fi
+          echo 'APP_VERSION=ci-d3-01' >> "$GITHUB_ENV"
+          echo "GIT_REVISION=${CANDIDATE_SHA}" >> "$GITHUB_ENV"
+          echo 'HOST_PORT=18701' >> "$GITHUB_ENV"
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+
+      - name: Build and start accepted controlled-pilot image
+        run: |
+          docker compose --env-file .env.firebat -f compose.firebat.yml build app
+          docker compose --env-file .env.firebat -f compose.firebat.yml up -d
+          chmod +x scripts/healthcheck-firebat.sh
+          HEALTHCHECK_MAX_ATTEMPTS=90 sh scripts/healthcheck-firebat.sh
+
+      - name: Execute real local inference acceptance
+        env:
+          OPERATOR_BASE_URL: http://127.0.0.1:18701
+          OPERATOR_ARTIFACT_DIR: /tmp/operator-proof
+          D3_LOCAL_LLM_MODEL: qwen2.5:1.5b
+          D3_LOCAL_LLM_PROVIDER: ollama-openai-compatible
+          D3_LOCAL_LLM_RUNTIME: github-hosted-ubuntu-24.04-host-local-ollama
+        run: python scripts/verify_positive_local_llm_pilot.py
+
+      - name: Re-run accepted D2 control boundary on same exact head
+        env:
+          OPERATOR_BASE_URL: http://127.0.0.1:18701
+          OPERATOR_ARTIFACT_DIR: /tmp/operator-proof
+          D3_LOCAL_LLM_MODEL: qwen2.5:1.5b
+          OPERATOR_BROWSER_WAIT_SECONDS: '90'
+        run: |
+          set -o pipefail
+          google-chrome --version
+          python -m pip install --disable-pip-version-check 'selenium==4.35.0'
+          python scripts/verify_controlled_operator_pilot.py 2>&1 | tee d3-d2-control.log
+
+      - name: Capture exact-head diagnostics and evidence
+        if: always()
+        run: |
+          git rev-parse HEAD > d3-exact-head.txt
+          ollama list > d3-ollama-models.txt 2>&1 || true
+          cp /tmp/ollama.log d3-ollama.log 2>/dev/null || true
+          docker compose --env-file .env.firebat -f compose.firebat.yml logs --tail=400 app > d3-app.log 2>&1 || true
+          cp /tmp/operator-proof/d3_positive_local_llm_diagnostic.json d3_positive_local_llm_diagnostic.json 2>/dev/null || true
+          cp /tmp/operator-proof/d3_positive_local_llm_evidence.json d3_positive_local_llm_evidence.json 2>/dev/null || true
+          cp /tmp/operator-proof/controlled_operator_pilot_evidence.json controlled_operator_pilot_evidence.json 2>/dev/null || true
+          cp /tmp/operator-proof/controlled_operator_pilot_run_evidence.json controlled_operator_pilot_run_evidence.json 2>/dev/null || true
+          cp /tmp/operator-proof/operator-browser-evidence.json operator-browser-evidence.json 2>/dev/null || true
+          cp /tmp/operator-proof/operator-rejection-rationale-evidence.json operator-rejection-rationale-evidence.json 2>/dev/null || true
+
+      - name: Upload D3-01 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: guided-agent-d3-01-positive-local-llm
+          path: |
+            d3-exact-head.txt
+            d3-ollama-models.txt
+            d3-ollama.log
+            d3-app.log
+            d3-d2-control.log
+            d3_positive_local_llm_diagnostic.json
+            d3_positive_local_llm_evidence.json
+            controlled_operator_pilot_evidence.json
+            controlled_operator_pilot_run_evidence.json
+            operator-browser-evidence.json
+            operator-rejection-rationale-evidence.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Stop services
+        if: always()
+        run: |
+          docker compose --env-file .env.firebat -f compose.firebat.yml down -v || true
+          pkill -f 'ollama serve' || true
+
+# Positive acceptance requires a real host-local Ollama process reachable from the
+# Firebat container and a pulled qwen2.5:1.5b model. A stub, fallback response,
+# or cloud endpoint does not satisfy this workflow.

@@ -13,6 +13,7 @@ ARTIFACT_DIR = Path(os.getenv("OPERATOR_ARTIFACT_DIR", "/tmp/operator-proof"))
 ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
 OUTPUT = ARTIFACT_DIR / "controlled_operator_pilot_evidence.json"
 EXPORTED = ARTIFACT_DIR / "controlled_operator_pilot_run_evidence.json"
+D3_EXPECTED_MODEL = os.getenv("D3_LOCAL_LLM_MODEL")
 
 
 def _run(script: str) -> None:
@@ -90,6 +91,15 @@ def main() -> None:
     if execution_result.get("status") != "executed" or execution_result.get("tool_name") != "legacy_db_lookup":
         raise AssertionError(f"Expected approved allowlisted read-only legacy_db_lookup execution: {execution_result}")
 
+    controlled_model = (persisted_run.get("rag_answer") or {}).get("model") or {}
+    if D3_EXPECTED_MODEL:
+        if controlled_model.get("available") is not True:
+            raise AssertionError(f"Controlled pilot run did not use an available local model: {controlled_model}")
+        if str(controlled_model.get("name") or "") != D3_EXPECTED_MODEL:
+            raise AssertionError(
+                f"Controlled pilot expected model {D3_EXPECTED_MODEL!r}, got {controlled_model!r}"
+            )
+
     digest = str(evidence.get("evidence_digest") or "")
     if len(digest) != 64:
         raise AssertionError(f"Expected 64-char deterministic evidence digest, got {digest!r}")
@@ -115,6 +125,7 @@ def main() -> None:
         "approved_allowlisted_read_only_execution": True,
         "persisted_result_and_audit": True,
         "retrieval_provenance_verified": provenance,
+        "controlled_run_model": controlled_model if D3_EXPECTED_MODEL else None,
         "evidence_export_reloaded": True,
         "evidence_digest": digest,
         "recovery_visibility_verified": True,
@@ -127,7 +138,7 @@ def main() -> None:
         "limitations": [
             "legacy_db_lookup is a deterministic local fixture, not customer production integration",
             "recovery visibility is read-only and does not claim distributed recovery guarantees",
-            "no reviewer authentication, RBAC/SSO, write/destructive tools, unrestricted autonomy, signing/non-repudiation, or positive final-stack local-LLM claim",
+            "no reviewer authentication, RBAC/SSO, write/destructive tools, unrestricted autonomy, or signing/non-repudiation claim",
         ],
     }
     OUTPUT.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")

@@ -93,35 +93,51 @@ def _normalize_retrieved_context(
     return normalized
 
 
+def _source_label(collection_name: str, result: dict[str, Any]) -> str:
+    metadata = result.get("metadata") or {}
+    doc_id = str(metadata.get("doc_id") or "").strip()
+    chunk_index = _safe_chunk_index(metadata.get("chunk_index", 0))
+    return f"{collection_name}:{doc_id}:chunk-{chunk_index}" if doc_id else ""
+
+
+def _first_retrieved_source_label(
+    retrieved_context: dict[str, list[dict[str, Any]]],
+) -> str | None:
+    """Choose a citation target only from the exact context returned for this answer."""
+    for collection_name in get_collection_names():
+        for result in retrieved_context.get(collection_name, []):
+            label = _source_label(collection_name, result)
+            if label:
+                return label
+    return None
+
+
+def _contains_required_source_label(content: str, required_source_label: str | None) -> bool:
+    """Return whether model-generated content contains the required exact SOURCE label."""
+    if not required_source_label:
+        return True
+    return f"SOURCE [{required_source_label}]" in str(content or "")
+
+
 def _build_context_block(retrieved_context: dict[str, list[dict[str, Any]]]) -> str:
-    """
-    Build a formatted context block from retrieved documents.
-    
-    Args:
-        retrieved_context: Dict mapping collection names to lists of results
-    
-    Returns:
-        Formatted context string for inclusion in the prompt
-    """
+    """Build a formatted context block from retrieved documents."""
     context_parts = []
-    
+
     for collection_name in get_collection_names():
         results = retrieved_context.get(collection_name, [])
         if not results:
             continue
-        
+
         collection_label = collection_name.replace("_", " ").title()
         context_parts.append(f"\n## From {collection_label}:\n")
-        
+
         for idx, result in enumerate(results, 1):
             content = result.get("content", "")
             metadata = result.get("metadata", {})
             title = metadata.get("title", "Unknown")
-            doc_id = metadata.get("doc_id", "")
             source_path = metadata.get("source_path", "")
-            chunk_index = metadata.get("chunk_index", 0)
-            source_label = f"{collection_name}:{doc_id}:chunk-{chunk_index}"
-            
+            source_label = _source_label(collection_name, result)
+
             context_parts.append(f"\nSOURCE [{source_label}]\n")
             context_parts.append(f"Title: {title}\n")
             context_parts.append(f"Path: {source_path}\n")
@@ -129,7 +145,7 @@ def _build_context_block(retrieved_context: dict[str, list[dict[str, Any]]]) -> 
             context_parts.append("Content:\n")
             context_parts.append(content)
             context_parts.append("\n")
-    
+
     if not context_parts:
         return "No relevant retrieved context was returned from the local knowledge base."
 
@@ -151,9 +167,39 @@ def _build_system_prompt() -> str:
         "external account actions, approvals, or file operations.\n"
         "5. Do NOT produce SQL, command, or executable code.\n"
         "6. If retrieved policy context requires human review or approval, mention it explicitly.\n"
-        "7. Cite sources using only the SOURCE labels shown in the retrieved context.\n"
-        "8. Keep answers concise and grounded in the retrieved knowledge."
+        "7. When retrieved context is present, the generated answer MUST contain the exact "
+        "required SOURCE [collection:doc_id:chunk-N] label supplied by the application. "
+        "Do not shorten, paraphrase, invent, or omit the label.\n"
+        "8. Put that exact required SOURCE label in the final sentence of the answer so the "
+        "grounding is explicit and machine-verifiable.\n"
+        "9. Keep answers concise and grounded in the retrieved knowledge."
     )
+
+
+def _build_citation_repair_messages(
+    answer: str,
+    required_source_label: str,
+) -> list[dict[str, str]]:
+    """Build one bounded real-model retry for a missing exact citation label."""
+    exact_label = f"SOURCE [{required_source_label}]"
+    return [
+        {
+            "role": "system",
+            "content": (
+                "You are repairing citation formatting only. Preserve the supplied answer's "
+                "meaning. Do not add facts, tools, SQL, API claims, or new sources."
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                "Return the supplied answer, followed by one final line containing exactly the "
+                "required citation token. The final line must be copied verbatim and nothing may "
+                f"appear after it.\n\nANSWER TO REPAIR:\n{answer}\n\n"
+                f"REQUIRED FINAL LINE:\n{exact_label}\n\nREPAIRED ANSWER:"
+            ),
+        },
+    ]
 
 
 def _build_fallback_answer(
@@ -202,24 +248,7 @@ def generate_rag_answer(
     model: str | None = None,
     llm_client: LocalLLMClient | None = None,
 ) -> dict[str, Any]:
-    """
-    Generate a grounded answer to a question using RAG + local LLM.
-    
-    Args:
-        question: User question to answer
-        top_k_per_collection: Number of results per collection to retrieve
-        model: Optional model name override
-        llm_client: Optional pre-initialized LLMClient (for testing)
-    
-    Returns:
-        Dict with:
-        - question: The input question
-        - answer: Generated answer or fallback message
-        - citations: List of cited sources
-        - retrieved_context: Dict of retrieved results by collection
-        - limitations: List of limitations
-        - model: Dict with provider, name, and availability
-    """
+    """Generate a grounded answer to a question using RAG + local LLM."""
     question_text = _validate_question(question)
     safe_top_k = _validate_top_k_per_collection(top_k_per_collection)
 
@@ -228,31 +257,36 @@ def generate_rag_answer(
         top_k_per_collection=safe_top_k,
     )
     retrieved_context = _normalize_retrieved_context(raw_retrieved_context)
-    
-    # Build context block for the prompt
+    required_source_label = _first_retrieved_source_label(retrieved_context)
+
     context_block = _build_context_block(retrieved_context)
-    
-    # Initialize LLM client if not provided (for testing)
+
     if llm_client is None:
         llm_client = LocalLLMClient(model=model)
-    
-    # Try to generate answer with the local LLM
+
     system_prompt = _build_system_prompt()
+    citation_instruction = (
+        f"The application selected this exact citation from the returned context: "
+        f"SOURCE [{required_source_label}]. Your final sentence MUST be exactly that SOURCE "
+        f"label, copied verbatim with no extra text after it."
+        if required_source_label
+        else "No SOURCE label is available because no retrieved context was returned."
+    )
     user_prompt = (
         f"Based on the retrieved knowledge base context below, "
         f"answer the following question:\n\n"
         f"QUESTION: {question_text}\n\n"
         f"RETRIEVED CONTEXT:\n{context_block}\n\n"
-        f"Answer only from the retrieved context. If the context is insufficient, "
-        f"say that it is insufficient.\n\n"
+        f"Answer only from the retrieved context. {citation_instruction} "
+        f"If the context is insufficient, say that it is insufficient.\n\n"
         f"ANSWER:"
     )
-    
+
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_prompt},
     ]
-    
+
     try:
         llm_response = llm_client.chat(messages=messages, temperature=0.2)
     except Exception as e:
@@ -262,10 +296,38 @@ def generate_rag_answer(
             "content": "",
             "error": f"Unexpected local LLM client error: {str(e)}",
         }
-    
+
+    # A small local model can produce a grounded answer while dropping an exact citation token.
+    # Permit exactly one real-model formatting repair. The final answer still comes entirely from
+    # the configured local endpoint; no application-side citation text is appended or synthesized.
+    initial_content = str(llm_response.get("content", "")).strip()
+    if (
+        llm_response.get("ok", False)
+        and initial_content
+        and required_source_label
+        and not _contains_required_source_label(initial_content, required_source_label)
+    ):
+        try:
+            repair_response = llm_client.chat(
+                messages=_build_citation_repair_messages(
+                    answer=initial_content,
+                    required_source_label=required_source_label,
+                ),
+                temperature=0.0,
+            )
+        except Exception:
+            repair_response = {"ok": False, "content": ""}
+
+        repaired_content = str(repair_response.get("content", "")).strip()
+        if (
+            repair_response.get("ok", False)
+            and repaired_content
+            and _contains_required_source_label(repaired_content, required_source_label)
+        ):
+            llm_response = repair_response
+
     citations = _build_citations(retrieved_context)
-    
-    # Determine model availability
+
     model_name = (
         llm_response.get("model")
         or getattr(llm_client, "model", None)
@@ -274,15 +336,14 @@ def generate_rag_answer(
     )
     llm_content = str(llm_response.get("content", "")).strip()
     model_available = bool(llm_response.get("ok", False) and llm_content)
-    
-    # Build answer based on LLM availability
+
     if model_available:
         answer = llm_content
     else:
         answer = _build_fallback_answer(retrieved_context)
         if llm_response.get("ok", False) and not llm_content:
             llm_response["error"] = "Local LLM returned an empty response."
-    
+
     return {
         "question": question_text,
         "answer": answer,

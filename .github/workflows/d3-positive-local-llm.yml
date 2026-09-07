@@ -6,6 +6,8 @@ on:
       - app/**
       - scripts/verify_positive_local_llm_pilot.py
       - scripts/verify_controlled_operator_pilot.py
+      - scripts/verify_operator_browser.py
+      - scripts/verify_operator_rejection_rationale.py
       - docs/VERIFIED_LOCAL_LLM_PILOT.md
       - .github/workflows/d3-positive-local-llm.yml
       - compose.firebat.yml

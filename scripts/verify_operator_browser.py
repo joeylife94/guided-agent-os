@@ -15,6 +15,14 @@ ARTIFACT_DIR = Path(os.getenv("OPERATOR_ARTIFACT_DIR", "/tmp"))
 ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
 
 
+def _browser_wait_seconds() -> int:
+    """Allow the accepted browser proof to tolerate slower real local-model inference."""
+    try:
+        return max(30, int(os.getenv("OPERATOR_BROWSER_WAIT_SECONDS", "30")))
+    except (TypeError, ValueError):
+        return 30
+
+
 def wait_text(wait: WebDriverWait, element_id: str, expected: str) -> None:
     wait.until(lambda driver: expected in driver.find_element(By.ID, element_id).text)
 
@@ -43,7 +51,7 @@ def main() -> None:
 
     evidence: dict[str, object] = {"base_url": BASE_URL, "checks": []}
     driver = webdriver.Chrome(options=options)
-    wait = WebDriverWait(driver, 30)
+    wait = WebDriverWait(driver, _browser_wait_seconds())
 
     try:
         driver.get(BASE_URL)

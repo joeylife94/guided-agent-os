@@ -13,6 +13,7 @@ RUNTIME = os.getenv("D3_LOCAL_LLM_RUNTIME", "ollama-localhost")
 ARTIFACT_DIR = Path(os.getenv("OPERATOR_ARTIFACT_DIR", "/tmp/operator-proof"))
 ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
 OUTPUT = ARTIFACT_DIR / "d3_positive_local_llm_evidence.json"
+DIAGNOSTIC_OUTPUT = ARTIFACT_DIR / "d3_positive_local_llm_diagnostic.json"
 
 
 def _json_request(path: str, payload: dict | None = None) -> dict:
@@ -68,6 +69,26 @@ def main() -> None:
     source_labels = _source_labels(positive)
     cited_labels = sorted(label for label in source_labels if label in answer_text)
 
+    # Persist the real endpoint response before acceptance assertions so a RED
+    # run remains diagnosable without weakening any D3 predicate. Keep only
+    # repository fixture/public-safe fields; no host address or secrets.
+    diagnostic = {
+        "provider": PROVIDER,
+        "expected_model": MODEL,
+        "runtime": RUNTIME,
+        "model": model,
+        "answer": answer_text,
+        "retrieved_context_count": retrieved_count,
+        "source_labels": sorted(source_labels),
+        "cited_labels": cited_labels,
+        "citations": citations,
+        "error": positive.get("error"),
+    }
+    DIAGNOSTIC_OUTPUT.write_text(
+        json.dumps(diagnostic, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+    print(json.dumps({"d3_positive_diagnostic": diagnostic}, ensure_ascii=False))
+
     if model.get("available") is not True:
         raise AssertionError(f"Real local model was not positively available: {model}; error={positive.get('error')!r}")
     if str(model.get("name") or "") != MODEL:
@@ -80,7 +101,8 @@ def main() -> None:
         raise AssertionError("Positive inference must retain non-empty retrieved context and citations")
     if not source_labels or not cited_labels:
         raise AssertionError(
-            "Generated answer must reference at least one exact SOURCE label from its retrieved context"
+            "Generated answer must reference at least one exact SOURCE label from its retrieved context; "
+            f"source_labels={sorted(source_labels)!r}; answer={answer_text!r}"
         )
     for citation in citations:
         if not str(citation.get("source_path") or "").strip():

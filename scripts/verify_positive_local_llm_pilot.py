@@ -37,10 +37,25 @@ def _context_count(answer: dict) -> int:
     return sum(len(items or []) for items in (answer.get("retrieved_context") or {}).values())
 
 
+def _source_labels(answer: dict) -> set[str]:
+    labels: set[str] = set()
+    for collection_name, items in (answer.get("retrieved_context") or {}).items():
+        for item in items or []:
+            metadata = item.get("metadata") or {}
+            doc_id = str(metadata.get("doc_id") or "").strip()
+            chunk_index = metadata.get("chunk_index", 0)
+            if doc_id:
+                labels.add(f"{collection_name}:{doc_id}:chunk-{chunk_index}")
+    return labels
+
+
 def main() -> None:
     _json_request("/api/rag/rebuild-index", {})
 
-    question = "How should an AI agent handle legacy database access and human approval?"
+    question = (
+        "How should an AI agent handle legacy database access and human approval? "
+        "Cite at least one exact SOURCE label from the retrieved context in the answer."
+    )
     positive = _json_request(
         "/api/rag/answer",
         {"question": question, "top_k_per_collection": 3, "model": MODEL},
@@ -50,6 +65,8 @@ def main() -> None:
     answer_text = str(positive.get("answer") or "").strip()
     citations = positive.get("citations") or []
     retrieved_count = _context_count(positive)
+    source_labels = _source_labels(positive)
+    cited_labels = sorted(label for label in source_labels if label in answer_text)
 
     if model.get("available") is not True:
         raise AssertionError(f"Real local model was not positively available: {model}; error={positive.get('error')!r}")
@@ -61,6 +78,10 @@ def main() -> None:
         raise AssertionError("Fallback text cannot satisfy positive local inference")
     if retrieved_count <= 0 or not citations:
         raise AssertionError("Positive inference must retain non-empty retrieved context and citations")
+    if not source_labels or not cited_labels:
+        raise AssertionError(
+            "Generated answer must reference at least one exact SOURCE label from its retrieved context"
+        )
     for citation in citations:
         if not str(citation.get("source_path") or "").strip():
             raise AssertionError(f"Citation is not source-verifiable: {citation!r}")
@@ -93,10 +114,12 @@ def main() -> None:
         "retrieved_context_count": retrieved_count,
         "citation_count": len(citations),
         "citation_sources": sorted({str(c.get("source_path") or "") for c in citations}),
+        "generated_answer_source_labels": cited_labels,
         "fallback_separately_verified": True,
         "fallback_model": missing_model,
         "fallback_available": False,
         "controls_verified_elsewhere_in_same_exact_head_workflow": [
+            "controlled approved run uses the same expected available local model",
             "explicit rejection causes no tool execution",
             "explicit approval gates allowlisted read-only legacy_db_lookup",
             "persisted correlated result/audit/retrieval provenance",

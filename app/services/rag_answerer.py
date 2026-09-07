@@ -96,23 +96,23 @@ def _normalize_retrieved_context(
 def _build_context_block(retrieved_context: dict[str, list[dict[str, Any]]]) -> str:
     """
     Build a formatted context block from retrieved documents.
-    
+
     Args:
         retrieved_context: Dict mapping collection names to lists of results
-    
+
     Returns:
         Formatted context string for inclusion in the prompt
     """
     context_parts = []
-    
+
     for collection_name in get_collection_names():
         results = retrieved_context.get(collection_name, [])
         if not results:
             continue
-        
+
         collection_label = collection_name.replace("_", " ").title()
         context_parts.append(f"\n## From {collection_label}:\n")
-        
+
         for idx, result in enumerate(results, 1):
             content = result.get("content", "")
             metadata = result.get("metadata", {})
@@ -121,7 +121,7 @@ def _build_context_block(retrieved_context: dict[str, list[dict[str, Any]]]) -> 
             source_path = metadata.get("source_path", "")
             chunk_index = metadata.get("chunk_index", 0)
             source_label = f"{collection_name}:{doc_id}:chunk-{chunk_index}"
-            
+
             context_parts.append(f"\nSOURCE [{source_label}]\n")
             context_parts.append(f"Title: {title}\n")
             context_parts.append(f"Path: {source_path}\n")
@@ -129,7 +129,7 @@ def _build_context_block(retrieved_context: dict[str, list[dict[str, Any]]]) -> 
             context_parts.append("Content:\n")
             context_parts.append(content)
             context_parts.append("\n")
-    
+
     if not context_parts:
         return "No relevant retrieved context was returned from the local knowledge base."
 
@@ -151,8 +151,12 @@ def _build_system_prompt() -> str:
         "external account actions, approvals, or file operations.\n"
         "5. Do NOT produce SQL, command, or executable code.\n"
         "6. If retrieved policy context requires human review or approval, mention it explicitly.\n"
-        "7. Cite sources using only the SOURCE labels shown in the retrieved context.\n"
-        "8. Keep answers concise and grounded in the retrieved knowledge."
+        "7. When retrieved context is present, the generated answer MUST contain at least one "
+        "exact SOURCE [collection:doc_id:chunk-N] label copied verbatim from the supplied context. "
+        "Do not shorten, paraphrase, invent, or omit the label.\n"
+        "8. Put the copied SOURCE label in the final sentence of the answer so the grounding is "
+        "explicit and machine-verifiable.\n"
+        "9. Keep answers concise and grounded in the retrieved knowledge."
     )
 
 
@@ -204,13 +208,13 @@ def generate_rag_answer(
 ) -> dict[str, Any]:
     """
     Generate a grounded answer to a question using RAG + local LLM.
-    
+
     Args:
         question: User question to answer
         top_k_per_collection: Number of results per collection to retrieve
         model: Optional model name override
         llm_client: Optional pre-initialized LLMClient (for testing)
-    
+
     Returns:
         Dict with:
         - question: The input question
@@ -228,14 +232,14 @@ def generate_rag_answer(
         top_k_per_collection=safe_top_k,
     )
     retrieved_context = _normalize_retrieved_context(raw_retrieved_context)
-    
+
     # Build context block for the prompt
     context_block = _build_context_block(retrieved_context)
-    
+
     # Initialize LLM client if not provided (for testing)
     if llm_client is None:
         llm_client = LocalLLMClient(model=model)
-    
+
     # Try to generate answer with the local LLM
     system_prompt = _build_system_prompt()
     user_prompt = (
@@ -243,16 +247,18 @@ def generate_rag_answer(
         f"answer the following question:\n\n"
         f"QUESTION: {question_text}\n\n"
         f"RETRIEVED CONTEXT:\n{context_block}\n\n"
-        f"Answer only from the retrieved context. If the context is insufficient, "
-        f"say that it is insufficient.\n\n"
+        f"Answer only from the retrieved context. If retrieved context is present, "
+        f"finish the generated answer with at least one exact SOURCE "
+        f"[collection:doc_id:chunk-N] label copied verbatim from a SOURCE header above. "
+        f"If the context is insufficient, say that it is insufficient.\n\n"
         f"ANSWER:"
     )
-    
+
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_prompt},
     ]
-    
+
     try:
         llm_response = llm_client.chat(messages=messages, temperature=0.2)
     except Exception as e:
@@ -262,9 +268,9 @@ def generate_rag_answer(
             "content": "",
             "error": f"Unexpected local LLM client error: {str(e)}",
         }
-    
+
     citations = _build_citations(retrieved_context)
-    
+
     # Determine model availability
     model_name = (
         llm_response.get("model")
@@ -274,7 +280,7 @@ def generate_rag_answer(
     )
     llm_content = str(llm_response.get("content", "")).strip()
     model_available = bool(llm_response.get("ok", False) and llm_content)
-    
+
     # Build answer based on LLM availability
     if model_available:
         answer = llm_content
@@ -282,7 +288,7 @@ def generate_rag_answer(
         answer = _build_fallback_answer(retrieved_context)
         if llm_response.get("ok", False) and not llm_content:
             llm_response["error"] = "Local LLM returned an empty response."
-    
+
     return {
         "question": question_text,
         "answer": answer,

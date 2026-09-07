@@ -23,6 +23,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # pull_request workflows normally checkout GitHub's synthetic merge ref.
+          # D3 acceptance requires executable evidence tied to the candidate head itself.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Install and start real local Ollama endpoint
         run: |
@@ -49,9 +53,14 @@ jobs:
           sed -i 's/LOCAL_LLM_MODEL=.*/LOCAL_LLM_MODEL=qwen2.5:1.5b/' .env.firebat
           sed -i 's/LOCAL_LLM_TIMEOUT=.*/LOCAL_LLM_TIMEOUT=90/' .env.firebat
           chmod 600 .env.firebat
+          CANDIDATE_SHA='${{ github.event.pull_request.head.sha }}'
+          if [ -z "$CANDIDATE_SHA" ]; then
+            CANDIDATE_SHA="$GITHUB_SHA"
+          fi
           echo 'APP_VERSION=ci-d3-01' >> "$GITHUB_ENV"
-          echo "GIT_REVISION=${GITHUB_SHA}" >> "$GITHUB_ENV"
+          echo "GIT_REVISION=${CANDIDATE_SHA}" >> "$GITHUB_ENV"
           echo 'HOST_PORT=18701' >> "$GITHUB_ENV"
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
 
       - name: Build and start accepted controlled-pilot image
         run: |
@@ -75,9 +84,10 @@ jobs:
           OPERATOR_ARTIFACT_DIR: /tmp/operator-proof
           D3_LOCAL_LLM_MODEL: qwen2.5:1.5b
         run: |
+          set -o pipefail
           google-chrome --version
           python -m pip install --disable-pip-version-check 'selenium==4.35.0'
-          python scripts/verify_controlled_operator_pilot.py
+          python scripts/verify_controlled_operator_pilot.py 2>&1 | tee d3-d2-control.log
 
       - name: Capture exact-head diagnostics and evidence
         if: always()
@@ -90,6 +100,8 @@ jobs:
           cp /tmp/operator-proof/d3_positive_local_llm_evidence.json d3_positive_local_llm_evidence.json 2>/dev/null || true
           cp /tmp/operator-proof/controlled_operator_pilot_evidence.json controlled_operator_pilot_evidence.json 2>/dev/null || true
           cp /tmp/operator-proof/controlled_operator_pilot_run_evidence.json controlled_operator_pilot_run_evidence.json 2>/dev/null || true
+          cp /tmp/operator-proof/operator-browser-evidence.json operator-browser-evidence.json 2>/dev/null || true
+          cp /tmp/operator-proof/operator-rejection-rationale-evidence.json operator-rejection-rationale-evidence.json 2>/dev/null || true
 
       - name: Upload D3-01 evidence
         if: always()
@@ -101,10 +113,13 @@ jobs:
             d3-ollama-models.txt
             d3-ollama.log
             d3-app.log
+            d3-d2-control.log
             d3_positive_local_llm_diagnostic.json
             d3_positive_local_llm_evidence.json
             controlled_operator_pilot_evidence.json
             controlled_operator_pilot_run_evidence.json
+            operator-browser-evidence.json
+            operator-rejection-rationale-evidence.json
           if-no-files-found: ignore
           retention-days: 14
 

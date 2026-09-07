@@ -38,7 +38,7 @@ jobs:
             sleep 2
           done
           curl -fsS http://127.0.0.1:11434/api/tags >/dev/null
-          ollama pull qwen2.5:0.5b
+          ollama pull qwen2.5:1.5b
           ollama list
 
       - name: Prepare Firebat environment bound to host-local Ollama
@@ -46,7 +46,7 @@ jobs:
           cp .env.firebat.example .env.firebat
           sed -i 's/HOST_PORT=8701/HOST_PORT=18701/' .env.firebat
           sed -i 's|LOCAL_LLM_BASE_URL=.*|LOCAL_LLM_BASE_URL=http://host.docker.internal:11434/v1|' .env.firebat
-          sed -i 's/LOCAL_LLM_MODEL=.*/LOCAL_LLM_MODEL=qwen2.5:0.5b/' .env.firebat
+          sed -i 's/LOCAL_LLM_MODEL=.*/LOCAL_LLM_MODEL=qwen2.5:1.5b/' .env.firebat
           sed -i 's/LOCAL_LLM_TIMEOUT=.*/LOCAL_LLM_TIMEOUT=90/' .env.firebat
           chmod 600 .env.firebat
           echo 'APP_VERSION=ci-d3-01' >> "$GITHUB_ENV"
@@ -64,7 +64,7 @@ jobs:
         env:
           OPERATOR_BASE_URL: http://127.0.0.1:18701
           OPERATOR_ARTIFACT_DIR: /tmp/operator-proof
-          D3_LOCAL_LLM_MODEL: qwen2.5:0.5b
+          D3_LOCAL_LLM_MODEL: qwen2.5:1.5b
           D3_LOCAL_LLM_PROVIDER: ollama-openai-compatible
           D3_LOCAL_LLM_RUNTIME: github-hosted-ubuntu-24.04-host-local-ollama
         run: python scripts/verify_positive_local_llm_pilot.py
@@ -73,7 +73,7 @@ jobs:
         env:
           OPERATOR_BASE_URL: http://127.0.0.1:18701
           OPERATOR_ARTIFACT_DIR: /tmp/operator-proof
-          D3_LOCAL_LLM_MODEL: qwen2.5:0.5b
+          D3_LOCAL_LLM_MODEL: qwen2.5:1.5b
         run: |
           google-chrome --version
           python -m pip install --disable-pip-version-check 'selenium==4.35.0'
@@ -115,5 +115,5 @@ jobs:
           pkill -f 'ollama serve' || true
 
 # Positive acceptance requires a real host-local Ollama process reachable from the
-# Firebat container and a pulled qwen2.5:0.5b model. A stub, fallback response,
+# Firebat container and a pulled qwen2.5:1.5b model. A stub, fallback response,
 # or cloud endpoint does not satisfy this workflow.

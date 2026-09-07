@@ -4,7 +4,6 @@ import json
 import os
 from pathlib import Path
 from urllib.error import HTTPError
-from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 BASE_URL = os.getenv("OPERATOR_BASE_URL", "http://127.0.0.1:18701").rstrip("/")
@@ -38,11 +37,6 @@ def _json_request(path: str, payload: dict | None = None) -> dict:
         ) from exc
 
 
-def _query_all(question: str, top_k: int = 1) -> dict:
-    query = urlencode({"q": question, "top_k": top_k})
-    return _json_request(f"/api/rag/query-all?{query}")
-
-
 def _context_count(answer: dict) -> int:
     return sum(
         len(items or [])
@@ -50,47 +44,24 @@ def _context_count(answer: dict) -> int:
     )
 
 
-def _source_labels(answer: dict) -> set[str]:
-    labels: set[str] = set()
+def _ordered_source_labels(answer: dict) -> list[str]:
+    labels: list[str] = []
     for collection_name, items in (answer.get("retrieved_context") or {}).items():
         for item in items or []:
             metadata = item.get("metadata") or {}
             doc_id = str(metadata.get("doc_id") or "").strip()
             chunk_index = metadata.get("chunk_index", 0)
             if doc_id:
-                labels.add(f"{collection_name}:{doc_id}:chunk-{chunk_index}")
+                labels.append(f"{collection_name}:{doc_id}:chunk-{chunk_index}")
     return labels
-
-
-def _select_required_source_label(discovery: dict) -> str:
-    for collection_name, items in (discovery.get("results") or {}).items():
-        for item in items or []:
-            metadata = item.get("metadata") or {}
-            doc_id = str(metadata.get("doc_id") or "").strip()
-            if not doc_id:
-                continue
-            chunk_index = metadata.get("chunk_index", 0)
-            return f"{collection_name}:{doc_id}:chunk-{chunk_index}"
-    raise AssertionError("Preflight retrieval returned no usable SOURCE label")
 
 
 def main() -> None:
     _json_request("/api/rag/rebuild-index", {})
 
-    base_question = (
+    question = (
         "Using only the retrieved context, explain briefly how an AI agent should handle "
         "legacy database access and human approval."
-    )
-
-    # Discover one exact label from the same real semantic retrieval surface first.
-    # This avoids hard-coding repository document IDs while still requiring the model
-    # to emit a citation token that is demonstrably present in its returned context.
-    discovery = _query_all(base_question, top_k=1)
-    required_label = _select_required_source_label(discovery)
-
-    question = (
-        f"{base_question} Your final sentence MUST be exactly this citation token, copied "
-        f"verbatim with no extra text after it: SOURCE [{required_label}]"
     )
     positive = _json_request(
         "/api/rag/answer",
@@ -101,7 +72,8 @@ def main() -> None:
     answer_text = str(positive.get("answer") or "").strip()
     citations = positive.get("citations") or []
     retrieved_count = _context_count(positive)
-    source_labels = _source_labels(positive)
+    source_labels = _ordered_source_labels(positive)
+    required_label = source_labels[0] if source_labels else ""
     cited_labels = sorted(label for label in source_labels if label in answer_text)
 
     diagnostic = {
@@ -112,8 +84,7 @@ def main() -> None:
         "answer": answer_text,
         "retrieved_context_count": retrieved_count,
         "required_source_label": required_label,
-        "required_source_present_in_returned_context": required_label in source_labels,
-        "source_labels": sorted(source_labels),
+        "source_labels": source_labels,
         "cited_labels": cited_labels,
         "citations": citations,
         "error": positive.get("error"),
@@ -134,19 +105,15 @@ def main() -> None:
         raise AssertionError("Real local model returned empty generated output")
     if answer_text.startswith("Local LLM is unavailable"):
         raise AssertionError("Fallback text cannot satisfy positive local inference")
-    if retrieved_count <= 0 or not citations:
+    if retrieved_count <= 0 or not citations or not required_label:
         raise AssertionError(
-            "Positive inference must retain non-empty retrieved context and citations"
-        )
-    if required_label not in source_labels:
-        raise AssertionError(
-            "The dynamically selected required SOURCE label must also be present in the "
-            f"positive answer's returned context; required={required_label!r}; "
-            f"source_labels={sorted(source_labels)!r}"
+            "Positive inference must retain non-empty retrieved context, citations, "
+            "and at least one source label"
         )
     if required_label not in answer_text or not cited_labels:
         raise AssertionError(
-            "Generated answer must contain the exact dynamically selected SOURCE label; "
+            "Generated answer must contain the exact application-selected SOURCE label "
+            "from the same returned context; "
             f"required={required_label!r}; answer={answer_text!r}"
         )
     for citation in citations:

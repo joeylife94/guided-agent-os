@@ -12,13 +12,14 @@
 | Proof v1.0 | **CLOSED / FROZEN** |
 | D1 | **DESTINATION REACHED — L3 USABLE / DEMONSTRABLE** |
 | D2 | **DESTINATION REACHED — L4 CONTROLLED OPERATOR PILOT** |
+| D3 | **SELECTED — VERIFIED LOCAL-LLM CONTROLLED OPERATOR PILOT** |
 | Latest accepted milestone | **P-025 / Issue #66 Controlled Operator Pilot acceptance path — CLOSED / ACCEPTED** |
 | Accepted P-025 head | `21549a4c2d026d2d1b951ac718e54ff2a7ce4e9c` |
 | Latest accepted progression merge | `82c0977c93c0db976fb3138d921b40f91fc9f5ec` |
-| Active milestone | **NONE** |
-| Progression state | **HUMAN REVIEW — NEXT DESTINATION DECISION** |
+| Active milestone | **D3-01 / Issue #68 — positive real local-LLM inference** |
+| Progression state | **ACTIVE — D3-01** |
 
-D1 and D2 are accepted destination slices. Do not open another micro-proof or capability milestone merely to continue progression. The next meaningful destination crosses a product/security boundary and requires explicit human direction.
+D1 and D2 remain accepted/frozen. Human Review on 2026-09-07 explicitly selected D3 to close the remaining positive final-stack local-LLM inference gap. D3-01 is the only active bounded milestone.
 
 ---
 
@@ -48,7 +49,7 @@ Frozen non-claims:
 - no distributed exactly-once/recovery guarantee;
 - no production auth/OAuth/RBAC/multi-tenancy claim;
 - no signing/non-repudiation or tamper-proof claim;
-- no positive final-stack local-LLM inference claim.
+- no accepted positive final-stack local-LLM inference claim **until D3 exact-head real-model evidence passes**.
 
 Frozen evidence anchors:
 - verified app/eval merge `8498183f584332887a38ae5e925e6b810177e99b`;
@@ -90,15 +91,36 @@ Exact-head executed evidence:
 - Firebat Container — **SUCCESS**;
 - P-025 Controlled Operator Pilot — **SUCCESS**.
 
-The contract-first P1 review thread was answered against the implementation head and resolved before merge. PR #67 was merged with expected-head protection to `82c0977c93c0db976fb3138d921b40f91fc9f5ec`; Issue #66 is CLOSED/completed.
+PR #67 was merged with expected-head protection to `82c0977c93c0db976fb3138d921b40f91fc9f5ec`; Issue #66 is CLOSED/completed.
 
-P-025 adds a coherent verifier, dedicated workflow, and concise operator runbook. It composes existing accepted controls rather than expanding agent authority.
+## D3 — Verified Local-LLM Controlled Operator Pilot
+
+**SELECTED — NOT YET ACCEPTED.**
+
+Human Review on 2026-09-07 selected D3. D3 must prove that the accepted D2 controlled operator pilot can use a **real local OpenAI-compatible LLM endpoint** for its grounded-answer path while preserving retrieval/citation provenance, explicit reject/approve controls, allowlisted read-only tool execution, correlated persisted evidence, and truthful unavailable-model fallback behavior.
+
+### D3-01 — Issue #68
+
+**ACTIVE.** Smallest bounded objective: positive real local inference in the accepted controlled pilot.
+
+Acceptance requires exact-head executable evidence showing:
+- a real local OpenAI-compatible endpoint was reachable and actually invoked; no stub/mock/fallback may satisfy this gate;
+- exact model/provider and public-safe runtime provenance are recorded;
+- one grounded request with non-empty retrieved context returns non-empty model-generated output;
+- citations and retrieval provenance remain source-verifiable;
+- generation cannot bypass explicit reject/approve boundaries or directly invoke tools;
+- reject still produces no tool execution;
+- approval still gates `legacy_db_lookup` read-only execution and correlated persisted result/audit evidence;
+- fallback remains separately executable and distinguishable from positive inference;
+- D2 baseline gates remain green or unrelated debt is explicitly separated.
+
+If GitHub-hosted CI cannot run a real local model within the resource envelope, D3-01 remains HOLD. Repository-owned verifier/runbook/environment contract may be added, but no PASS may be claimed until a real-model exact-head run exists.
 
 ---
 
 # 3. Progression Registry
 
-P-001 through P-024 remain **CLOSED / ACCEPTED** under their previously recorded merge evidence. Key later milestones:
+P-001 through P-025 remain **CLOSED / ACCEPTED** under their previously recorded merge evidence. Key later milestones:
 
 - **P-020 CLOSED / ACCEPTED** — enforce non-blank rejection rationale server-side; Issue #56 / PR #57; merge `02b310378591e81ca4d26d02fb6c0315d9f4f2b5`.
 - **P-021 CLOSED / ACCEPTED** — truthful semantic embedding provenance + MiniLM delivery defaults; Issue #58 / PR #59; merge `1db147e10f630dd0880e636c43849a93874c10b8`.
@@ -106,6 +128,7 @@ P-001 through P-024 remain **CLOSED / ACCEPTED** under their previously recorded
 - **P-023 CLOSED / ACCEPTED** — surface retrieval provenance in Operator evidence summary; Issue #62 / PR #63; merge `b656e1881c13f40845a463076e0d9fffe786a211`.
 - **P-024 CLOSED / ACCEPTED** — browser-verify Operator retrieval provenance summary; Issue #64 / PR #65; merge `7096ae6d1dc9d41d24f895daed56f665736b58fa`.
 - **P-025 CLOSED / ACCEPTED** — D2 Controlled Operator Pilot acceptance path; Issue #66 / PR #67; accepted head `21549a4c2d026d2d1b951ac718e54ff2a7ce4e9c`; merge `82c0977c93c0db976fb3138d921b40f91fc9f5ec`.
+- **D3-01 ACTIVE** — Issue #68; prove positive local-LLM inference in the controlled operator pilot.
 
 Earlier P-001 through P-019 acceptance history remains authoritative in Git/Issue/PR history and is not reopened by this reconciliation.
 
@@ -117,64 +140,47 @@ Earlier P-001 through P-019 acceptance history remains authoritative in Git/Issu
 - `legacy_db_lookup` remains a deterministic local fixture, not customer-system integration.
 - concurrency/recovery evidence remains bounded to the current SQLite/SQLAlchemy runtime and documented quarantine/recovery semantics; no replay/reconstruction or distributed guarantee is claimed.
 - browser proof remains bounded to the repository Firebat/GitHub Actions/headless-Chrome environment.
-- reviewer identity/authentication, RBAC/SSO, customer authorization, write/destructive tooling, unrestricted autonomy, signing/non-repudiation, and positive final-stack local-LLM inference remain explicitly unaccepted.
+- reviewer identity/authentication, RBAC/SSO, customer authorization, write/destructive tooling, unrestricted autonomy, signing/non-repudiation remain explicitly unaccepted.
+- positive final-stack local-LLM inference is **selected for D3 but remains unverified until exact-head real-model execution passes**.
 
 ---
 
-# 5. Next Destination Gate
+# 5. D3 Gate
 
-**HUMAN REVIEW — NEXT DESTINATION DECISION.**
+D3-01 is the only active milestone. Do not expand it into model benchmarking, customer integration, auth/RBAC, write tooling, distributed guarantees, signing/non-repudiation, cloud/Kubernetes deployment, SLA/SLO, security certification, or broader autonomy.
 
-Do not automatically open P-026.
-
-The next meaningful progression would require choosing at least one materially new product/security direction, for example:
-- real customer-system integration and its authorization/data-handling model;
-- authenticated reviewer identity and RBAC/SSO;
-- write/destructive tool policy and stronger approval controls;
-- distributed execution/recovery guarantees;
-- signing/non-repudiation/tamper-resistance requirements;
-- a separately executed positive local-LLM final-stack target.
-
-Those are not bounded proof-composition gaps. They require explicit human/product direction before implementation.
+After D3-01 acceptance, perform Destination Review. Open another milestone only for a concrete remaining blocker to a truthful Verified Local-LLM Controlled Operator Pilot. If D3 is reached and the next meaningful destination again crosses a major product/security boundary, return to **HUMAN REVIEW — NEXT DESTINATION DECISION**.
 
 ---
 
 # 6. Current Run Record
 
 ### Changed
-- P-025 accepted and merged; Issue #66 closed.
-- D2 recorded as **DESTINATION REACHED — L4 CONTROLLED OPERATOR PILOT**.
-- active milestone cleared.
-- progression moved to **HUMAN REVIEW — NEXT DESTINATION DECISION** rather than creating another micro milestone.
+- D3 human direction reconciled into MASTER on the D3-01 milestone branch.
+- D1/D2 remain accepted/frozen.
+- D3-01 / Issue #68 is active.
 
 ### Actually Executed
 - current root MASTER on `main` read first;
-- PR #67 exact implementation head `21549a4c2d026d2d1b951ac718e54ff2a7ce4e9c` checked;
-- exact-head PR Validation, Firebat Container, and P-025 Controlled Operator Pilot all observed `completed/success`;
-- outstanding contract-first P1 review thread answered against the implementation head and resolved;
-- PR #67 squash-merged with expected-head protection;
-- merge SHA `82c0977c93c0db976fb3138d921b40f91fc9f5ec` confirmed;
-- Issue #66 confirmed CLOSED/completed;
-- MASTER reconciled after merge.
+- current Issue #68 read and confirmed OPEN;
+- current open PR list checked and confirmed empty before branch creation;
+- existing `LocalLLMClient`, RAG answer path, and D2 controlled-pilot verifier inspected.
 
 ### Verified
-- P-025 exact-head executable gates are green;
-- review blocker is resolved;
-- P-025 repository lifecycle is CLOSED / ACCEPTED;
-- D2 acceptance is justified for the explicitly bounded Controlled Operator Pilot definition.
+- repository currently has a real OpenAI-compatible local client path and explicit fallback behavior;
+- positive final-stack local inference is still an unaccepted gap on `main`;
+- Issue #68 is repository-recorded explicit human direction for D3.
 
 ### Not Verified
-- real customer production integration;
-- authenticated reviewer identity or production authorization;
-- RBAC/SSO/multi-tenancy;
-- write/destructive execution safety;
-- distributed recovery/exactly-once guarantees;
-- signing/non-repudiation/tamper-proof evidence;
-- unrestricted autonomy or unrestricted tool safety;
-- positive final-stack local-LLM inference.
+- any real local model invocation tied to the D3-01 candidate head;
+- non-empty model-generated grounded output from a real local endpoint;
+- exact model/runtime provenance for an executed D3 candidate;
+- D3 destination acceptance.
 
-### Limitations
-Acceptance remains bounded to this repository, the Firebat/GitHub Actions clean-environment proof, headless browser/operator acceptance, local fixture tool, SQLite/SQLAlchemy runtime scope, and the explicit non-claims above.
+### Remaining Risks
+- GitHub-hosted runner resource/model download constraints may prevent a practical real-model run;
+- a real local endpoint may be reachable while the selected model is absent or too slow, which must remain HOLD rather than be replaced by a stub;
+- positive inference evidence must remain clearly distinguishable from fallback output.
 
 ### Exact Next Action
-Remain in **HUMAN REVIEW — NEXT DESTINATION DECISION** with no new milestone. Resume progression only after explicit human direction selects the next product/security destination.
+Add the smallest repository-owned real-model verifier/runbook/workflow to Issue #68, run it against the exact candidate head using a real local OpenAI-compatible model, and accept/merge only if the real-model gate and preserved D2 controls are executable and green.

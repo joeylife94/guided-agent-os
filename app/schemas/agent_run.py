@@ -99,7 +99,27 @@ class AgentRunResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class ApproveRequest(BaseModel):
+class ReviewerDecisionRequest(BaseModel):
+    """Bounded repository-local reviewer identity for an explicit human decision."""
+
+    reviewer_id: str = Field(
+        ...,
+        description=(
+            "Repository-local reviewer identifier used only for persisted decision "
+            "attribution. This is not an authentication, SSO, RBAC, or account claim."
+        ),
+    )
+
+    @field_validator("reviewer_id")
+    @classmethod
+    def normalize_reviewer_id(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("Reviewer identity must not be blank.")
+        return normalized
+
+
+class ApproveRequest(ReviewerDecisionRequest):
     """Human approval plus the exact execution-input digest reviewed by the operator."""
 
     note: Optional[str] = Field(default=None, description="Reviewer note for the approval.")
@@ -112,8 +132,8 @@ class ApproveRequest(BaseModel):
     )
 
 
-class RejectRequest(BaseModel):
-    """Required non-blank reason for rejecting a run."""
+class RejectRequest(ReviewerDecisionRequest):
+    """Required reviewer identity and non-blank reason for rejecting a run."""
 
     reason: str = Field(..., description="Why this run is being rejected.")
 
@@ -124,3 +144,7 @@ class RejectRequest(BaseModel):
         if not normalized:
             raise ValueError("Rejection reason must not be blank.")
         return normalized
+
+
+class RecoverDecisionRequest(ReviewerDecisionRequest):
+    """Reviewer identity for explicitly quarantining an interrupted decision."""

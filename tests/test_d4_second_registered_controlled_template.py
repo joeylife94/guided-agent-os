@@ -12,7 +12,7 @@ from app.agents.workflow import workflow
 from app.api.routes import _get_template_config, router
 from app.models.database import Base, get_db
 from app.models.models import AgentRun
-from tests.approval_digest_helper import approval_body
+from tests.approval_digest_helper import DEFAULT_REVIEWER_ID, approval_body
 
 
 CONTROLLED_PROFILE = {
@@ -215,7 +215,7 @@ def test_second_template_reject_still_executes_no_tool() -> None:
 
     response = client.post(
         "/api/agents/runs/run-d4-public-reject/reject",
-        json={"reason": "Reviewer rejects this lookup"},
+        json={"reviewer_id": DEFAULT_REVIEWER_ID, "reason": "Reviewer rejects this lookup"},
     )
     assert response.status_code == 200
     payload = response.json()
@@ -234,7 +234,7 @@ def test_second_template_approval_preserves_digest_gate_and_read_only_execution(
 
     missing_digest = client.post(
         "/api/agents/runs/run-d4-public-approve/approve",
-        json={"note": "No reviewed digest"},
+        json={"reviewer_id": DEFAULT_REVIEWER_ID, "note": "No reviewed digest"},
     )
     assert missing_digest.status_code == 409
 

@@ -14,7 +14,7 @@ from app.services.tool_executor import (
     execute_approved_tool,
     registered_tool_names,
 )
-from tests.approval_digest_helper import approval_body
+from tests.approval_digest_helper import DEFAULT_REVIEWER_ID, approval_body
 
 
 engine = create_engine(
@@ -162,7 +162,7 @@ def test_reject_blocks_execution_and_persists_rejection() -> None:
 
     response = client.post(
         f"/api/agents/runs/{run_id}/reject",
-        json={"reason": "Do not access the internal record"},
+        json={"reviewer_id": DEFAULT_REVIEWER_ID, "reason": "Do not access the internal record"},
     )
     assert response.status_code == 200
     payload = response.json()
@@ -180,7 +180,7 @@ def test_reject_blank_reason_is_validation_failure_without_terminal_mutation() -
 
     response = client.post(
         f"/api/agents/runs/{run_id}/reject",
-        json={"reason": ""},
+        json={"reviewer_id": DEFAULT_REVIEWER_ID, "reason": ""},
     )
     assert response.status_code == 422
 
@@ -198,7 +198,7 @@ def test_reject_whitespace_reason_is_validation_failure_without_terminal_mutatio
 
     response = client.post(
         f"/api/agents/runs/{run_id}/reject",
-        json={"reason": "   \t  "},
+        json={"reviewer_id": DEFAULT_REVIEWER_ID, "reason": "   \t  "},
     )
     assert response.status_code == 422
 
@@ -216,7 +216,10 @@ def test_reject_reason_is_trimmed_before_audit_persistence() -> None:
 
     response = client.post(
         f"/api/agents/runs/{run_id}/reject",
-        json={"reason": "  Human explicitly rejects this lookup.  "},
+        json={
+            "reviewer_id": DEFAULT_REVIEWER_ID,
+            "reason": "  Human explicitly rejects this lookup.  ",
+        },
     )
     assert response.status_code == 200
 
@@ -241,7 +244,7 @@ def test_duplicate_approval_is_idempotent_and_does_not_repeat_terminal_events() 
 
     replay = client.post(
         f"/api/agents/runs/{run_id}/approve",
-        json={"note": "Retry of the same decision"},
+        json={"reviewer_id": DEFAULT_REVIEWER_ID, "note": "Retry of the same decision"},
     )
     assert replay.status_code == 200
     assert replay.json()["status"] == "archived"
@@ -258,13 +261,13 @@ def test_duplicate_rejection_is_idempotent_and_does_not_repeat_terminal_events()
     run_id = _seed_pending_run()
     first = client.post(
         f"/api/agents/runs/{run_id}/reject",
-        json={"reason": "Reject once"},
+        json={"reviewer_id": DEFAULT_REVIEWER_ID, "reason": "Reject once"},
     )
     assert first.status_code == 200
 
     replay = client.post(
         f"/api/agents/runs/{run_id}/reject",
-        json={"reason": "Retry of the same decision"},
+        json={"reviewer_id": DEFAULT_REVIEWER_ID, "reason": "Retry of the same decision"},
     )
     assert replay.status_code == 200
     assert replay.json()["status"] == "rejected"
@@ -288,7 +291,7 @@ def test_reject_after_approval_is_conflict_and_preserves_approved_result() -> No
 
     conflict = client.post(
         f"/api/agents/runs/{run_id}/reject",
-        json={"reason": "Conflicting later decision"},
+        json={"reviewer_id": DEFAULT_REVIEWER_ID, "reason": "Conflicting later decision"},
     )
     assert conflict.status_code == 409
 
@@ -307,11 +310,14 @@ def test_approve_after_rejection_is_conflict_and_never_executes_tool() -> None:
     run_id = _seed_pending_run()
     rejected = client.post(
         f"/api/agents/runs/{run_id}/reject",
-        json={"reason": "Reject first"},
+        json={"reviewer_id": DEFAULT_REVIEWER_ID, "reason": "Reject first"},
     )
     assert rejected.status_code == 200
 
-    conflict = client.post(f"/api/agents/runs/{run_id}/approve", json={})
+    conflict = client.post(
+        f"/api/agents/runs/{run_id}/approve",
+        json={"reviewer_id": DEFAULT_REVIEWER_ID},
+    )
     assert conflict.status_code == 409
 
     persisted = client.get(f"/api/agents/runs/{run_id}").json()

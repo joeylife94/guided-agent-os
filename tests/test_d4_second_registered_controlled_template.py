@@ -54,6 +54,25 @@ def _fake_rag_answer(*_args, **_kwargs) -> dict:
     }
 
 
+def _fake_guidance_rag_answer(*_args, **_kwargs) -> dict:
+    return {
+        "question": "Summarize the maintenance guidance.",
+        "answer": "Follow the documented maintenance interval. SOURCE [manuals:d4-public:chunk-0]",
+        "citations": [{"source_path": "knowledge/manuals.md"}],
+        "retrieved_context": {
+            "manuals": [
+                {
+                    "doc_id": "d4-public",
+                    "chunk_id": "chunk-0",
+                    "text": "Follow the documented maintenance interval.",
+                }
+            ]
+        },
+        "limitations": [],
+        "model": {"provider": "local", "name": "test-local", "available": True},
+    }
+
+
 def test_second_registered_template_uses_same_generic_controlled_profile() -> None:
     controlled = _get_template_config("controlled_rag_agent")
     public = _get_template_config("public_enterprise_ai")
@@ -79,6 +98,43 @@ def test_second_registered_template_uses_same_generic_controlled_profile() -> No
     assert result["rag_answer"]["citations"][0]["source_path"] == "knowledge/agent_policy.md"
     assert "SOURCE [agent_policy:d4-public:chunk-0]" in result["rag_answer"]["answer"]
     assert result["tool_plan"]["approval_required"] is True
+
+
+def test_second_template_explicit_policy_constraints_cannot_bypass_review() -> None:
+    public = _get_template_config("public_enterprise_ai")
+    cases = [
+        {"approval_policy": "human review required"},
+        {"security_constraints": "restricted"},
+    ]
+
+    for policy_fields in cases:
+        intake = _public_enterprise_input()
+        intake.update(
+            {
+                "user_request": "Summarize the maintenance guidance.",
+                "data_sources": ["manuals"],
+                "allowed_tools": [],
+                "tool_parameters": {},
+                **policy_fields,
+            }
+        )
+        state = {
+            "agent_type": "public_enterprise_ai",
+            "intake_data": intake,
+            "template_config": public,
+            "status": "pending",
+        }
+        with patch(
+            "app.services.rag_answerer.generate_rag_answer",
+            side_effect=_fake_guidance_rag_answer,
+        ):
+            result = workflow.invoke(state)
+
+        assert result["tool_plan"]["requires_tool_or_api"] is False
+        assert result["tool_plan"]["approval_required"] is True
+        assert result["human_review_required"] is True
+        assert result["review_status"] == "pending_approval"
+        assert result["status"] == "pending_approval"
 
 
 engine = create_engine(

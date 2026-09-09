@@ -13,13 +13,15 @@
 | D1 | **DESTINATION REACHED — L3 USABLE / DEMONSTRABLE** |
 | D2 | **DESTINATION REACHED — L4 CONTROLLED OPERATOR PILOT** |
 | D3 | **DESTINATION REACHED — VERIFIED LOCAL-LLM CONTROLLED OPERATOR PILOT** |
+| D4 | **SELECTED / IN PROGRESS — REUSABLE CONTROLLED AGENT TEMPLATE PILOT** |
 | Latest accepted milestone | **D3-01 / Issue #68 positive real local-LLM inference — CLOSED / ACCEPTED** |
 | Accepted D3-01 head | `f7677638d41ac7654b935b559a932b7db1108352` |
 | Latest accepted progression merge | `d8962279cd926c073b3b8df1ebc19348fc893823` |
-| Active milestone | **NONE** |
-| Progression state | **HUMAN REVIEW — NEXT DESTINATION DECISION** |
+| Active milestone | **D4-01 / Issue #70 — template-configurable controlled workflow** |
+| Active PR | **#71** |
+| Progression state | **D4 ACTIVE — EXACT-HEAD ACCEPTANCE IN PROGRESS** |
 
-D1 and D2 remain accepted/frozen. Human Review on 2026-09-07 explicitly selected D3. D3-01 executed and accepted the real local-LLM controlled-pilot path without expanding tool authority. Destination Review found no demonstrated remaining blocker inside the bounded D3 definition, so progression returns to Human Review rather than opening another micro-milestone.
+D1, D2, and D3 remain accepted/frozen. Human-approved long-term progression on 2026-09-09 selected D4 and pre-authorized bounded continuation to D5 and D6 only after destination-level acceptance and MASTER reconciliation. D7 or any expansion into write/destructive authority, customer/private production systems, enterprise authorization, production deployment, distributed guarantees, signing/non-repudiation, or security/compliance certification requires Human Review.
 
 ---
 
@@ -123,6 +125,29 @@ Exact-head executed evidence established:
 
 D3 acceptance is bounded to this controlled repository pilot. It does not authorize broader model autonomy, customer data/system access, write/destructive tools, reviewer identity, distributed guarantees, or production/compliance claims.
 
+## D4 — Reusable Controlled Agent Template Pilot
+
+**SELECTED / IN PROGRESS.**
+
+Human direction on 2026-09-09 selected D4 to prove that the accepted controlled workflow is reusable through explicit template/workflow configuration rather than a literal hard-coded agent identity.
+
+### D4-01 — Issue #70 / PR #71
+
+**ACTIVE — exact-head acceptance in progress.**
+
+Bounded implementation contract:
+- templates own an explicit `execution_profile`;
+- core workflow routing is selected from the validated profile, not from `agent_type == "controlled_rag_agent"`;
+- existing `controlled_rag_agent` behavior remains at accepted D2/D3 boundaries;
+- intake-only templates remain intake-only unless explicitly configured;
+- missing, unknown, or incomplete execution-profile configuration fails closed;
+- a distinct test configuration can traverse the same generic controlled path without adding an agent-type conditional;
+- controlled result/audit persistence follows the validated execution profile rather than a literal template identity.
+
+Current pre-reconciliation executable candidate `d30ba2eb949cc3a133e85be333cd55b7085fc3ba` was observed GREEN for PR Validation, D3 Positive Local LLM Pilot, P-025 Controlled Operator Pilot, Firebat Container, Proof Evaluation, P-024 Retrieval Provenance, P-019 Rejection Run Binding, and P-018 Rejection Rationale. That evidence is not yet D4-01 acceptance because this branch-side MASTER/docs reconciliation moves the exact head and requires a final exact-head rerun/review.
+
+D4 destination is **not** reached by D4-01 alone. Destination acceptance requires at least two materially distinct registered templates to use the same generic controlled workflow architecture through configuration while their template-specific intake/policy configuration remains distinct and the frozen D3 control/evidence boundary remains preserved.
+
 ---
 
 # 3. Progression Registry
@@ -136,6 +161,7 @@ P-001 through P-025 remain **CLOSED / ACCEPTED** under their previously recorded
 - **P-024 CLOSED / ACCEPTED** — browser-verify Operator retrieval provenance summary; Issue #64 / PR #65; merge `7096ae6d1dc9d41d24f895daed56f665736b58fa`.
 - **P-025 CLOSED / ACCEPTED** — D2 Controlled Operator Pilot acceptance path; Issue #66 / PR #67; accepted head `21549a4c2d026d2d1b951ac718e54ff2a7ce4e9c`; merge `82c0977c93c0db976fb3138d921b40f91fc9f5ec`.
 - **D3-01 CLOSED / ACCEPTED** — positive real local-LLM inference in the controlled operator pilot; Issue #68 / PR #69; accepted head `f7677638d41ac7654b935b559a932b7db1108352`; merge `d8962279cd926c073b3b8df1ebc19348fc893823`.
+- **D4-01 ACTIVE** — template-configurable controlled workflow; Issue #70 / PR #71; exact-head acceptance pending after MASTER/docs reconciliation.
 
 Earlier P-001 through P-019 acceptance history remains authoritative in Git/Issue/PR history and is not reopened by this reconciliation.
 
@@ -148,79 +174,65 @@ Earlier P-001 through P-019 acceptance history remains authoritative in Git/Issu
 - concurrency/recovery evidence remains bounded to the current SQLite/SQLAlchemy runtime and documented quarantine/recovery semantics; no replay/reconstruction or distributed guarantee is claimed.
 - browser proof remains bounded to the repository Firebat/GitHub Actions/headless-Chrome environment.
 - real local-LLM evidence is bounded to the accepted Ollama + `qwen2.5:1.5b` controlled-pilot path; it is not a model-quality, benchmark, throughput, or production-serving claim.
-- reviewer identity/authentication, RBAC/SSO, customer authorization, write/destructive tooling, unrestricted autonomy, signing/non-repudiation, customer/private data integration, cloud/Kubernetes production deployment, SLA/SLO, and security/compliance certification remain explicitly unaccepted.
+- D4-01 proves configurable routing architecture only; the D4 product-level reuse claim still requires a second materially distinct registered controlled template if Destination Review confirms that blocker remains.
+- reviewer identity/authentication, enterprise RBAC/SSO, customer authorization, write/destructive tooling, unrestricted autonomy, signing/non-repudiation, customer/private data integration, cloud/Kubernetes production deployment, SLA/SLO, and security/compliance certification remain explicitly unaccepted.
 
 ---
 
-# 5. Next Destination Gate
+# 5. Destination Gate
 
-**HUMAN REVIEW — NEXT DESTINATION DECISION.**
+**CURRENT DESTINATION — D4 REUSABLE CONTROLLED AGENT TEMPLATE PILOT.**
 
-D3 is reached. Do not automatically open another D3 milestone or accumulate model/prompt/citation variants merely to continue progression.
+Finish active D4-01 before selecting farther work. After D4-01 acceptance, perform Destination Review.
 
-The next meaningful progression crosses a materially new product/security boundary, for example:
-- customer production-system integration and its authorization/data-handling model;
-- authenticated reviewer identity and RBAC/SSO;
-- write/destructive tool policy and stronger approval controls;
-- distributed execution/recovery guarantees;
-- signing/non-repudiation/tamper-resistance requirements;
-- production deployment/SLA/security-compliance requirements.
+If the D4 product-level claim is still blocked because only one registered template actually uses the generic controlled profile, the smallest allowed follow-on is D4-02: prove a second materially distinct registered template through the same generic controlled workflow, preferably reusing existing `public_enterprise_ai` and repository-owned public/synthetic-safe knowledge/tool fixtures.
 
-Those directions are explicitly outside D3 and require Human Review before implementation.
+Do not add templates merely to increase count and do not create proof-of-proof/UI-only micro-milestones.
+
+After D4 is explicitly reached and this MASTER is reconciled, D5 is pre-authorized. After D5 is reached and reconciled, D6 is pre-authorized. D7 or any write/destructive/customer-production/enterprise-auth/production-deployment/distributed-guarantee/signing/compliance expansion requires Human Review.
 
 ---
 
 # 6. Current Run Record
 
+### Current Destination
+D4 — `Reusable Controlled Agent Template Pilot`.
+
+### Current Milestone
+D4-01 / Issue #70 / PR #71 — `make controlled-agent workflow template-configurable`.
+
 ### Changed
-- PR #69 accepted and squash-merged with expected-head protection.
-- Issue #68 closed/completed.
-- D3 recorded as **DESTINATION REACHED — VERIFIED LOCAL-LLM CONTROLLED OPERATOR PILOT**.
-- active milestone cleared.
-- progression returned to **HUMAN REVIEW — NEXT DESTINATION DECISION**.
+- template-owned execution profiles implemented on PR #71;
+- core post-normalization routing changed from literal controlled-agent identity to validated execution-profile routing;
+- invalid/incomplete profile configuration fails closed;
+- controlled persistence follows the validated profile rather than a literal template name;
+- stale validation fixture aligned with production registry configuration;
+- directly relevant `docs/PRODUCT_DIRECTION.md` and `docs/ARCHITECTURE.md` reconciled with the accepted D1-D3 baseline and active D4 architecture;
+- MASTER reconciled to record D4 selected/current and D4-01 active without claiming acceptance.
 
 ### Actually Executed
 - current root MASTER on `main` read first;
-- current Issue #68 and PR #69 re-fetched;
-- exact candidate head `f7677638d41ac7654b935b559a932b7db1108352` rechecked against GitHub Actions evidence;
-- D3 Positive Local LLM Pilot and same-head P-025 Controlled Operator Pilot observed `completed/success`, with related validation/browser proof workflows also clean;
-- all PR #69 review threads inspected; prior P1 threads were resolved and the final P2 trigger-coverage thread was answered with exact-head evidence and resolved;
-- PR #69 squash-merged with expected-head protection;
-- merge SHA `d8962279cd926c073b3b8df1ebc19348fc893823` confirmed;
-- Issue #68 confirmed CLOSED/completed;
-- Destination Review performed after closure.
+- PR #71 exact head `d30ba2eb949cc3a133e85be333cd55b7085fc3ba` re-fetched;
+- eight current exact-head GitHub Actions runs inspected and observed `completed/success` before documentation reconciliation: PR Validation, D3 Positive Local LLM Pilot, P-025 Controlled Operator Pilot, Firebat Container, Proof Evaluation, P-024 Retrieval Provenance, P-019 Rejection Run Binding, and P-018 Rejection Rationale;
+- the outstanding P1 implementation review thread was answered with exact-head evidence and resolved;
+- branch-side product direction, architecture, and MASTER reconciliation applied in the same PR.
 
 ### Verified
-- real local Ollama inference through the existing OpenAI-compatible `LocalLLMClient` path;
-- exact accepted model `qwen2.5:1.5b` with public-safe runtime provenance;
-- non-empty grounded model output tied to non-empty returned retrieval context and an exact returned-context SOURCE label;
-- source-verifiable citations/retrieval provenance;
-- truthful unavailable-model fallback distinct from positive inference;
-- persisted approved controlled-run evidence records the expected available local model;
-- explicit rejection still causes no tool execution;
-- explicit approval still gates allowlisted read-only tool execution and correlated persisted result/audit evidence;
-- D2 remains accepted/frozen and its authority boundaries are preserved;
-- D3's bounded destination definition is reached.
+- the pre-reconciliation implementation candidate preserved accepted D2/D3 workflow/runtime gates across the observed exact-head workflows;
+- generic profile-based workflow routing and fail-closed configuration behavior passed PR Validation on that candidate;
+- existing controlled operator/local-LLM/Firebat/evaluation/browser evidence surfaces remained GREEN on that candidate;
+- review blocker concerning missing execution-profile implementation is resolved.
 
 ### Not Verified
-- customer production-system or private-data integration;
-- authenticated reviewer identity or customer authorization;
-- RBAC/SSO/multi-tenancy;
-- write/destructive execution safety;
-- unrestricted autonomy;
-- distributed recovery/exactly-once guarantees;
-- signing/non-repudiation/tamper-proof guarantees;
-- generalized model quality/benchmark/throughput claims;
-- cloud/Kubernetes production deployment;
-- SLA/SLO or security/compliance certification.
+- final post-reconciliation exact head has not yet completed the required executable rerun;
+- D4-01 is therefore not yet ACCEPTED;
+- the D4 destination-level two-template reuse claim is not yet established;
+- D5/D6 are not active and no authority expansion is implied.
 
 ### Remaining Risks
-- accepted local-model evidence is environment/model bounded and should not be generalized beyond the tested controlled pilot;
-- CPU/model footprint can affect operational convenience but is not a demonstrated D3 correctness blocker;
-- all next material product/security expansions require a new Human Review decision.
-
-### Exact model provenance
-`qwen2.5:1.5b` / Ollama OpenAI-compatible local endpoint / GitHub-hosted Ubuntu 24.04 / CPU runtime / Firebat container → host-local Ollama; no cloud-model substitution or HTTP stub satisfied positive acceptance.
+- documentation/MASTER reconciliation moves the candidate head and must not inherit PASS from the earlier head;
+- a later exact-head review may expose a concrete routing/persistence/configuration regression;
+- D4 may still require one coherent D4-02 registered-template reuse milestone after D4-01 closure.
 
 ### Exact Next Action
-Remain in **HUMAN REVIEW — NEXT DESTINATION DECISION**. Do not open another milestone until explicit human direction selects the next materially new product/security destination.
+Wait for the new exact PR head produced by this reconciliation. Make no further mutation while required CI is queued/in progress. If all required exact-head gates are GREEN and review is clean, merge PR #71 with expected-head protection where supported, confirm Issue #70 closure, reconcile current `main`, then perform D4 Destination Review. If RED, correct only the first concrete same-gap failure inside PR #71.

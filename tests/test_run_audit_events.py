@@ -9,7 +9,7 @@ from sqlalchemy.pool import StaticPool
 import app.api.routes as routes_module
 from app.api.routes import router
 from app.models.database import Base, get_db
-from tests.approval_digest_helper import approval_body
+from tests.approval_digest_helper import DEFAULT_REVIEWER_ID, approval_body
 
 
 engine = create_engine(
@@ -196,7 +196,7 @@ def test_full_controlled_run_events_persist_and_reload_in_sequence(monkeypatch) 
         "COMPLETED",
     ]
     assert events[0]["actor"] == "user"
-    assert events[7]["actor"] == "human"
+    assert events[7]["actor"] == f"reviewer:{DEFAULT_REVIEWER_ID}"
     assert events[8]["payload"]["tool_name"] == "legacy_db_lookup"
     assert events[8]["payload"]["read_only"] is True
     assert events[-1]["payload"]["status"] == "archived"

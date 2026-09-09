@@ -11,6 +11,7 @@ import app.api.routes as routes_module
 from app.api.routes import router
 from app.models.database import Base, get_db
 from app.models.models import AgentRun
+from tests.approval_digest_helper import DEFAULT_REVIEWER_ID
 
 
 def _client(tmp_path: Path):
@@ -80,12 +81,18 @@ def test_quarantine_interrupted_approval_is_non_replaying_and_idempotent(
     before = client.get(f"/api/agents/runs/{run_id}/evidence")
     assert before.status_code == 200
 
-    first = client.post(f"/api/agents/runs/{run_id}/recover-decision", json={})
+    first = client.post(
+        f"/api/agents/runs/{run_id}/recover-decision",
+        json={"reviewer_id": DEFAULT_REVIEWER_ID},
+    )
     assert first.status_code == 200
     assert first.json()["status"] == "decision_recovery_required"
     assert execution_count == 0
 
-    second = client.post(f"/api/agents/runs/{run_id}/recover-decision", json={})
+    second = client.post(
+        f"/api/agents/runs/{run_id}/recover-decision",
+        json={"reviewer_id": DEFAULT_REVIEWER_ID},
+    )
     assert second.status_code == 200
     assert second.json()["status"] == "decision_recovery_required"
     assert execution_count == 0
@@ -103,10 +110,13 @@ def test_quarantine_interrupted_approval_is_non_replaying_and_idempotent(
     for terminal_type in ("APPROVED", "REJECTED", "TOOL_EXECUTED", "COMPLETED"):
         assert terminal_type not in event_types
 
-    approve = client.post(f"/api/agents/runs/{run_id}/approve", json={})
+    approve = client.post(
+        f"/api/agents/runs/{run_id}/approve",
+        json={"reviewer_id": DEFAULT_REVIEWER_ID},
+    )
     reject = client.post(
         f"/api/agents/runs/{run_id}/reject",
-        json={"reason": "must remain quarantined"},
+        json={"reviewer_id": DEFAULT_REVIEWER_ID, "reason": "must remain quarantined"},
     )
     assert approve.status_code in {409, 422}
     assert reject.status_code in {409, 422}
@@ -125,7 +135,10 @@ def test_quarantine_interrupted_rejection_records_prior_state(tmp_path: Path) ->
     run_id = "run-interrupted-rejection"
     _seed_transient(SessionLocal, run_id, "rejection_processing")
 
-    response = client.post(f"/api/agents/runs/{run_id}/recover-decision", json={})
+    response = client.post(
+        f"/api/agents/runs/{run_id}/recover-decision",
+        json={"reviewer_id": DEFAULT_REVIEWER_ID},
+    )
     assert response.status_code == 200
     assert response.json()["status"] == "decision_recovery_required"
 
@@ -143,7 +156,10 @@ def test_quarantine_rejects_unclaimed_non_transient_runs(tmp_path: Path) -> None
     run_id = "run-not-interrupted"
     _seed_transient(SessionLocal, run_id, "pending_approval")
 
-    response = client.post(f"/api/agents/runs/{run_id}/recover-decision", json={})
+    response = client.post(
+        f"/api/agents/runs/{run_id}/recover-decision",
+        json={"reviewer_id": DEFAULT_REVIEWER_ID},
+    )
     assert response.status_code in {409, 422}
 
     persisted = client.get(f"/api/agents/runs/{run_id}")

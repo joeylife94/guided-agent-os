@@ -36,15 +36,16 @@ def main() -> None:
     try:
         driver.get(BASE_URL)
         wait.until(EC.visibility_of_element_located((By.ID, "agent-form")))
+
+        driver.find_element(By.ID, "run-button").click()
+        wait_text(wait, "run-status", "pending_approval")
         reviewer_input = wait.until(EC.visibility_of_element_located((By.ID, "reviewer-id")))
         reviewer_input.send_keys(REVIEWER_ID)
         if reviewer_input.get_attribute("value") != REVIEWER_ID:
             raise AssertionError("Reviewer identity was not entered as expected")
         evidence["reviewer_id"] = REVIEWER_ID
-        evidence["checks"].append("reviewer_identity_entered")
+        evidence["checks"].append("reviewer_identity_entered_after_run_surface_visible")
 
-        driver.find_element(By.ID, "run-button").click()
-        wait_text(wait, "run-status", "pending_approval")
         rationale_input = wait.until(EC.visibility_of_element_located((By.ID, "rejection-reason")))
         run_a = driver.find_element(By.ID, "run-id").text.strip()
         rationale_input.send_keys(RATIONALE_A)
@@ -58,6 +59,7 @@ def main() -> None:
         wait_text(wait, "run-status", "pending_approval")
         run_b = driver.find_element(By.ID, "run-id").text.strip()
         rationale_input = wait.until(EC.visibility_of_element_located((By.ID, "rejection-reason")))
+        reviewer_input = wait.until(EC.visibility_of_element_located((By.ID, "reviewer-id")))
         if rationale_input.get_attribute("value") != "":
             raise AssertionError(
                 f"Run A rationale leaked into run B: {rationale_input.get_attribute('value')!r}"

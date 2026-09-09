@@ -204,7 +204,6 @@ def _normalize_bool(value: Any) -> bool | None:
 # ---------------------------------------------------------------------------
 # Normalization logic
 # ---------------------------------------------------------------------------
-
 def normalize_intake_data(intake_data: dict[str, Any]) -> dict[str, Any]:
     """
     Normalize intake data into a cleaner internal structure.
@@ -269,6 +268,7 @@ def normalize_intake_data(intake_data: dict[str, Any]) -> dict[str, Any]:
         "risk_level",
         "user_role",
         "security_constraints",
+        "approval_policy",
     ]
     for field in text_fields:
         if field in intake_data:

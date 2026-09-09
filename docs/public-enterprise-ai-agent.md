@@ -2,7 +2,7 @@
 
 This document explains how **Guided Agent OS** can be adapted to a public-sector or enterprise AI-agent project.
 
-The project is intentionally scoped as a **controlled agent workflow MVP**, not an unrestricted autonomous agent. The goal is to collect structured requirements, validate missing information, normalize intake data, and prepare a safe foundation for later RAG, tool/API integration, and human approval.
+The project is intentionally scoped as a **controlled agent workflow MVP**, not an unrestricted autonomous agent. The registered `public_enterprise_ai` template uses the shared controlled execution profile: structured intake is validated and normalized, grounded RAG/tool planning can run through the generic controlled workflow, and explicit template policy/security signals can require human review before any allowlisted read-only tool execution.
 
 ---
 
@@ -16,7 +16,7 @@ Public-sector and enterprise AI-agent projects often start with ambiguous requir
 - LLM/RAG access must respect user authorization and audit requirements.
 - Actual system-changing actions should not be executed without human review.
 
-Guided Agent OS addresses the first step of that problem: converting an ambiguous AI-agent request into a structured, reviewable, and auditable intake record.
+Guided Agent OS uses structured enterprise intake to make those requirements explicit before the request enters the shared bounded controlled-agent path.
 
 ---
 
@@ -50,6 +50,7 @@ POST /api/agents/public_enterprise_ai/runs
 | `current_workflow_problem` | Manual, repetitive, or knowledge-heavy workflow to improve |
 | `data_sources` | Internal documents, manuals, databases, logs, or legacy systems to use |
 | `expected_agent_capabilities` | What the agent should do: Q&A, retrieval, summarization, analysis, recommendations, etc. |
+| `user_request` | The concrete request/question that the shared grounded controlled workflow should process |
 
 ---
 
@@ -82,6 +83,7 @@ curl -X POST http://localhost:8000/api/agents/public_enterprise_ai/runs \
     "current_workflow_problem": "Maintenance staff need to search manuals, historical incident notes, and facility records across multiple internal systems.",
     "data_sources": "PDF manuals, maintenance reports, Oracle-based legacy facility database, inspection logs",
     "expected_agent_capabilities": "Answer internal policy and maintenance questions, retrieve relevant source documents, summarize historical incidents, and draft recommended next-check items.",
+    "user_request": "Summarize the maintenance guidance relevant to the reported inspection condition and cite the retrieved source.",
     "legacy_systems": "Oracle facility management system and internal document repository",
     "rag_document_types": "Maintenance manuals, safety guidelines, inspection reports, incident reports",
     "db_access_pattern": "The agent should not generate arbitrary SQL. It should call approved backend APIs or predefined query templates.",
@@ -98,13 +100,11 @@ curl -X POST http://localhost:8000/api/agents/public_enterprise_ai/runs \
 
 ### Complete intake
 
-When all required fields are provided, the run returns:
+When all required fields are provided, the request is validated and can traverse the registered shared controlled workflow. The resulting status depends on the grounded/tool plan and bounded policy signals. In particular, an explicit review requirement from `approval_policy` or a restricted/sensitive security constraint keeps the run at the human-review boundary rather than silently completing it.
 
-```text
-validated
-```
+A run that reaches review is expected to expose the reviewed execution input and remain pending until an explicit approve or reject decision. Rejection must not execute a tool. Approval does not grant arbitrary authority: only the existing allowlisted read-only execution path may proceed, with the reviewed-input digest and correlated result/audit evidence preserved.
 
-The normalized intake is persisted in the database and can be retrieved later through:
+The normalized intake and controlled-run evidence are persisted and can be retrieved later through:
 
 ```http
 GET /api/agents/runs/{run_id}
@@ -112,7 +112,7 @@ GET /api/agents/runs/{run_id}
 
 ### Missing intake fields
 
-When required fields are missing, the run returns:
+When required fields — including `user_request` — are missing, the run returns:
 
 ```text
 needs_clarification
@@ -126,32 +126,35 @@ The response includes clarification questions generated from the enterprise temp
 
 ### 1. Validate before analysis
 
-The agent should not analyze or recommend solutions before the minimum business, data, and security context is known.
+The agent should not analyze or recommend solutions before the minimum business, data, security, and concrete request context is known.
 
 ### 2. Control data access
 
-For enterprise use, RAG retrieval should be filtered by metadata, role, department, and document authorization. Database access should go through approved APIs or query templates rather than unrestricted LLM-generated SQL.
+For enterprise use, RAG retrieval should be filtered by metadata, role, department, and document authorization. Database access should go through approved APIs or query templates rather than unrestricted LLM-generated SQL. The repository pilot itself does **not** claim enterprise authorization or customer production-system integration.
 
 ### 3. Keep human approval in the loop
 
-The agent may draft summaries, recommendations, or next actions, but operationally meaningful actions should require explicit human review.
+The shared planner honors bounded template policy/security signals. An explicit human-review requirement or restricted/sensitive constraint must not be bypassed merely because a request appears innocuous. Human review also does not authorize write/destructive actions; the accepted pilot remains limited to allowlisted read-only tooling.
 
 ### 4. Make outputs auditable
 
-Enterprise AI systems should preserve the request, normalized data, retrieved sources, tool/API calls, reviewer decisions, and final status.
+The controlled workflow preserves request, normalized data, retrieval/citation provenance, reviewed execution input, approval/rejection decision, allowlisted tool result when executed, and correlated audit evidence within the repository pilot boundary.
 
 ---
 
-## Relationship to future RAG/tool phases
+## Relationship to the shared controlled RAG/tool path
 
-This use case is intentionally Phase 1 oriented. It does not claim to be a full production RAG implementation.
+`public_enterprise_ai` is the second registered template used to demonstrate reuse of the same generic controlled architecture as `controlled_rag_agent`. Its enterprise-specific intake and policy semantics remain distinct, but the workflow engine is selected through the template-owned execution profile rather than a new agent-type conditional.
 
-Instead, it prepares structured inputs for later phases:
+The bounded path is:
 
-1. **RAG scope design** — document types, metadata filters, source citation requirements
-2. **Tool/API scope design** — which legacy queries should be exposed as controlled tools
-3. **Security design** — role-based access, audit logs, internal-network constraints
-4. **Human approval design** — which actions are informational, review-required, or prohibited
+1. **Structured intake / validation** — collect enterprise context plus a concrete `user_request`.
+2. **Grounded RAG** — retrieve repository-owned public/synthetic-safe context and preserve source/citation provenance.
+3. **Tool planning / policy check** — interpret bounded policy/security signals without inventing additional tool authority.
+4. **Human review** — explicit approve/reject boundary with reviewed-input digest binding when execution is proposed.
+5. **Allowlisted read-only execution / audit** — only the existing bounded read-only tool path may execute after approval, with correlated persistence/audit evidence.
+
+This does not claim production enterprise RAG, customer/private-data access, reviewer authentication/RBAC/SSO, write/destructive authority, unrestricted autonomy, or production/compliance readiness.
 
 ---
 
@@ -159,8 +162,8 @@ Instead, it prepares structured inputs for later phases:
 
 Guided Agent OS should be described as:
 
-> A FastAPI/LangGraph-based controlled agent workflow MVP that demonstrates structured intake, validation, clarification, normalization, persistence, and human-approval-oriented design for enterprise AI-agent use cases.
+> A FastAPI/LangGraph-based controlled agent workflow pilot that demonstrates template-configurable structured intake, grounded retrieval, policy-aware human review, allowlisted read-only execution, and correlated audit evidence across materially distinct registered templates.
 
 It should not be described as:
 
-> A fully autonomous production AI agent.
+> A fully autonomous production AI agent or a production enterprise authorization/integration platform.

@@ -4,135 +4,134 @@
 
 ## Overview
 
-Guided Agent OS is a FastAPI application backed by a LangGraph workflow graph and a SQLite persistence layer. It exposes a small HTTP API that accepts structured intake data, runs it through the workflow graph, and returns a persisted agent run.
+Guided Agent OS is a FastAPI application backed by a LangGraph workflow graph, reusable template configuration, and SQLite/SQLAlchemy persistence. The current accepted platform can run structured intake through grounded semantic retrieval, local-LLM answer generation, tool planning, explicit human review, bounded read-only execution, and correlated persisted audit/provenance evidence.
 
-The platform is template-driven: the same core infrastructure is intended to serve multiple agent types. The Freelance Opportunity Agent is the first and currently only registered template.
+The architecture is intentionally template-driven. A registered template supplies its intake contract and an explicit `execution_profile`; the core workflow selects capabilities from that profile instead of special-casing a literal agent type.
 
-The long-term architecture target is a reusable Form-driven AI Agent OS. New agents should be added primarily through templates, schemas, prompts, structured output definitions, and workflow configuration rather than by rewriting the backend.
+Proof v1.0 and destinations D1/D2/D3 remain accepted/frozen. D4 is the current reuse destination and must preserve all accepted approval, digest-binding, allowlist, provenance, persistence, and fallback boundaries.
 
 ---
 
-## Directory Structure
+## Core Structure
 
-```
+```text
 app/
-  main.py              # FastAPI application factory
   agents/
-    workflow.py        # LangGraph workflow graph; all nodes defined here
+    workflow.py          # shared LangGraph nodes and profile-based routing
   api/
-    routes.py          # HTTP route handlers; thin layer over workflow + DB
-  models/
-    database.py        # SQLAlchemy engine and session factory
-    models.py          # AgentRun ORM model
-  schemas/
-    agent_run.py       # Pydantic response schemas
-    intake.py          # Pydantic intake request schemas (FreelanceIntakeRequest, etc.)
+    routes.py            # HTTP API, template lookup, persistence and operator surfaces
+  models/                # SQLAlchemy persistence models/session
+  schemas/               # request/response contracts
   services/
-    validation.py      # Required-field validation logic
-    clarification.py   # Clarification question generation
-    normalization.py   # Deterministic input normalization (Phase 2-B)
+    validation.py
+    clarification.py
+    normalization.py
+    rag_answerer.py
+    local_llm.py
+    tool_registry.py
+    tool_executor.py
+    policy.py
   templates/
-    freelance.py       # Freelance-specific field definitions and metadata
+    freelance.py
+    public_enterprise_ai.py
+    controlled_rag_agent.py
 ```
+
+The exact file set evolves, but the architectural rule is stable: template-specific identity/configuration belongs in the template registry; reusable execution behavior belongs in shared workflow/services.
 
 ---
 
-## Workflow Graph
+## Template Configuration Contract
 
-The core processing is a LangGraph `StateGraph`. Each node receives and returns `AgentState` (a typed dict). Routing between nodes is determined by conditional edges.
+A registered template provides the fields needed for intake/clarification plus an explicit `execution_profile`.
 
-The workflow is intentionally stateful and phase-based. Each phase should leave behind an inspectable artifact: original intake, missing fields, clarification questions, normalized data, future LLM output, future drafts, future approval state, and future archive records.
+Two bounded execution modes are currently relevant:
 
-### Current active path
+- `intake_only`: validation/clarification/normalization only;
+- controlled RAG profile: shared semantic RAG → grounded answer → tool plan/policy → human review → allowlisted read-only execution/persistence path.
 
-```
-intake
-  └─► validate_required_fields
-          │
-          ├─ [fields missing] ─► clarify_missing_info ─► END
-          │                       status: "needs_clarification"
-          │
-          └─ [all fields present] ─► mark_validated
-                                          └─► normalize_input ─► END
-                                               status: "validated"
-```
+The workflow engine must not decide controlled behavior by testing for `agent_type == "controlled_rag_agent"` or another literal template name. A future registered template can select the same controlled architecture by providing the validated profile contract.
 
-**`validate_required_fields`** — calls `validation.py` to check required fields against the current agent template's definition. Sets `missing_fields` on state.
-
-**`clarify_missing_info`** — calls `clarification.py` to generate human-readable questions for each missing field. Sets `clarification_questions` on state and status to `"needs_clarification"`.
-
-**`mark_validated`** — sets status to `"validated"` when all required fields are present.
-
-**`normalize_input`** — calls `normalization.normalize_intake_data()` to produce `normalized_data` from the raw intake. Runs only for validated runs.
-
-### Future skeleton functions
-
-Python functions for `analyze_with_llm`, `score_result`, `draft_action`, `human_review`, and `archive` may exist as future-phase scaffolding. They are not registered in the compiled graph and their edges are not connected. They must remain inactive until the corresponding phase is explicitly implemented.
+Missing, unknown, or incomplete execution-profile configuration fails closed rather than silently escalating an intake-only template into a controlled workflow.
 
 ---
 
-## Persistence Flow
+## Shared Workflow
 
-Routes call the workflow, collect the final `AgentState`, and write a single `AgentRun` record to SQLite:
+Conceptually, the accepted controlled path is:
 
-```
-POST /api/agents/{agent_type}/runs
-  │
-  ├─ Build and run workflow graph with intake payload
-  ├─ Collect final AgentState
-  └─ Write AgentRun to DB:
-       run_id        ← new UUID
-       agent_type    ← from path param
-       status        ← from final state
-       intake_data   ← original payload (unchanged)
-       missing_fields
-       clarification_questions
-       normalized_data  ← present only for "validated" runs
-       created_at / updated_at
-
-GET /api/agents/runs/{run_id}
-  └─ Read AgentRun from DB by UUID → return AgentRunResponse
+```text
+Structured Intake
+→ Validation / Clarification
+→ Normalization
+→ Semantic RAG
+→ Grounded Answer + Citation
+→ Tool Planning
+→ Risk / Policy Check
+→ Human Approval
+→ Allowlisted Read-only Tool Execution
+→ Execution Result Persistence
+→ Persistent Audit / Retrieval Provenance
 ```
 
-Database: SQLite file (`agent_os.db` by default, overrideable with `DATABASE_URL`). Tables are created on startup if they do not exist. Each request gets its own SQLAlchemy session via FastAPI dependency injection.
+Conditional LangGraph routing uses the validated execution profile after normalization:
 
-### Reserved future API surfaces
+- intake-only profile → bounded validated/intake completion;
+- controlled profile → reusable controlled RAG path;
+- invalid/incomplete profile → fail closed with an error/bounded terminal state.
 
-The router currently exposes guarded `approve` and `reject` endpoints for a future approval phase. They only accept runs in `pending_approval`, and the active workflow never produces that status. These endpoints do not send, submit, post, crawl, or otherwise act on external accounts.
+The same generic controlled nodes are reused regardless of the template name. D4-01 acceptance requires a distinct test configuration to traverse that route without another hard-coded agent-type branch.
 
 ---
 
-## Why intake_data and normalized_data Are Separate
+## Human Review and Execution Boundary
 
-`intake_data` is the user's original submission. It must never be modified. It serves as the audit record of exactly what the user provided.
+Generation does not execute tools directly. The accepted control boundary remains:
 
-`normalized_data` is a derived artifact produced by deterministic transformation. Storing it separately means:
+1. RAG/model output informs a proposed tool plan.
+2. Policy and allowlist checks bound the proposed tool/parameters.
+3. The exact reviewed execution input is digest-bound.
+4. Explicit rejection produces no tool execution.
+5. Explicit approval gates the executor.
+6. Only registered, allowed, read-only tools are executable in the current envelope.
+7. Result, decision, audit, and retrieval/model provenance are persisted and correlated to the run.
 
-- The original is always available for debugging and audit.
-- Future phases (LLM analysis, scoring) operate on clean, structured input without risk of overwriting source data.
-- If normalization logic changes, the original can be re-normalized without data loss.
+D4 changes routing/configuration reuse; it does not broaden authority.
 
 ---
 
-## Supporting Future Agent Templates
+## Local LLM and Grounding Boundary
 
-The platform is designed for template reuse:
+The accepted D3 path uses the existing OpenAI-compatible `LocalLLMClient` and semantic RAG services. Exact accepted positive evidence used host-local Ollama with `qwen2.5:1.5b` in the bounded Firebat/GitHub Actions CPU environment.
 
-- `FreelanceIntakeRequest` in `schemas/intake.py` is one concrete schema; additional templates add their own schemas.
-- `templates/freelance.py` defines the required fields for the freelance agent. New templates register their own required-field definitions in the same pattern.
-- The `{agent_type}` path parameter in the API route allows the router to dispatch to the correct template without changing core logic.
-- Validation and clarification nodes operate on `AgentState` and receive template-specific required fields and question text through the template configuration.
-- `normalize_input` is wired as a generic workflow node, but the current normalization service understands the freelance intake field names. Future templates should add template-aware normalization rather than duplicating the workflow graph.
+The runtime preserves:
 
-Future agent templates should be able to define:
+- non-empty retrieved context for the grounded path;
+- source-verifiable citation/retrieval provenance;
+- non-empty real model-generated output for positive local inference;
+- a clearly distinguishable unavailable-model fallback;
+- no cloud-model or HTTP-stub substitution presented as local positive inference.
 
-- intake schema and required fields
-- clarification questions
-- normalization rules
-- analysis prompt and structured output contract
-- scoring rules or rubric
-- draft action templates
-- workflow configuration for which phases apply
-- model-routing preferences once that phase exists
+D4 must preserve these semantics for the existing controlled template. Reusability does not generalize the D3 model-quality or production-serving claim.
 
-This project should read architecturally as an AI Agent orchestration platform: guided intake, reusable workflow engine, structured output, stateful workflow, model routing, human-in-the-loop review, safety boundaries, template extensibility, and cost-aware AI development.
+---
+
+## Persistence
+
+Routes invoke the shared workflow and persist the resulting `AgentRun` plus the accepted controlled evidence surfaces. Controlled persistence must follow the validated execution profile, not a literal template identity, so another configured controlled template cannot traverse the workflow while silently losing its result/audit/provenance evidence.
+
+The original intake remains distinct from derived normalized, retrieval, model, review, execution, and audit artifacts. This supports traceability without claiming signing, tamper-proofing, distributed exactly-once behavior, or production-grade recovery.
+
+---
+
+## D4 Reuse Boundary
+
+D4-01 proves that workflow capability selection is configuration-owned and fail-closed. Full D4 destination acceptance requires at least two materially distinct **registered** templates to use the same generic controlled architecture through configuration while their template-specific intake/policy configuration remains distinct.
+
+A second template should reuse existing repository-owned public/synthetic-safe knowledge and deterministic read-only fixtures wherever possible. Adding another template merely to increase count is not an architectural goal.
+
+---
+
+## Explicitly Outside the Current Architecture Claim
+
+The current human-approved progression envelope does not authorize write/destructive tools, customer/private production systems, enterprise RBAC/SSO/multi-tenancy, unrestricted autonomy, distributed exactly-once/recovery guarantees, signing/non-repudiation, cloud/Kubernetes production deployment, SLA/SLO, security/compliance certification, or broad model benchmarking/tuning.

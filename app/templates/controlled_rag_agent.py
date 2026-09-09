@@ -29,6 +29,13 @@ DESCRIPTION = (
     "execute SQL, tools, or APIs."
 )
 
+# Explicit workflow contract. Core routing consumes this profile rather than
+# branching on AGENT_TYPE identity.
+EXECUTION_PROFILE: dict[str, Any] = {
+    "name": "controlled_rag",
+    "stages": ["rag_answer", "tool_plan", "human_review"],
+}
+
 REQUIRED_FIELDS: list[str] = [
     "user_request",
     "business_context",

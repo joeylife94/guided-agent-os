@@ -2,25 +2,24 @@
 Public Enterprise AI Agent template.
 
 This template adapts the generic Guided Intake Agent Platform to public-sector
-or enterprise AI-agent discovery work. It focuses on collecting the minimum
-structured information needed before designing a safe internal AI agent:
+or enterprise AI-agent discovery work. It collects structured enterprise context
+and, when the request is complete, traverses the shared controlled RAG ->
+tool-plan -> human-review workflow without granting direct execution authority.
 
-- business/domain context
-- user group and workflow target
-- data sources and legacy systems
-- expected agent capabilities
-- security, approval, and audit constraints
-
-The goal is not to let an agent execute actions automatically. The goal is to
-turn an ambiguous enterprise AI request into a validated, reviewable intake
-record that can later drive RAG design, API/tool scoping, and human approval.
+The goal is not unrestricted autonomous execution. The template keeps its
+enterprise-specific intake semantics while reusing the same controlled workflow
+architecture and accepted read-only approval boundary as controlled_rag_agent.
 """
 
 AGENT_TYPE = "public_enterprise_ai"
 
-EXECUTION_PROFILE = {"name": "intake_only", "stages": []}
+EXECUTION_PROFILE = {
+    "name": "controlled_rag",
+    "stages": ["rag_answer", "tool_plan", "human_review"],
+}
 
 REQUIRED_FIELDS = [
+    "user_request",
     "use_case_title",
     "business_domain",
     "target_user_group",
@@ -43,6 +42,7 @@ OPTIONAL_FIELDS = [
 ]
 
 CLARIFICATION_MAP = {
+    "user_request": "What specific grounded question or controlled request should the agent process?",
     "use_case_title": "What is the short name of the internal AI-agent use case?",
     "business_domain": "Which business domain does this agent support, such as energy, infrastructure, safety, customer service, or internal operations?",
     "target_user_group": "Who will use this agent inside the organization? Please specify department, role, or user group.",

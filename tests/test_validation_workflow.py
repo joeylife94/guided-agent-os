@@ -4,15 +4,12 @@ import unittest
 from typing import Any
 
 from app.agents.workflow import workflow
+from app.api.routes import _get_template_config
 from app.templates import freelance
 
 
 def run_validation_workflow(intake_data: dict[str, Any]) -> dict[str, Any]:
-    template_config = {
-        "required_fields": freelance.REQUIRED_FIELDS,
-        "optional_fields": freelance.OPTIONAL_FIELDS,
-        "clarification_map": freelance.CLARIFICATION_MAP,
-    }
+    template_config = _get_template_config(freelance.AGENT_TYPE)
     return workflow.invoke(
         {
             "run_id": "test-run",

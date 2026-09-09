@@ -25,14 +25,14 @@ DESCRIPTION = (
     "Later phases can add scoring and action drafts for human review."
 )
 
-# Fields the user MUST provide for Phase 1 validation.
+EXECUTION_PROFILE: dict[str, Any] = {"name": "intake_only", "stages": []}
+
 REQUIRED_FIELDS: list[str] = [
     "opportunity_title",
     "client_description",
     "project_description",
 ]
 
-# Fields that enrich the analysis but are not strictly required.
 OPTIONAL_FIELDS: list[str] = [
     "budget_range",
     "timeline",
@@ -42,8 +42,6 @@ OPTIONAL_FIELDS: list[str] = [
     "additional_notes",
 ]
 
-# Maps each field name to the clarification question shown to the user when
-# that field is missing.
 CLARIFICATION_MAP: dict[str, str] = {
     "opportunity_title": (
         "What is a short title or headline for this freelance opportunity? "
@@ -71,8 +69,6 @@ CLARIFICATION_MAP: dict[str, str] = {
     "contact_info": "Where did you find this opportunity or how can the client be contacted?",
 }
 
-# Prompt template injected into the analyze_with_llm node.
-# {intake_text} is replaced with the normalized intake fields at runtime.
 ANALYSIS_PROMPT_TEMPLATE = """\
 You are an expert freelance business advisor. Evaluate the following freelance \
 opportunity and return a structured JSON response.
@@ -90,8 +86,6 @@ Return a JSON object with these fields:
 - rationale (string): One paragraph explaining the score and recommendation.
 """
 
-# Draft action templates used by the draft_action node.
-# Each entry defines one type of action draft to generate.
 DRAFT_ACTION_TEMPLATES: list[dict[str, Any]] = [
     {
         "action_type": "initial_reply",

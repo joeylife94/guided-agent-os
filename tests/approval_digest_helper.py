@@ -4,6 +4,9 @@ import hashlib
 import json
 
 
+DEFAULT_REVIEWER_ID = "test.reviewer.local"
+
+
 def reviewed_digest(
     *,
     tool_name: str = "legacy_db_lookup",
@@ -24,8 +27,14 @@ def reviewed_digest(
     return hashlib.sha256(canonical).hexdigest()
 
 
-def approval_body(note: str = "Approved after reviewing exact execution inputs", **kwargs) -> dict:
+def approval_body(
+    note: str = "Approved after reviewing exact execution inputs",
+    *,
+    reviewer_id: str = DEFAULT_REVIEWER_ID,
+    **kwargs,
+) -> dict:
     return {
+        "reviewer_id": reviewer_id,
         "note": note,
         "expected_execution_inputs_digest": reviewed_digest(**kwargs),
     }

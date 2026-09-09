@@ -18,6 +18,7 @@ from app.schemas.agent_run import (
     AgentRunResponse,
     ApproveRequest,
     ClarificationQuestion,
+    RecoverDecisionRequest,
     RejectRequest,
 )
 from app.services.rag_embeddings import get_embedding_metadata
@@ -216,6 +217,10 @@ def _decision_in_progress(run_id: str) -> HTTPException:
     )
 
 
+def _reviewer_actor(reviewer_id: str) -> str:
+    return f"reviewer:{reviewer_id}"
+
+
 @router.post("/{agent_type}/runs", response_model=AgentRunResponse, status_code=201)
 def create_run(
     agent_type: str,
@@ -343,6 +348,7 @@ def get_run_evidence(run_id: str, db: Session = Depends(get_db)) -> dict[str, An
 @router.post("/runs/{run_id}/recover-decision", response_model=AgentRunResponse)
 def recover_interrupted_decision(
     run_id: str,
+    body: RecoverDecisionRequest,
     db: Session = Depends(get_db),
 ) -> AgentRunResponse:
     run = db.get(AgentRun, run_id)
@@ -363,7 +369,7 @@ def recover_interrupted_decision(
     _append_audit_event(
         run,
         "DECISION_RECOVERY_REQUIRED",
-        actor="operator",
+        actor=_reviewer_actor(body.reviewer_id),
         payload={"prior_status": prior_status},
     )
     _commit_and_refresh(db, run)
@@ -426,7 +432,7 @@ def approve_run(
                 _append_audit_event(
                     run,
                     "APPROVAL_PRECONDITION_REJECTED",
-                    actor="human",
+                    actor=_reviewer_actor(body.reviewer_id),
                     payload=rejection_payload,
                 )
                 _commit_and_refresh(db, run)
@@ -463,7 +469,12 @@ def approve_run(
     if execution_inputs is not None and execution_inputs_digest is not None:
         approved_payload["execution_inputs"] = execution_inputs
         approved_payload["execution_inputs_digest"] = execution_inputs_digest
-    _append_audit_event(run, "APPROVED", actor="human", payload=approved_payload)
+    _append_audit_event(
+        run,
+        "APPROVED",
+        actor=_reviewer_actor(body.reviewer_id),
+        payload=approved_payload,
+    )
     raw_output["review_status"] = "approved"
     raw_output["final_status"] = "archived"
     if execution_result is not None:
@@ -527,7 +538,12 @@ def reject_run(
     raw_output["final_status"] = "rejected"
     raw_output.pop("execution_result", None)
     run.raw_llm_output = raw_output
-    _append_audit_event(run, "REJECTED", actor="human", payload={"reason": body.reason})
+    _append_audit_event(
+        run,
+        "REJECTED",
+        actor=_reviewer_actor(body.reviewer_id),
+        payload={"reason": body.reason},
+    )
     _append_audit_event(run, "COMPLETED", payload={"status": run.status})
     _commit_and_refresh(db, run)
     return _run_to_response(run)

@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
-from app.agents.workflow import workflow
+from app.agents.workflow import is_controlled_execution_profile, workflow
 from app.models.database import get_db
 from app.models.models import ActionDraft as ActionDraftModel
 from app.models.models import AgentRun, RunAuditEvent
@@ -42,6 +42,7 @@ def _get_template_config(agent_type: str) -> dict[str, Any]:
             "clarification_map": template.CLARIFICATION_MAP,
             "analysis_prompt_template": getattr(template, "ANALYSIS_PROMPT_TEMPLATE", ""),
             "draft_action_templates": getattr(template, "DRAFT_ACTION_TEMPLATES", []),
+            "execution_profile": getattr(template, "EXECUTION_PROFILE", None),
         }
     supported_types = ", ".join(sorted(_TEMPLATE_REGISTRY))
     raise HTTPException(
@@ -263,7 +264,7 @@ def create_run(
         if run.normalized_data is not None:
             _append_audit_event(run, "NORMALIZED")
 
-    if agent_type == controlled_rag_agent.AGENT_TYPE:
+    if is_controlled_execution_profile(template_config.get("execution_profile")):
         rag_answer = final_state.get("rag_answer")
         run.raw_llm_output = {
             "rag_answer": rag_answer,

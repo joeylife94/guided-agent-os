@@ -1,63 +1,73 @@
 # Product Direction
 
-Guided Agent OS should become a reusable **Form-driven AI Agent OS**.
+Guided Agent OS is a reusable **Form-driven AI Agent OS** built around guided intake, grounded retrieval, explicit human review, bounded tool execution, and persisted evidence.
 
-The final goal is not to build one freelance agent. The final goal is to build a reusable platform where new agents can be added through templates, schemas, prompts, and workflow configuration with minimal new code.
-
----
-
-## Long-Term Product Direction
-
-Users should not need to know how to write good prompts. Guided Agent OS should guide users through structured forms, validate required information before using AI, ask clarification questions when context is missing, normalize and structure user input, run LLM analysis with structured output, generate practical action drafts, require human approval before any real external action, and archive every run for traceability and reuse.
-
-This is a target direction, not a statement that all capabilities are implemented today. The current active workflow implements validation, clarification, persistence, and deterministic normalization only.
+The product goal is not one hard-coded agent. New agents should be added primarily through templates, schemas, prompts, policy/workflow configuration, and reusable services without rewriting the core workflow engine.
 
 ---
 
-## First Use-Case
+## Accepted Product Baseline
 
-The **Freelance Opportunity Agent** is the first proof-of-concept.
+The following destinations are accepted and frozen unless later work exposes a real regression:
 
-It will validate the platform by analyzing freelance opportunities, matching them against user strengths, identifying risks, and eventually generating proposal drafts. Today it validates, clarifies, persists, and normalizes freelance intake data; LLM analysis, scoring, and proposal drafts remain planned phases.
+- **D1 — L3 Usable / Demonstrable**
+- **D2 — L4 Controlled Operator Pilot**
+- **D3 — Verified Local-LLM Controlled Operator Pilot**
 
----
+The accepted controlled path includes structured intake, validation/clarification, normalization, semantic RAG, grounded answer/citation behavior, tool planning, policy/risk checks, explicit human approve/reject, reviewed execution-input digest binding, allowlisted read-only execution, persisted result/audit/retrieval provenance, and truthful unavailable-model fallback. D3 additionally proved bounded positive local inference through a real Ollama OpenAI-compatible endpoint with `qwen2.5:1.5b`.
 
-## Future Use-Cases
-
-- AI Content Agent
-- Duru SKU & Marketing Agent
-- Personal Command Center Agent
-- AI Market Watch Agent
-- Additional guided intake agents
-
-Each future use-case should reuse the same intake, validation, workflow, and persistence foundations, plus human-review foundations once that phase exists, instead of requiring a new backend.
+These are bounded repository-pilot claims, not authorization for customer/private systems, write/destructive actions, unrestricted autonomy, enterprise auth/RBAC/SSO, distributed guarantees, production deployment, model benchmarking, SLA/SLO, or compliance claims.
 
 ---
 
-## Success Criteria
+## Current Destination — D4 Reusable Controlled Agent Template Pilot
 
-Guided Agent OS is successful if:
+D4 asks whether the accepted controlled workflow is genuinely reusable as a platform capability rather than being coupled to one literal agent type.
 
-1. A non-expert user can produce useful AI outputs by filling out forms instead of writing complex prompts.
-2. The platform can add new agent types without rewriting the whole backend.
-3. Every agent run is traceable through stored input, normalized data, analysis output, drafts, approval status, and archive records.
-4. External actions are never executed without explicit human approval.
-5. The system demonstrates real portfolio value as an AI Agent orchestration project, not a simple chatbot.
+### D4-01 — template-configurable controlled workflow
+
+The active milestone is Issue #70 / PR #71.
+
+The intended product contract is:
+
+- each registered template owns an explicit `execution_profile`;
+- the workflow engine routes from that profile rather than from a hard-coded agent-type identity;
+- `controlled_rag_agent` preserves the accepted D2/D3 controlled behavior;
+- intake-only templates remain intake-only unless explicitly configured otherwise;
+- missing, unknown, or incomplete controlled execution profiles fail closed;
+- a future controlled template can reuse the same grounded-RAG → tool-plan → human-review architecture without adding another agent-type conditional in the core workflow engine;
+- controlled result/audit persistence follows the validated execution profile rather than a literal template name.
+
+D4-01 by itself does **not** establish the full D4 destination claim. D4 is reached only when at least two materially distinct registered templates use the same generic controlled workflow through configuration while preserving their own intake/policy distinctions and all accepted D3 safety/evidence boundaries.
+
+The likely next proof, only if still needed after D4-01 acceptance, is a second real registered template using the same controlled profile. Prefer existing repository assets such as `public_enterprise_ai` rather than adding templates for count.
 
 ---
 
-## Strategic Positioning
+## Pre-authorized Farther Destinations
 
-This project should be documented and developed as an AI Agent orchestration platform. It should emphasize:
+After D4 is reached and the MASTER is reconciled, the current human-approved envelope allows progression to:
 
-- guided intake
-- reusable workflow engine
-- structured output
-- stateful workflow
-- model routing
-- human-in-the-loop
-- safety boundaries
-- agent template extensibility
-- cost-aware AI development
+- **D5 — Reviewer Identity-bound Decision Pilot**: bind approve/reject/recovery decisions to a bounded truthful reviewer identity while preserving run and reviewed-input digest correlation. This does not authorize OAuth/OIDC, Keycloak, enterprise SSO, broad RBAC, or production account lifecycle.
+- **D6 — Policy-scoped Multi-tool Read-only Pilot**: prove that at least two materially distinct repository-owned read-only tools can traverse the same registry/policy/parameter/approval/execution/audit architecture without cross-tool authority leakage.
 
-Model routing, LLM structured output, draft generation, approval state, and archival records are strategic platform capabilities to phase in deliberately. They should not be described as active behavior until they are wired into the workflow and covered by tests.
+Anything beyond D6, including write/destructive authority, customer/private production integration, enterprise authorization, production deployment, distributed guarantees, signing/non-repudiation, or security/compliance certification, requires Human Review.
+
+---
+
+## Product Success Criteria
+
+Guided Agent OS should continue to be judged by product-level reuse and trustworthy operation rather than activity count:
+
+1. Non-expert users can provide structured input instead of engineering prompts.
+2. Template configuration can select reusable workflow capabilities without hard-coded agent branches.
+3. Grounding, review, policy, execution, and evidence boundaries remain explicit and inspectable.
+4. No allowlisted tool executes without the accepted human-approval and reviewed-input binding.
+5. New controlled templates reuse the same core architecture instead of duplicating a backend.
+6. Progression is demonstrated by executable exact-head evidence, not by code existence or self-report.
+
+---
+
+## Explicit Non-goals in the Current Envelope
+
+Do not expand the project merely to keep scheduled work active. In particular, avoid model/prompt variants, citation-display variants, cosmetic UI, arbitrary templates, proof-of-proof chains, broad refactors, write/destructive tools, customer/private data, enterprise auth, cloud/Kubernetes production deployment, SLA/SLO, or compliance claims unless a later authorized destination specifically requires them.

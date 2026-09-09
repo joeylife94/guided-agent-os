@@ -18,6 +18,8 @@ record that can later drive RAG design, API/tool scoping, and human approval.
 
 AGENT_TYPE = "public_enterprise_ai"
 
+EXECUTION_PROFILE = {"name": "intake_only", "stages": []}
+
 REQUIRED_FIELDS = [
     "use_case_title",
     "business_domain",

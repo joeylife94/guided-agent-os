@@ -15,6 +15,7 @@ ARTIFACT_DIR = Path(os.getenv("OPERATOR_ARTIFACT_DIR", "/tmp"))
 ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
 RATIONALE_A = "Run A requires separate customer confirmation."
 RATIONALE_B = "Run B is rejected for missing operator evidence."
+REVIEWER_ID = "browser.reviewer.local"
 
 
 def wait_text(wait: WebDriverWait, element_id: str, expected: str) -> None:
@@ -35,6 +36,12 @@ def main() -> None:
     try:
         driver.get(BASE_URL)
         wait.until(EC.visibility_of_element_located((By.ID, "agent-form")))
+        reviewer_input = wait.until(EC.visibility_of_element_located((By.ID, "reviewer-id")))
+        reviewer_input.send_keys(REVIEWER_ID)
+        if reviewer_input.get_attribute("value") != REVIEWER_ID:
+            raise AssertionError("Reviewer identity was not entered as expected")
+        evidence["reviewer_id"] = REVIEWER_ID
+        evidence["checks"].append("reviewer_identity_entered")
 
         driver.find_element(By.ID, "run-button").click()
         wait_text(wait, "run-status", "pending_approval")
@@ -55,8 +62,11 @@ def main() -> None:
             raise AssertionError(
                 f"Run A rationale leaked into run B: {rationale_input.get_attribute('value')!r}"
             )
+        if reviewer_input.get_attribute("value") != REVIEWER_ID:
+            raise AssertionError("Reviewer identity did not persist across the run-context switch")
         evidence["run_b"] = run_b
         evidence["checks"].append("rationale_cleared_on_run_context_change")
+        evidence["checks"].append("reviewer_identity_preserved_across_run_context")
 
         rationale_input.send_keys(f"  {RATIONALE_B}  ")
         driver.find_element(By.ID, "reject-button").click()
@@ -92,6 +102,8 @@ def main() -> None:
             raise AssertionError(f"Run B status is not rejected: {run_b_data!r}")
         if not rejected_b:
             raise AssertionError(f"Run B REJECTED audit event missing: {types_b!r}")
+        if rejected_b.get("actor") != f"reviewer:{REVIEWER_ID}":
+            raise AssertionError(f"Run B reviewer attribution mismatch: {rejected_b!r}")
         if (rejected_b.get("payload") or {}).get("reason") != RATIONALE_B:
             raise AssertionError(f"Run B rejection rationale mismatch: {rejected_b!r}")
         if RATIONALE_A in json.dumps(rejected_b, ensure_ascii=False):
@@ -105,6 +117,7 @@ def main() -> None:
 
         evidence["checks"].extend(
             [
+                "run_b_reviewer_identity_persisted",
                 "run_b_specific_rationale_persisted",
                 "run_a_rationale_not_misattributed",
                 "run_b_rejected_without_tool_execution",
@@ -115,6 +128,7 @@ def main() -> None:
         evidence["run_b_status"] = run_b_data.get("status")
         evidence["run_a_audit_types"] = types_a
         evidence["run_b_audit_types"] = types_b
+        evidence["run_b_rejected_actor"] = rejected_b.get("actor")
         evidence["run_b_rejected_payload"] = rejected_b.get("payload") or {}
 
         screenshot_path = ARTIFACT_DIR / "operator-rejection-rationale-run-binding.png"

@@ -74,7 +74,7 @@ def _detect_system_access_risk(user_request: str, normalized_data: dict) -> bool
         "database", "db", "query", "sql", "table", "record", "data",
         "api", "endpoint", "service", "legacy", "system", "backend", "tool",
         "integration", "connector",
-        "internal", "fetch", "retrieve", "lookup", "search", "access",
+        "internal", "fetch", "retrieve", "lookup", "look up", "search", "access",
         "execute", "run", "call", "invoke", "trigger", "sync",
     ]
 

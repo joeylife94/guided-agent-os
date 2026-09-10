@@ -14,7 +14,7 @@ import app.api.routes as routes_module
 from app.api.routes import router
 from app.models.database import Base, get_db
 from app.models.models import AgentRun
-from tests.approval_digest_helper import approval_body
+from tests.approval_digest_helper import DEFAULT_REVIEWER_ID, approval_body
 
 
 def _plan() -> dict:
@@ -213,7 +213,7 @@ def test_concurrent_approve_reject_has_one_terminal_decision(tmp_path: Path, mon
         start.wait(timeout=5)
         return client.post(
             f"/api/agents/runs/{run_id}/reject",
-            json={"reason": "Concurrent operator rejection"},
+            json={"reviewer_id": DEFAULT_REVIEWER_ID, "reason": "Concurrent operator rejection"},
         )
 
     with ThreadPoolExecutor(max_workers=2) as pool:

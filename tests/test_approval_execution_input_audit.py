@@ -12,7 +12,7 @@ from sqlalchemy.pool import StaticPool
 from app.api.routes import router
 from app.models.database import Base, get_db
 from app.models.models import AgentRun
-from tests.approval_digest_helper import approval_body
+from tests.approval_digest_helper import DEFAULT_REVIEWER_ID, approval_body
 
 
 engine = create_engine(
@@ -121,7 +121,7 @@ def test_rejection_does_not_emit_execution_input_or_tool_execution_evidence() ->
 
     response = client.post(
         f"/api/agents/runs/{run_id}/reject",
-        json={"reason": "Rejected"},
+        json={"reviewer_id": DEFAULT_REVIEWER_ID, "reason": "Rejected"},
     )
     assert response.status_code == 200
 

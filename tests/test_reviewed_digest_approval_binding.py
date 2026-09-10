@@ -14,6 +14,7 @@ from app.api.routes import router
 from app.models.database import Base, get_db
 from app.models.models import AgentRun
 from app.operator_evidence_ui import operator_workspace_with_evidence
+from tests.approval_digest_helper import DEFAULT_REVIEWER_ID
 
 
 engine = create_engine(
@@ -117,7 +118,10 @@ def test_approve_requires_reviewed_execution_input_digest_before_executor() -> N
     with patch("app.api.routes.execute_approved_tool") as executor:
         response = client.post(
             f"/api/agents/runs/{run_id}/approve",
-            json={"note": "Approve without reviewed digest must fail closed"},
+            json={
+                "reviewer_id": DEFAULT_REVIEWER_ID,
+                "note": "Approve without reviewed digest must fail closed",
+            },
         )
 
     assert response.status_code == 409
@@ -141,6 +145,7 @@ def test_approve_rejects_mismatched_reviewed_digest_before_executor() -> None:
         response = client.post(
             f"/api/agents/runs/{run_id}/approve",
             json={
+                "reviewer_id": DEFAULT_REVIEWER_ID,
                 "note": "Approve with stale reviewed digest",
                 "expected_execution_inputs_digest": submitted_digest,
             },
@@ -166,6 +171,7 @@ def test_approve_accepts_matching_reviewed_digest_and_preserves_audit_correlatio
     response = client.post(
         f"/api/agents/runs/{run_id}/approve",
         json={
+            "reviewer_id": DEFAULT_REVIEWER_ID,
             "note": "Approve exact reviewed digest",
             "expected_execution_inputs_digest": expected_digest,
         },

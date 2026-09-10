@@ -14,6 +14,7 @@ BASE_URL = os.getenv("OPERATOR_BASE_URL", "http://127.0.0.1:18701")
 ARTIFACT_DIR = Path(os.getenv("OPERATOR_ARTIFACT_DIR", "/tmp"))
 ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
 RATIONALE = "Missing required client confirmation."
+REVIEWER_ID = "browser.reviewer.local"
 
 
 def _browser_wait_seconds() -> int:
@@ -42,9 +43,17 @@ def main() -> None:
     try:
         driver.get(BASE_URL)
         wait.until(EC.visibility_of_element_located((By.ID, "agent-form")))
+
         driver.find_element(By.ID, "run-button").click()
         wait_text(wait, "run-status", "pending_approval")
         wait.until(EC.visibility_of_element_located((By.ID, "review-panel")))
+        reviewer_input = wait.until(EC.visibility_of_element_located((By.ID, "reviewer-id")))
+        reviewer_input.send_keys(REVIEWER_ID)
+        if reviewer_input.get_attribute("value") != REVIEWER_ID:
+            raise AssertionError("Reviewer identity was not entered as expected")
+        evidence["reviewer_id"] = REVIEWER_ID
+        evidence["checks"].append("reviewer_identity_entered_after_run_surface_visible")
+
         rationale_input = wait.until(EC.visibility_of_element_located((By.ID, "rejection-reason")))
         run_id = driver.find_element(By.ID, "run-id").text.strip()
         evidence["run_id"] = run_id
@@ -83,6 +92,8 @@ def main() -> None:
             raise AssertionError(f"Persisted run status is not rejected: {run!r}")
         if not rejected_event:
             raise AssertionError(f"Persisted REJECTED audit event missing: {types!r}")
+        if rejected_event.get("actor") != f"reviewer:{REVIEWER_ID}":
+            raise AssertionError(f"Persisted reviewer attribution mismatch: {rejected_event!r}")
         if (rejected_event.get("payload") or {}).get("reason") != RATIONALE:
             raise AssertionError(f"Persisted rejection rationale mismatch: {rejected_event!r}")
         if "TOOL_EXECUTED" in types:
@@ -90,12 +101,14 @@ def main() -> None:
 
         evidence["checks"].extend(
             [
+                "reviewer_identity_persisted_in_rejected_audit_event",
                 "trimmed_human_rationale_persisted_in_rejected_audit_event",
                 "rejected_run_has_no_tool_execution",
             ]
         )
         evidence["persisted_status"] = run.get("status")
         evidence["audit_types"] = types
+        evidence["rejected_actor"] = rejected_event.get("actor")
         evidence["rejected_payload"] = rejected_event.get("payload") or {}
 
         screenshot_path = ARTIFACT_DIR / "operator-rejection-rationale.png"

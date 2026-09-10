@@ -13,6 +13,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 BASE_URL = os.getenv("OPERATOR_BASE_URL", "http://127.0.0.1:18701")
 ARTIFACT_DIR = Path(os.getenv("OPERATOR_ARTIFACT_DIR", "/tmp"))
 ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
+REVIEWER_ID = "browser.reviewer.local"
 
 
 def _browser_wait_seconds() -> int:
@@ -81,6 +82,14 @@ def main() -> None:
         wait_text(wait, "run-status", "pending_approval")
         wait.until(EC.visibility_of_element_located((By.ID, "review-panel")))
         wait.until(EC.visibility_of_element_located((By.ID, "execution-input-review")))
+        reviewer_input = wait.until(EC.visibility_of_element_located((By.ID, "reviewer-id")))
+        reviewer_input.clear()
+        reviewer_input.send_keys(REVIEWER_ID)
+        if reviewer_input.get_attribute("value") != REVIEWER_ID:
+            raise AssertionError("Reviewer identity did not bind to the visible operator decision surface")
+        evidence["checks"].append("reviewer_identity_bound_to_decision_surface")
+        evidence["reviewer_id"] = REVIEWER_ID
+
         pending_audit = wait_audit_sequence(
             wait,
             [
@@ -161,6 +170,7 @@ def main() -> None:
               method: 'POST',
               headers: {'Content-Type': 'application/json'},
               body: JSON.stringify({
+                reviewer_id: arguments[2],
                 note: 'Intentional stale digest for browser proof.',
                 expected_execution_inputs_digest: arguments[1],
               }),
@@ -170,6 +180,7 @@ def main() -> None:
             """,
             pending_run_id,
             stale_digest,
+            REVIEWER_ID,
         )
         if rejected.get("__error"):
             raise AssertionError(rejected["__error"])
@@ -225,9 +236,15 @@ def main() -> None:
             raise AssertionError(f"Persisted rejection event missing: {rejected_types!r}")
         if "APPROVED" in rejected_types or "TOOL_EXECUTED" in rejected_types:
             raise AssertionError(f"Rejected attempt emitted false execution evidence: {rejected_types!r}")
+        latest_stale_rejection = next(
+            event for event in reversed(rejected_events) if event.get("event_type") == "APPROVAL_PRECONDITION_REJECTED"
+        )
+        if latest_stale_rejection.get("actor") != f"reviewer:{REVIEWER_ID}":
+            raise AssertionError(f"Stale-digest rejection is not reviewer-bound: {latest_stale_rejection!r}")
         evidence["checks"].append("stale_digest_rejected_409_pending_approval")
         evidence["checks"].append("rejection_notice_renders_submitted_and_current_digests")
         evidence["checks"].append("rejected_attempt_has_no_false_execution_events")
+        evidence["checks"].append("stale_digest_rejection_is_reviewer_bound")
         evidence["rejected_approval"] = {
             "submitted_digest": submitted_digest,
             "current_digest": current_digest,
@@ -241,6 +258,7 @@ def main() -> None:
               method: 'POST',
               headers: {'Content-Type': 'application/json'},
               body: JSON.stringify({
+                reviewer_id: arguments[1],
                 note: 'Intentional missing digest for browser proof.',
               }),
             })
@@ -248,6 +266,7 @@ def main() -> None:
               .catch(error => done({__error: String(error)}));
             """,
             pending_run_id,
+            REVIEWER_ID,
         )
         if missing_rejected.get("__error"):
             raise AssertionError(missing_rejected["__error"])
@@ -310,6 +329,8 @@ def main() -> None:
             event for event in reversed(missing_events) if event.get("event_type") == "APPROVAL_PRECONDITION_REJECTED"
         )
         latest_payload = latest_rejection.get("payload") or {}
+        if latest_rejection.get("actor") != f"reviewer:{REVIEWER_ID}":
+            raise AssertionError(f"Missing-digest rejection is not reviewer-bound: {latest_rejection!r}")
         if latest_payload.get("reason") != "missing_expected_digest":
             raise AssertionError(f"Latest rejection reason is not missing_expected_digest: {latest_payload!r}")
         if latest_payload.get("submitted_execution_inputs_digest") is not None:
@@ -319,6 +340,7 @@ def main() -> None:
         evidence["checks"].append("missing_digest_rejected_409_pending_approval")
         evidence["checks"].append("missing_digest_notice_hides_submitted_digest")
         evidence["checks"].append("missing_digest_rejected_attempt_has_no_false_execution_events")
+        evidence["checks"].append("missing_digest_rejection_is_reviewer_bound")
         evidence["missing_digest_rejection"] = {
             "current_digest": missing_current_digest,
             "submitted_row_visible": submitted_row.is_displayed(),
@@ -377,6 +399,8 @@ def main() -> None:
 
         approved_event = next(event for event in persisted_events if event.get("event_type") == "APPROVED")
         executed_event = next(event for event in persisted_events if event.get("event_type") == "TOOL_EXECUTED")
+        if approved_event.get("actor") != f"reviewer:{REVIEWER_ID}":
+            raise AssertionError(f"Approved event is not reviewer-bound: {approved_event!r}")
         approved_digest = (approved_event.get("payload") or {}).get("execution_inputs_digest")
         executed_digest = (executed_event.get("payload") or {}).get("execution_inputs_digest")
         if approved_digest != reviewed_digest or executed_digest != reviewed_digest:
@@ -388,6 +412,7 @@ def main() -> None:
         evidence["checks"].append("persisted_execution_reloaded")
         evidence["checks"].append("persisted_audit_reloaded_and_matches_ui")
         evidence["checks"].append("reviewed_digest_matches_persisted_approval_execution_correlation")
+        evidence["checks"].append("approved_decision_is_reviewer_bound")
         evidence["persisted_status"] = persisted_run.get("status")
         evidence["persisted_audit_types"] = persisted_types
 

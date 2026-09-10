@@ -1,4 +1,4 @@
-"""Controlled read-only tool execution for Proof v1.0.
+"""Controlled read-only tool execution for bounded product pilots.
 
 The LLM never calls these tools directly. Execution is only reached from the
 human approval boundary after the planned tool name, caller allowlist, and
@@ -38,21 +38,36 @@ _LEGACY_RECORDS: dict[str, dict[str, Any]] = {
     },
 }
 
+_POLICY_RECORDS: dict[str, dict[str, Any]] = {
+    "POL-READ-001": {
+        "policy_id": "POL-READ-001",
+        "scope": "repository_pilot",
+        "decision": "read_only_tools_require_explicit_human_approval",
+        "summary": "Read-only tool execution must remain explicitly reviewer-approved.",
+    },
+    "POL-DATA-001": {
+        "policy_id": "POL-DATA-001",
+        "scope": "repository_pilot",
+        "decision": "public_or_synthetic_fixtures_only",
+        "summary": "Customer or private production data is outside the pilot boundary.",
+    },
+}
+
 
 def _legacy_db_lookup(parameters: dict[str, Any]) -> dict[str, Any]:
     record_id = parameters["record_id"]
     record = _LEGACY_RECORDS.get(record_id)
     if record is None:
-        return {
-            "found": False,
-            "record_id": record_id,
-            "record": None,
-        }
-    return {
-        "found": True,
-        "record_id": record_id,
-        "record": dict(record),
-    }
+        return {"found": False, "record_id": record_id, "record": None}
+    return {"found": True, "record_id": record_id, "record": dict(record)}
+
+
+def _policy_lookup(parameters: dict[str, Any]) -> dict[str, Any]:
+    policy_id = parameters["policy_id"]
+    record = _POLICY_RECORDS.get(policy_id)
+    if record is None:
+        return {"found": False, "policy_id": policy_id, "policy": None}
+    return {"found": True, "policy_id": policy_id, "policy": dict(record)}
 
 
 _TOOL_REGISTRY: dict[str, ToolSpec] = {
@@ -62,9 +77,15 @@ _TOOL_REGISTRY: dict[str, ToolSpec] = {
         required_parameters=frozenset({"record_id"}),
         handler=_legacy_db_lookup,
     ),
+    "policy_lookup": ToolSpec(
+        name="policy_lookup",
+        read_only=True,
+        required_parameters=frozenset({"policy_id"}),
+        handler=_policy_lookup,
+    ),
 }
 
-_TOOL_ALLOWLIST = frozenset({"legacy_db_lookup"})
+_TOOL_ALLOWLIST = frozenset({"legacy_db_lookup", "policy_lookup"})
 
 
 def registered_tool_names() -> tuple[str, ...]:
@@ -98,11 +119,13 @@ def _validate_parameters(spec: ToolSpec, parameters: Any) -> dict[str, Any]:
             "Unexpected tool parameters: " + ", ".join(sorted(unexpected))
         )
 
-    record_id = parameters.get("record_id")
-    if not isinstance(record_id, str) or not record_id.strip():
-        raise ToolExecutionError("record_id must be a non-empty string")
-
-    return {"record_id": record_id.strip()}
+    validated: dict[str, Any] = {}
+    for key in spec.required_parameters:
+        value = parameters.get(key)
+        if not isinstance(value, str) or not value.strip():
+            raise ToolExecutionError(f"{key} must be a non-empty string")
+        validated[key] = value.strip()
+    return validated
 
 
 def execute_approved_tool(

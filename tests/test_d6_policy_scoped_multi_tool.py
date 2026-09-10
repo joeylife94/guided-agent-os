@@ -8,7 +8,6 @@ from sqlalchemy.pool import StaticPool
 
 from app.api.routes import router
 from app.models.database import Base, get_db
-from app.models.models import AgentRun
 from app.services.tool_executor import ToolExecutionError, execute_approved_tool, registered_tool_names
 from tests.approval_digest_helper import DEFAULT_REVIEWER_ID, approval_body
 
@@ -40,47 +39,27 @@ def teardown_function() -> None:
     Base.metadata.drop_all(bind=engine)
 
 
-def _seed_policy_run(*, allowed_tools: list[str] | None = None, parameters: dict | None = None) -> str:
-    db = TestingSessionLocal()
-    try:
-        run = AgentRun(
-            id="run-d6-policy-lookup",
-            agent_type="controlled_rag_agent",
-            status="pending_approval",
-            intake_data={
-                "user_request": "Look up repository policy POL-READ-001",
-                "business_context": "D6 policy isolation acceptance",
-                "data_sources": ["tool_catalog"],
-                "expected_output": "Approved read-only policy result",
-                "risk_level": "internal",
-                "allowed_tools": ["policy_lookup"] if allowed_tools is None else allowed_tools,
-                "tool_parameters": {"policy_id": "POL-READ-001"} if parameters is None else parameters,
-            },
-            raw_llm_output={
-                "tool_plan": {
-                    "requires_tool_or_api": True,
-                    "execution_mode": "planned_only",
-                    "allowed_to_execute": False,
-                    "recommended_tools": [{
-                        "name": "policy_lookup",
-                        "purpose": "Retrieve repository-owned policy fixture",
-                        "requires_approval": True,
-                        "reason": "Read-only policy lookup requires explicit review.",
-                    }],
-                    "blocked_actions": ["direct_database_write"],
-                    "approval_required": True,
-                    "reason": "Human review required.",
-                },
-                "human_review_required": True,
-                "review_status": "pending_approval",
-                "final_status": "pending_approval",
-            },
-        )
-        db.add(run)
-        db.commit()
-        return run.id
-    finally:
-        db.close()
+def _create_policy_run(*, allowed_tools: list[str] | None = None, parameters: dict | None = None) -> str:
+    response = client.post(
+        "/api/agents/controlled_rag_agent/runs",
+        json={
+            "user_request": "Look up repository policy POL-READ-001",
+            "business_context": "D6 policy isolation acceptance",
+            "data_sources": ["tool_catalog"],
+            "expected_output": "Approved read-only policy result",
+            "risk_level": "internal",
+            "allowed_tools": ["policy_lookup"] if allowed_tools is None else allowed_tools,
+            "tool_parameters": {"policy_id": "POL-READ-001"} if parameters is None else parameters,
+        },
+    )
+    assert response.status_code == 201, response.text
+    payload = response.json()
+    assert payload["status"] == "pending_approval"
+    tool_plan = payload["tool_plan"]
+    assert tool_plan["requires_tool_or_api"] is True
+    assert tool_plan["approval_required"] is True
+    assert [tool["name"] for tool in tool_plan["recommended_tools"]] == ["policy_lookup"]
+    return payload["run_id"]
 
 
 def test_two_materially_distinct_read_only_tools_are_registered() -> None:
@@ -137,7 +116,7 @@ def test_policy_tool_parameter_contract_fails_closed() -> None:
 
 
 def test_policy_tool_approval_binds_reviewer_digest_and_persists_correlated_execution() -> None:
-    run_id = _seed_policy_run()
+    run_id = _create_policy_run()
     response = client.post(
         f"/api/agents/runs/{run_id}/approve",
         json=approval_body(
@@ -164,7 +143,7 @@ def test_policy_tool_approval_binds_reviewer_digest_and_persists_correlated_exec
 
 
 def test_policy_run_cannot_execute_when_only_legacy_tool_is_allowed() -> None:
-    run_id = _seed_policy_run(allowed_tools=["legacy_db_lookup"])
+    run_id = _create_policy_run(allowed_tools=["legacy_db_lookup"])
     response = client.post(
         f"/api/agents/runs/{run_id}/approve",
         json=approval_body(

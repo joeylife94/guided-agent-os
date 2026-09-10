@@ -114,8 +114,8 @@ def teardown_function() -> None:
     Base.metadata.drop_all(bind=engine)
 
 
-def test_registry_contains_only_proof_read_only_tool() -> None:
-    assert registered_tool_names() == ("legacy_db_lookup",)
+def test_registry_contains_bounded_read_only_tools() -> None:
+    assert registered_tool_names() == ("legacy_db_lookup", "policy_lookup")
 
 
 def test_no_approval_blocks_execution() -> None:
@@ -333,15 +333,15 @@ def test_approve_after_rejection_is_conflict_and_never_executes_tool() -> None:
 
 def test_unregistered_planned_tool_is_blocked() -> None:
     run_id = _seed_pending_run(
-        tool_name="policy_lookup",
-        allowed_tools=["policy_lookup"],
+        tool_name="unknown_tool",
+        allowed_tools=["unknown_tool"],
     )
 
     response = client.post(
         f"/api/agents/runs/{run_id}/approve",
         json=approval_body(
-            tool_name="policy_lookup",
-            allowed_tools=["policy_lookup"],
+            tool_name="unknown_tool",
+            allowed_tools=["unknown_tool"],
         ),
     )
     assert response.status_code == 422

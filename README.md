@@ -2,7 +2,7 @@
 
 Guided Agent OS is a **controlled enterprise AI Agent proof** built with FastAPI, LangGraph, SQLite, ChromaDB, a local multilingual embedding model, and an optional local OpenAI-compatible LLM endpoint.
 
-The Proof v1.0 goal is deliberately narrow: demonstrate a traceable browser workflow in which a user request is validated, grounded in internal knowledge, routed through human approval when needed, allowed to execute only one approved read-only tool, persisted, and auditable end to end.
+The frozen Proof v1.0 baseline is deliberately narrow: demonstrate a traceable browser workflow in which a user request is validated, grounded in internal knowledge, routed through human approval when needed, allowed to execute one approved read-only proof tool, persisted, and auditable end to end. Long-term progression remains bounded by `GUIDED_AGENT_OS_MASTER.md`; the current D6 candidate adds exactly one second repository-owned read-only pilot tool without changing the frozen Proof v1.0 claim or authorizing write/destructive actions.
 
 `GUIDED_AGENT_OS_MASTER.md` is the single authoritative execution contract for current Proof status, evidence, risks, and next actions.
 
@@ -95,8 +95,8 @@ Browser Operator Workspace
           ▼
  Tool Registry + Read-only Allowlist
           │
-          ▼
-   `legacy_db_lookup`
+          ├──────────────► `legacy_db_lookup`
+          └──────────────► `policy_lookup` (D6 bounded candidate)
           │
           ▼
  SQLite AgentRun + RunAuditEvent
@@ -106,13 +106,14 @@ Browser Operator Workspace
 
 ## Safety boundary
 
-Proof v1.0 intentionally constrains execution:
+The frozen Proof v1.0 baseline remains one deterministic proof tool, `legacy_db_lookup`. The current D6 candidate extends only the bounded read-only registry/policy pilot and intentionally constrains execution:
 
 - no direct LLM tool invocation
-- one deterministic proof tool: `legacy_db_lookup`
-- read-only allowlist
-- strict `record_id` parameter contract
+- exactly two repository-owned deterministic read-only tools in the D6 candidate: `legacy_db_lookup` and `policy_lookup`
+- per-run read-only allowlist; registration alone does not grant a run authority to use either tool
+- strict per-tool parameter contracts: `record_id` for `legacy_db_lookup`, `policy_id` for `policy_lookup`
 - explicit approval for controlled execution
+- reviewer identity plus reviewed execution-input digest remain bound to approval
 - reject/no-approval paths cannot execute
 - unregistered or per-run unauthorized tools cannot execute
 - invalid parameters cannot execute
@@ -121,7 +122,7 @@ Proof v1.0 intentionally constrains execution:
 - no real Oracle/customer production integration
 - no automatic email, Slack, posting, or external-account actions
 
-The proof tool uses a deterministic local fixture. It demonstrates the **control architecture**, not customer-system integration performance.
+Both pilot tools use deterministic repository-owned local fixtures. They demonstrate the **control architecture and policy isolation**, not customer-system integration performance.
 
 ---
 
@@ -256,18 +257,19 @@ For the browser Golden Path, use the Operator Workspace at `/` rather than Swagg
 Proof v1.0 deliberately accepts these limitations:
 
 - `legacy_db_lookup` uses a deterministic local fixture rather than a customer system.
+- D6 `policy_lookup` is also a deterministic repository-owned read-only fixture and does not represent customer policy-system integration.
 - execution result currently shares an existing persisted raw-output field rather than a dedicated execution-result table.
 - `bge_m3` remains only as an explicit compatibility alias; the default provider and persisted semantic provider metadata are `sentence_transformers`.
 - the CPU-oriented Python image still resolves a relatively large Torch dependency footprint.
 - browser CI depends on Chrome + Selenium availability.
 - authentication, OAuth/SSO, multi-tenancy, complex RBAC, destructive tools, external-account actions, Kubernetes, HA, and enterprise observability are outside the frozen Proof v1.0 scope.
-- positive local-LLM inference with the final semantic stack still requires final closure evidence or an explicit closure decision.
+- positive local-LLM inference evidence remains bounded to the accepted controlled-pilot environment and is not a production serving/model-quality claim.
 
 ---
 
 ## Proof status
 
-P1–P5 are closed with evidence. Phase 6 is the final packaging/closure phase.
+Proof v1.0 is frozen. D1–D4 are accepted destinations; D5 reviewer attribution has completed its bounded milestone and D6 policy-scoped multi-tool read-only progression is the current candidate subject to the authoritative MASTER and exact-head acceptance lifecycle.
 
 For exact evidence IDs, commit/run references, accepted risks, and the current next action, read:
 

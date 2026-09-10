@@ -14,15 +14,16 @@
 | D2 | **DESTINATION REACHED — L4 CONTROLLED OPERATOR PILOT** |
 | D3 | **DESTINATION REACHED — VERIFIED LOCAL-LLM CONTROLLED OPERATOR PILOT** |
 | D4 | **DESTINATION REACHED — REUSABLE CONTROLLED AGENT TEMPLATE PILOT** |
-| D5 | **SELECTED / IN PROGRESS — REVIEWER IDENTITY-BOUND DECISION PILOT** |
-| Latest accepted milestone | **D4-02 / Issue #72 second registered controlled template — CLOSED / ACCEPTED** |
-| Accepted D4-02 head | `0bcb570a2b331cb48b5d5ac8a21a4e86d45b32e6` |
-| Latest accepted progression merge | `ec29d5c9124991b7df8a28c3128cfd02078a2abc` |
-| Active milestone | **D5-01 / Issue #74 — bounded local reviewer identity for human decisions** |
-| Active PR | **#75** |
-| Progression state | **D5 ACTIVE — REVIEWER-BOUND DECISION ACCEPTANCE IN PROGRESS** |
+| D5 | **DESTINATION REACHED — REVIEWER IDENTITY-BOUND DECISION PILOT** |
+| D6 | **SELECTED / IN PROGRESS — POLICY-SCOPED MULTI-TOOL READ-ONLY PILOT** |
+| Latest accepted milestone | **D5-01 / Issue #74 reviewer identity-bound decisions — CLOSED / ACCEPTED** |
+| Accepted D5-01 head | `71758ce7a140883e12fa76968244209c4abe5038` |
+| Latest accepted progression merge | `519ed3765a2b8b54b5f164d117fecef83a493a13` |
+| Active milestone | **D6-01 / Issue #76 — policy-scoped execution across two read-only tools** |
+| Active PR | **#77** |
+| Progression state | **D6 ACTIVE — MULTI-TOOL READ-ONLY ACCEPTANCE IN PROGRESS** |
 
-D1, D2, D3, and D4 remain accepted/frozen at their documented boundaries. Human-approved long-term progression on 2026-09-09 pre-authorized bounded continuation through D5 and D6 after destination-level acceptance and MASTER reconciliation. D7 or any expansion into write/destructive authority, customer/private production systems, enterprise authorization, production deployment, distributed guarantees, signing/non-repudiation, or security/compliance certification requires Human Review.
+D1 through D5 remain accepted/frozen at their documented boundaries. Human-approved long-term progression on 2026-09-09 pre-authorized bounded continuation through D6 after destination-level acceptance and MASTER reconciliation. D7 or any expansion into write/destructive authority, customer/private production systems, enterprise authorization, production deployment, distributed guarantees, signing/non-repudiation, or security/compliance certification requires Human Review.
 
 ---
 
@@ -122,7 +123,7 @@ Exact-head executed evidence established:
 - explicit approval still gated allowlisted read-only `legacy_db_lookup` execution;
 - correlated result/audit/retrieval provenance and accepted D2 evidence/reload surfaces remained intact;
 - D3 Positive Local LLM Pilot, P-025 Controlled Operator Pilot, PR Validation, Firebat Container, Proof Evaluation, and related browser proof workflows were GREEN on the accepted candidate head;
-- all PR #69 review threads, including the two earlier P1 findings and the final P2 workflow-trigger finding, were resolved before merge.
+- all PR #69 review threads were resolved before merge.
 
 D3 acceptance is bounded to this controlled repository pilot. It does not authorize broader model autonomy, customer data/system access, write/destructive tools, reviewer identity, distributed guarantees, or production/compliance claims.
 
@@ -173,17 +174,19 @@ D4 is therefore reached at the bounded repository pilot level: two materially di
 
 ## D5 — Reviewer Identity-bound Decision Pilot
 
-**SELECTED / IN PROGRESS.**
+**DESTINATION REACHED — REVIEWER IDENTITY-BOUND DECISION PILOT.**
 
-D5 is pre-authorized after D4 closure and is now active. The goal is bounded, truthful reviewer attribution for human decisions while preserving exact-run and reviewed-input digest correlation. D5 does not authorize OAuth/OIDC, SSO, enterprise RBAC, account lifecycle, organization hierarchy, customer authorization, or broader tool authority.
+D5-01 closed the bounded reviewer-attribution goal in one coherent vertical slice without introducing authentication or enterprise authorization.
 
 ### D5-01 — Issue #74 / PR #75
 
-**ACTIVE — final exact-head acceptance after MASTER reconciliation.**
+**CLOSED / ACCEPTED.**
 
-Current candidate before this reconciliation: `88274110619e63d7c8be6358c3e6b1fb22c9374b`.
+Accepted exact candidate head: `71758ce7a140883e12fa76968244209c4abe5038`.
 
-D5-01 candidate establishes:
+Accepted progression merge: `519ed3765a2b8b54b5f164d117fecef83a493a13` via PR #75 with expected-head protection; Issue #74 is CLOSED/completed.
+
+D5-01 established:
 - approve, reject, and recovery/quarantine decision requests require a bounded repository-local `reviewer_id`;
 - missing or blank reviewer identity fails closed before decision side effects/tool execution;
 - persisted audit actors bind decisions to `reviewer:<reviewer_id>` rather than generic `human` / `operator` attribution;
@@ -191,17 +194,34 @@ D5-01 candidate establishes:
 - approval precondition rejection evidence is attributed to the same reviewer identity;
 - exact reviewed execution-input digest binding, read-only allowlist, result/audit/retrieval provenance, local-LLM behavior, and D4 two-template architecture remain unchanged.
 
-Exact-head executable evidence on candidate `88274110619e63d7c8be6358c3e6b1fb22c9374b` was observed GREEN for:
-- PR Validation;
-- Firebat Container;
-- D3 Positive Local LLM Pilot;
-- P-025 Controlled Operator Pilot;
-- Proof Evaluation;
-- P-024 Browser Retrieval Provenance;
-- P-019 Browser Rejection Rationale Run Binding;
-- P-018 Browser Rejection Rationale.
+The accepted D5-01 head was exact-head GREEN for PR Validation, Firebat Container, D3 Positive Local LLM Pilot, P-025 Controlled Operator Pilot, Proof Evaluation, P-024 Browser Retrieval Provenance, P-019 Browser Rejection Rationale Run Binding, and P-018 Browser Rejection Rationale before merge.
 
-The prior P1 review thread questioning approval execution semantics was resolved because D5 intentionally preserves the already accepted D3/D4 approve-plus-allowlisted-read-only-execution behavior rather than redefining authority semantics. This MASTER reconciliation moves the branch head, so D5-01 remains ACTIVE until the new exact head receives required executable evidence and clean review.
+D5 reviewer identity remains repository-local attribution only; it is not authentication, OAuth/OIDC, SSO, enterprise RBAC, account lifecycle, organization hierarchy, or customer authorization.
+
+## D6 — Policy-scoped Multi-tool Read-only Pilot
+
+**SELECTED / IN PROGRESS.**
+
+D6 is pre-authorized after D5 closure. Its bounded goal is to prove that two materially distinct deterministic read-only tools can traverse the same registry/policy/parameter/review/approval/execution/audit architecture without cross-tool authority leakage.
+
+### D6-01 — Issue #76 / PR #77
+
+**ACTIVE — exact-head acceptance after authority reconciliation.**
+
+Pre-reconciliation candidate: `6d518c880c60c498bbb6bd96fc0aaedef48350bd`.
+
+D6-01 candidate establishes:
+- exactly two repository-owned deterministic read-only tools are registered: accepted `legacy_db_lookup` and bounded `policy_lookup`;
+- the tools have distinct required parameter contracts: `record_id` vs `policy_id`;
+- generic parameter validation is driven by each registered `ToolSpec.required_parameters` and rejects missing/blank values;
+- per-run `allowed_tools` remains an authority boundary even when both tools are globally registered;
+- cross-tool execution is denied when the planned tool is outside the run allowlist;
+- the real create-run/planning workflow can select `policy_lookup` for an explicit policy lookup request rather than relying on a hand-written seeded plan;
+- successful execution still requires explicit reviewer identity and the exact reviewed execution-input digest;
+- successful `policy_lookup` execution produces correlated approval/result/audit evidence;
+- no write/destructive authority, external side effect, customer/private data, production deployment, or enterprise authorization is introduced.
+
+Exact-head executable evidence on `6d518c880c60c498bbb6bd96fc0aaedef48350bd` was observed GREEN for PR Validation, Firebat Container, D3 Positive Local LLM Pilot, P-025 Controlled Operator Pilot, Proof Evaluation, P-024 Browser Retrieval Provenance, P-019 Browser Rejection Rationale Run Binding, and P-018 Browser Rejection Rationale. This MASTER reconciliation moves the PR head, so D6-01 remains ACTIVE until the new exact head receives required executable evidence and clean review.
 
 ---
 
@@ -218,7 +238,8 @@ P-001 through P-025 remain **CLOSED / ACCEPTED** under their previously recorded
 - **D3-01 CLOSED / ACCEPTED** — positive real local-LLM inference in the controlled operator pilot; Issue #68 / PR #69; accepted head `f7677638d41ac7654b935b559a932b7db1108352`; merge `d8962279cd926c073b3b8df1ebc19348fc893823`.
 - **D4-01 CLOSED / ACCEPTED** — template-configurable controlled workflow; Issue #70 / PR #71; accepted head `fd7b46fb44eeed688cefc66cb743ca1bfc4d2624`; merge `b3c9ba65e6c8c3a4cf2114960ccb00d55735c5ce`.
 - **D4-02 CLOSED / ACCEPTED** — second materially distinct registered controlled template through the generic workflow; Issue #72 / PR #73; accepted head `0bcb570a2b331cb48b5d5ac8a21a4e86d45b32e6`; merge `ec29d5c9124991b7df8a28c3128cfd02078a2abc`.
-- **D5-01 ACTIVE** — bounded repository-local reviewer identity across approve/reject/recovery decisions; Issue #74 / PR #75; final exact-head acceptance pending after this MASTER reconciliation.
+- **D5-01 CLOSED / ACCEPTED** — bounded repository-local reviewer identity across approve/reject/recovery decisions; Issue #74 / PR #75; accepted head `71758ce7a140883e12fa76968244209c4abe5038`; merge `519ed3765a2b8b54b5f164d117fecef83a493a13`.
+- **D6-01 ACTIVE** — policy-scoped execution across exactly two deterministic read-only tools; Issue #76 / PR #77; final exact-head acceptance pending after this authority reconciliation.
 
 Earlier P-001 through P-019 acceptance history remains authoritative in Git/Issue/PR history and is not reopened by this reconciliation.
 
@@ -228,22 +249,24 @@ Earlier P-001 through P-019 acceptance history remains authoritative in Git/Issu
 
 - CPU image/model dependency footprint remains an optimization concern, not a D3 acceptance blocker.
 - `legacy_db_lookup` remains a deterministic local fixture, not customer-system integration.
+- D6 `policy_lookup` is also a repository-owned deterministic local fixture; it does not represent external/customer policy-system access.
 - concurrency/recovery evidence remains bounded to the current SQLite/SQLAlchemy runtime and documented quarantine/recovery semantics; no replay/reconstruction or distributed guarantee is claimed.
 - browser proof remains bounded to the repository Firebat/GitHub Actions/headless-Chrome environment.
 - real local-LLM evidence is bounded to the accepted Ollama + `qwen2.5:1.5b` controlled-pilot path; it is not a model-quality, benchmark, throughput, or production-serving claim.
 - D4 reuse evidence is bounded to `controlled_rag_agent` and repository-owned public/synthetic-safe `public_enterprise_ai`; it is not customer/private enterprise integration.
 - D5 reviewer identity is repository-local attribution only; it is not authentication, OAuth/OIDC, SSO, enterprise RBAC, account lifecycle, organization hierarchy, or customer authorization.
+- D6 authority is bounded to exactly two deterministic read-only fixture tools plus per-run allowlists; global registration never overrides the run-specific allowed-tool boundary.
 - write/destructive tooling, unrestricted autonomy, signing/non-repudiation, customer/private data integration, cloud/Kubernetes production deployment, SLA/SLO, and security/compliance certification remain explicitly unaccepted.
 
 ---
 
 # 5. Destination Gate
 
-**CURRENT DESTINATION — D5 REVIEWER IDENTITY-BOUND DECISION PILOT.**
+**CURRENT DESTINATION — D6 POLICY-SCOPED MULTI-TOOL READ-ONLY PILOT.**
 
-Finish active D5-01 before selecting farther work. Do not split reviewer attribution into proof-of-proof milestones. Prefer one coherent identity-bound operator acceptance slice using the existing audit/evidence surfaces.
+Finish active D6-01 before selecting farther work. D6 acceptance requires executable evidence for registered tool → request/template policy → allowed tool set → validated parameters → reviewed execution-input digest → explicit reviewer-bound approval → executor → correlated result/audit, while proving that one registered tool cannot leak authority into a run scoped to the other.
 
-If the reconciled D5-01 exact head is GREEN and review-clean, merge PR #75 with expected-head protection, close Issue #74, re-read current `main` MASTER, and perform Destination Review. If the bounded reviewer identity goal is fully reached by D5-01, mark D5 **DESTINATION REACHED** and automatically select pre-authorized D6 — `Policy-scoped Multi-tool Read-only Pilot`. If a coherent destination-level executable run exposes one remaining D5 blocker, select only that smallest demonstrated blocker.
+If the reconciled D6-01 exact head is GREEN and review-clean, merge PR #77 with expected-head protection, close Issue #76, re-read current `main` MASTER, and perform Destination Review. If D6-01 satisfies the bounded two-tool destination claim, mark D6 **DESTINATION REACHED** and stop scheduled development because the next meaningful expansion crosses D7/Human Review boundaries. Do not manufacture additional tools, policy permutations, browser proof layers, or proof-of-proof milestones solely to continue activity.
 
 D7 or any write/destructive/customer-production/enterprise-auth/production-deployment/distributed-guarantee/signing/compliance expansion requires Human Review.
 
@@ -252,45 +275,45 @@ D7 or any write/destructive/customer-production/enterprise-auth/production-deplo
 # 6. Current Run Record
 
 ### Current Destination
-D5 — `Reviewer Identity-bound Decision Pilot`.
+D6 — `Policy-scoped Multi-tool Read-only Pilot`.
 
 ### Current Milestone
-D5-01 / Issue #74 / PR #75 — `bind bounded local reviewer identity to human decisions`.
+D6-01 / Issue #76 / PR #77 — `prove policy-scoped execution across two read-only tools`.
 
 ### Changed
-- D4-02 is reconciled as CLOSED / ACCEPTED with accepted head `0bcb570a2b331cb48b5d5ac8a21a4e86d45b32e6` and merge `ec29d5c9124991b7df8a28c3128cfd02078a2abc`;
-- D4 is marked DESTINATION REACHED at the bounded two-template reuse level;
-- pre-authorized D5 is selected/current;
-- D5-01 binds approve/reject/recovery decision attribution to bounded repository-local reviewer identifiers;
-- missing/blank reviewer identity fails closed;
-- Operator/browser callers are aligned to the reviewer identity lifecycle;
-- frozen D1/D2/D3 authority, reviewed-digest, allowlist, local-LLM, persistence, provenance, and non-claims remain preserved.
+- D5-01 is reconciled as CLOSED / ACCEPTED with accepted head `71758ce7a140883e12fa76968244209c4abe5038` and merge `519ed3765a2b8b54b5f164d117fecef83a493a13`;
+- D5 is marked DESTINATION REACHED at the bounded repository-local reviewer attribution level;
+- pre-authorized D6 is selected/current;
+- D6-01 adds one deterministic repository-owned read-only `policy_lookup` fixture alongside `legacy_db_lookup`;
+- real create-run planning now recognizes explicit policy lookup requests and can produce the second-tool plan;
+- generic required-parameter validation and per-run allowed-tool isolation cover both tools;
+- README/current scope was reconciled to distinguish the frozen one-tool baseline from the bounded D6 two-tool candidate;
+- frozen D1-D5 authority, reviewer binding, reviewed digest, local-LLM, persistence, provenance, and non-claims remain preserved.
 
 ### Actually Executed
 - current root MASTER on `main` read first;
-- current open PR #75 and prior D4 merge state re-fetched;
-- PR #73 confirmed merged at exact head `0bcb570a2b331cb48b5d5ac8a21a4e86d45b32e6` to merge `ec29d5c9124991b7df8a28c3128cfd02078a2abc`;
-- PR #75 exact head `88274110619e63d7c8be6358c3e6b1fb22c9374b` workflow runs inspected;
+- current PR #77 state and exact head re-fetched;
+- exact-head workflows for `6d518c880c60c498bbb6bd96fc0aaedef48350bd` inspected;
 - PR Validation, Firebat Container, D3 Positive Local LLM Pilot, P-025 Controlled Operator Pilot, Proof Evaluation, P-024 Browser Retrieval Provenance, P-019 Browser Rejection Run Binding, and P-018 Browser Rejection Rationale all observed `completed/success` on that exact head;
-- remaining P1 review thread was rechecked against accepted D3/D4 semantics and exact-head regressions, then resolved;
-- this branch-side MASTER reconciliation applied only after executable evidence and review cleanup.
+- PR #75 was re-fetched and confirmed merged at accepted head `71758ce7a140883e12fa76968244209c4abe5038` to merge `519ed3765a2b8b54b5f164d117fecef83a493a13`;
+- current PR #77 review threads were re-fetched: the prior real-planning-path P1 is outdated after the correction; the authority-reconciliation P1 remains active until this commit;
+- this branch-side MASTER reconciliation was applied only after exact-head executable evidence was GREEN.
 
 ### Verified
-- candidate `88274110619e63d7c8be6358c3e6b1fb22c9374b` is exact-head GREEN across all required D5/D3/D2/browser/evaluation regression surfaces;
-- reviewer identity fail-closed and persisted reviewer attribution are covered by PR Validation and the reviewer-bound browser/operator acceptance paths;
-- D4 is actually merged/closed in repository state and is no longer merely active work;
+- candidate `6d518c880c60c498bbb6bd96fc0aaedef48350bd` is exact-head GREEN across all required D6/D5/D3/D2/browser/evaluation regression surfaces;
+- D5 is actually merged/closed in repository state and no longer active work;
+- D6 implementation remains exactly two deterministic read-only fixture tools and preserves per-run policy isolation;
 - no write/destructive tool authority or enterprise authentication/authorization scope was added.
 
 ### Not Verified
 - the new exact head created by this MASTER reconciliation has not yet completed required executable evidence/review;
-- D5-01 is therefore not yet ACCEPTED;
-- D5 destination is not yet claimed reached;
-- D6 is pre-authorized but not active.
+- D6-01 is therefore not yet ACCEPTED;
+- D6 destination is not yet claimed reached.
 
 ### Remaining Risks
-- MASTER reconciliation moves the PR head and cannot inherit PASS from `88274110...`;
-- final exact-head review may expose a concrete D5 blocker;
-- reviewer identity remains caller-supplied repository-local attribution, not authenticated identity.
+- MASTER reconciliation moves the PR head and cannot inherit PASS from `6d518c88...`;
+- final exact-head review may expose a concrete D6 blocker;
+- both tools remain deterministic repository fixtures, so D6 is a bounded architecture/policy-isolation claim rather than external integration evidence.
 
 ### Exact Next Action
-Observe the new exact PR head produced by this reconciliation without further mutation while required CI is queued/in progress. If final required gates are GREEN and review is clean, merge PR #75 with expected-head protection, confirm Issue #74 closure, re-read current `main` MASTER, and perform D5 Destination Review. If D5 is reached, automatically select pre-authorized D6. If RED, correct only the first concrete same-gap failure inside PR #75.
+Observe the new exact PR head produced by this reconciliation without further mutation while required CI is queued/in progress. If final required gates are GREEN and review is clean, resolve the now-satisfied authority review thread, merge PR #77 with expected-head protection, confirm Issue #76 closure, re-read current `main` MASTER, and perform D6 Destination Review. If D6 is reached, stop scheduled development at the D7/Human Review boundary. If RED, correct only the first concrete same-gap failure inside PR #77.

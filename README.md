@@ -2,7 +2,7 @@
 
 Guided Agent OS is a **controlled enterprise AI Agent proof** built with FastAPI, LangGraph, SQLite, ChromaDB, a local multilingual embedding model, and an optional local OpenAI-compatible LLM endpoint.
 
-The frozen Proof v1.0 baseline is deliberately narrow: demonstrate a traceable browser workflow in which a user request is validated, grounded in internal knowledge, routed through human approval when needed, allowed to execute one approved read-only proof tool, persisted, and auditable end to end. Long-term progression remains bounded by `GUIDED_AGENT_OS_MASTER.md`; the current D6 candidate adds exactly one second repository-owned read-only pilot tool without changing the frozen Proof v1.0 claim or authorizing write/destructive actions.
+The frozen Proof v1.0 baseline is deliberately narrow: demonstrate a traceable browser workflow in which a user request is validated, grounded in internal knowledge, routed through human approval when needed, allowed to execute one approved read-only proof tool, persisted, and auditable end to end. Long-term progression remains bounded by `GUIDED_AGENT_OS_MASTER.md`; the accepted D6 pilot adds exactly one second repository-owned read-only tool without changing the frozen Proof v1.0 claim or authorizing write/destructive actions.
 
 `GUIDED_AGENT_OS_MASTER.md` is the single authoritative execution contract for current Proof status, evidence, risks, and next actions.
 
@@ -96,7 +96,7 @@ Browser Operator Workspace
  Tool Registry + Read-only Allowlist
           │
           ├──────────────► `legacy_db_lookup`
-          └──────────────► `policy_lookup` (D6 bounded candidate)
+          └──────────────► `policy_lookup` (D6 accepted bounded pilot)
           │
           ▼
  SQLite AgentRun + RunAuditEvent
@@ -106,10 +106,10 @@ Browser Operator Workspace
 
 ## Safety boundary
 
-The frozen Proof v1.0 baseline remains one deterministic proof tool, `legacy_db_lookup`. The current D6 candidate extends only the bounded read-only registry/policy pilot and intentionally constrains execution:
+The frozen Proof v1.0 baseline remains one deterministic proof tool, `legacy_db_lookup`. The accepted D6 pilot extends only the bounded read-only registry/policy pilot and intentionally constrains execution:
 
 - no direct LLM tool invocation
-- exactly two repository-owned deterministic read-only tools in the D6 candidate: `legacy_db_lookup` and `policy_lookup`
+- exactly two repository-owned deterministic read-only tools in the accepted D6 pilot: `legacy_db_lookup` and `policy_lookup`
 - per-run read-only allowlist; registration alone does not grant a run authority to use either tool
 - strict per-tool parameter contracts: `record_id` for `legacy_db_lookup`, `policy_id` for `policy_lookup`
 - explicit approval for controlled execution
@@ -269,7 +269,7 @@ Proof v1.0 deliberately accepts these limitations:
 
 ## Proof status
 
-Proof v1.0 is frozen. D1–D4 are accepted destinations; D5 reviewer attribution has completed its bounded milestone and D6 policy-scoped multi-tool read-only progression is the current candidate subject to the authoritative MASTER and exact-head acceptance lifecycle.
+Proof v1.0 is frozen. D1–D6 are accepted destinations at their documented bounded pilot levels. D6 policy-scoped multi-tool read-only acceptance is complete; any farther destination or expansion beyond the accepted D6 authority envelope requires Human Review under the authoritative MASTER.
 
 For exact evidence IDs, commit/run references, accepted risks, and the current next action, read:
 
